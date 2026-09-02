@@ -37,6 +37,15 @@ type field struct {
 	JSONName string
 	Type     string
 	Doc      []string
+	// RawDoc is the specification's description, before it is turned into a
+	// Go doc comment. The rendered form is prefixed with the field's Go name
+	// and wrapped, which is right above a struct field and wrong as a
+	// command-line flag's usage string.
+	RawDoc string
+	// Enum lists the accepted values for a field whose enum is written
+	// inline. A named enum becomes a Go type and is recovered from that; an
+	// inline one exists nowhere else, so it is kept here for the manifest.
+	Enum     []string
 	Required bool
 	// Nilable types carry no omitempty-relevant zero value distinction.
 	OmitEmpty bool
@@ -246,12 +255,14 @@ func (b *builder) buildField(parent *namedType, propName string, schema node, ba
 	}
 	extra := ""
 	if sm != nil {
-		if enums := list(sm, "enum"); len(enums) > 0 && !strings.Contains(typ, ".") {
-			vals := make([]string, 0, len(enums))
+		if enums := list(sm, "enum"); len(enums) > 0 {
+			quoted := make([]string, 0, len(enums))
 			for _, e := range enums {
-				vals = append(vals, fmt.Sprintf("%q", fmt.Sprint(e)))
+				v := fmt.Sprint(e)
+				f.Enum = append(f.Enum, v)
+				quoted = append(quoted, fmt.Sprintf("%q", v))
 			}
-			extra = "One of: " + strings.Join(vals, ", ") + "."
+			extra = "One of: " + strings.Join(quoted, ", ") + "."
 		}
 	}
 	if required && parent.RequestSide {
@@ -260,6 +271,7 @@ func (b *builder) buildField(parent *namedType, propName string, schema node, ba
 		}
 		extra += "Required."
 	}
+	f.RawDoc = doc
 	f.Doc = goDoc(goName, wrapText(doc, 68), extra)
 	return f, nil
 }

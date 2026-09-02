@@ -523,6 +523,47 @@ func (c *Client) CreateKeypair(ctx context.Context, body *KeypairCreateRequest, 
 	return out.Keypair, nil
 }
 
+// CreateSerialConsoleTicket — Mint a ticket for the serial console.
+//
+// Mint a short-lived, single-instance credential for opening the serial
+// console from a browser.
+//
+// **You probably do not need this.** Any client that can set request
+// headers — the `basaltic` CLI, or any non-browser tool —
+// authenticates the WebSocket upgrade normally. This exists because a
+// browser's WebSocket constructor takes a URL and nothing else, so there
+// is no way to send an `Authorization` header on it.
+//
+// Pass the returned `ticket` as a query parameter on the upgrade:
+//
+// ```
+// wss://compute.<region>.basaltic.sh/v1/instances/<id>/console/serial?ticket=<ticket>
+// ```
+//
+// **The ticket is deliberately narrow.** It opens ONE instance, expires
+// in sixty seconds, and authorizes nothing else — because a credential
+// in a URL is written to proxy access logs, and this is worth far less
+// there than a session token would be. Mint one per connection; do not
+// store it.
+//
+// It carries who you are, not what you may do. Whether you may open this
+// console is still decided when the socket connects, against policy as
+// it stands then — so a permission revoked in the intervening minute
+// is honoured rather than frozen into the ticket.
+func (c *Client) CreateSerialConsoleTicket(ctx context.Context, instanceID string, opts ...basaltic.RequestOption) (*SerialConsoleTicket, error) {
+	op := &basaltic.Operation{
+		ID:       "createSerialConsoleTicket",
+		Method:   "POST",
+		Path:     "/v1/instances/{instance_id}/console/ticket",
+		PathArgs: []string{instanceID},
+	}
+	var out SerialConsoleTicket
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // DeleteImage deletes (hide) an image.
 //
 // Soft-delete: the catalog row is flipped to status=hidden so in-flight
@@ -1285,9 +1326,16 @@ func (c *Client) StartInstance(ctx context.Context, instanceID string, opts ...b
 // — the guest's credentials are still required and nothing here grants
 // access past what the guest itself allows.
 //
-// Authentication is on the upgrade request, signed or
-// cookie-authenticated like any other call, so no separate token step is
-// needed.
+// **Authenticating the upgrade.** A client that can set headers — the
+// `basaltic` CLI, or anything not running in a browser — authenticates
+// this like every other call and needs nothing extra.
+//
+// A BROWSER cannot: the WebSocket constructor takes a URL and no
+// headers. For that case, `POST` the companion `/console/ticket`
+// endpoint and pass the result as a `ticket` query parameter. The ticket
+// is deliberately narrow — one instance, sixty seconds — because a
+// credential in a URL ends up in proxy logs, and that one is worth far
+// less than a session token would be.
 //
 // One session per instance: opening a second disconnects the first,
 // rather than interleaving two people's keystrokes into the same

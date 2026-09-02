@@ -29,6 +29,9 @@ type param struct {
 	WireName string // query or path parameter name
 	Type     string // Go type
 	Doc      []string
+	// RawDoc is the specification's description, unwrapped and without the
+	// Go identifier the rendered doc comment prefixes.
+	RawDoc   string
 	Required bool
 }
 
@@ -218,6 +221,7 @@ func (b *builder) buildParams(op *operation, om map[string]any, base string) err
 			WireName: wire,
 			Type:     typ,
 			Required: required,
+			RawDoc:   doc,
 		}
 		switch in {
 		case "path":

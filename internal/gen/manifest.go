@@ -58,6 +58,9 @@ type manifestOp struct {
 	ParamsType string          `json:"params_type,omitempty"`
 	Params     []manifestField `json:"params,omitempty"`
 
+	// BodyType is the Go type exactly as the method takes it, pointer and
+	// all: whether a body is passed by value or by pointer depends on the
+	// schema and cannot be guessed from the name.
 	BodyType   string          `json:"body_type,omitempty"`
 	BodyKind   string          `json:"body_kind,omitempty"` // json | stream | text
 	BodyFields []manifestField `json:"body_fields,omitempty"`
@@ -109,11 +112,13 @@ func flagKind(goType string) string {
 	case "float64":
 		return "float"
 	case "time.Time":
-		return "string"
+		// Not a string: a caller has to parse it, so say so rather than
+		// letting a downstream tool bind a *time.Time to a string flag.
+		return "time"
 	case "[]string":
 		return "stringSlice"
 	case "[]byte":
-		return "string"
+		return "bytes"
 	}
 	if strings.HasPrefix(t, "[]") || strings.HasPrefix(t, "map[") {
 		return "json"
@@ -150,7 +155,7 @@ func (b *builder) manifestOp(op *operation) manifestOp {
 		Resource:   op.Resource,
 		Verb:       op.Verb,
 		ParamsType: op.ParamsType,
-		BodyType:   strings.TrimPrefix(op.BodyType, "*"),
+		BodyType:   op.BodyType,
 		ResultType: op.Result.Type,
 		ItemType:   op.Result.ItemType,
 		Paginated:  op.Paginated,
@@ -179,7 +184,7 @@ func (b *builder) manifestOp(op *operation) manifestOp {
 		m.PathParams = append(m.PathParams, manifestParam{
 			Wire:   p.WireName,
 			GoName: p.Name,
-			Doc:    firstLine(p.Doc),
+			Doc:    usageText(p.RawDoc),
 		})
 	}
 	for _, p := range op.QueryParams {
@@ -191,7 +196,7 @@ func (b *builder) manifestOp(op *operation) manifestOp {
 			Pointer:  strings.HasPrefix(p.Type, "*"),
 			Required: p.Required,
 			Enum:     b.enumValues(p.Type),
-			Doc:      firstLine(p.Doc),
+			Doc:      usageText(p.RawDoc),
 		})
 	}
 	if op.Body == bodyJSON {
@@ -204,8 +209,8 @@ func (b *builder) manifestOp(op *operation) manifestOp {
 					FlagKind: fallbackKind(flagKind(f.Type), b, f.Type),
 					Pointer:  strings.HasPrefix(f.Type, "*"),
 					Required: f.Required,
-					Enum:     b.enumValues(f.Type),
-					Doc:      firstLine(f.Doc),
+					Enum:     mergeEnum(b.enumValues(f.Type), f.Enum),
+					Doc:      usageText(f.RawDoc),
 				})
 			}
 		}
@@ -231,6 +236,14 @@ func fallbackKind(kind string, b *builder, goType string) string {
 	return "json"
 }
 
+// mergeEnum prefers a named type's values and falls back to an inline list.
+func mergeEnum(named, inline []string) []string {
+	if len(named) > 0 {
+		return named
+	}
+	return inline
+}
+
 func (b *builder) enumValues(goType string) []string {
 	nt, ok := b.types[strings.TrimPrefix(goType, "*")]
 	if !ok || nt.Kind != kindEnum {
@@ -243,13 +256,29 @@ func (b *builder) enumValues(goType string) []string {
 	return out
 }
 
-func firstLine(doc []string) string {
-	for _, l := range doc {
-		if s := strings.TrimSpace(l); s != "" {
-			return s
-		}
+// usageText reduces a description to one line fit for a flag's usage string.
+//
+// Three things have to go. The rendered Go doc comment is prefixed with the
+// field's own name, which reads as "AssignPublicIP the older spelling of…" on
+// a command line. Markdown backticks are load-bearing to pflag, which reads
+// the first backticked word as the flag's value placeholder and would print
+// "--assign-public-ip networks[0].assign_public_ip". And a paragraph is too
+// long, so it is cut at the first sentence rather than the first line, which
+// would end mid-clause.
+func usageText(doc string) string {
+	s := strings.TrimSpace(strings.Join(strings.Fields(strings.ReplaceAll(doc, "\n", " ")), " "))
+	s = strings.ReplaceAll(s, "`", "")
+	s = strings.ReplaceAll(s, "**", "")
+	if i := strings.Index(s, ". "); i > 0 {
+		s = s[:i]
 	}
-	return ""
+	s = strings.TrimSuffix(s, ".")
+	if s == "" {
+		return ""
+	}
+	// A usage string sits after the flag name, so it reads better lowercase
+	// unless it opens with a name or an acronym.
+	return s
 }
 
 func writeManifest(outDir string, m manifest) error {

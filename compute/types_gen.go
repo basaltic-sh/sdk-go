@@ -1037,6 +1037,20 @@ type ResizeInstanceRequest struct {
 	FlavorID string `json:"flavor_id"`
 }
 
+// SerialConsoleTicket a one-shot credential for opening a serial console from a browser.
+// Pass `ticket` as a query parameter on the WebSocket upgrade.
+type SerialConsoleTicket struct {
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// ExpiresIn seconds until it expires.
+	ExpiresIn int `json:"expires_in"`
+
+	// Ticket the credential. Opaque — do not parse it. Good for one instance
+	// and one minute; mint a new one per connection rather than storing
+	// it.
+	Ticket string `json:"ticket"`
+}
+
 type Tags = map[string]string
 
 type UpdateInstanceVolumeAttachmentRequest struct {

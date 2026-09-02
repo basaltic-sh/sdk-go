@@ -135,6 +135,21 @@ func (s *ClientCredentialsSource) Token(ctx context.Context) (string, error) {
 	return token, err
 }
 
+// ExpiresAt reports when the cached token expires, or the zero time when
+// there is none.
+//
+// Exported for callers that persist a token outside this process — the CLI
+// caches to disk between invocations, and has to store the expiry alongside
+// it. Nothing in a long-running program needs this.
+func (s *ClientCredentialsSource) ExpiresAt() time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.token == "" {
+		return time.Time{}
+	}
+	return s.expires
+}
+
 // Invalidate drops the cached token, forcing the next call to exchange a new
 // one. The SDK calls this itself when the platform rejects a token that had
 // not yet expired — a revoked session, say — so that one 401 costs one retry
