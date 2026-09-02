@@ -34,6 +34,18 @@ check-generated: generate
 		exit 1; \
 	}
 
+# Reports the exported-API change against the last release tag, and the
+# version bump it implies. See RELEASING.md.
+.PHONY: apidiff
+apidiff:
+	scripts/apidiff.sh
+
+# Read-only tests against a live region. Needs credentials in the environment;
+# skips without them.
+.PHONY: integration
+integration:
+	go test -tags integration -v .
+
 .PHONY: doc
 doc:
 	go doc -all . | head -100

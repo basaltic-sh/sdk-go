@@ -1,0 +1,21 @@
+openapi: 3.0.3
+info:
+  title: Basaltic Widget API
+  version: 1.0.0
+  description: A fixture service, used to pin the generator's output.
+servers:
+  - url: https://widget.{region}.basaltic.sh
+    variables:
+      region:
+        default: sa-saopaulo-1
+security:
+  - BearerAuth: []
+paths:
+  /v1/widgets:
+    $ref: '../paths/widgets.yaml#/~1v1~1widgets'
+  /v1/widgets/{widget_id}:
+    $ref: '../paths/widgets.yaml#/~1v1~1widgets~1{widget_id}'
+  /v1/widgets/{widget_id}/blueprint:
+    $ref: '../paths/widgets.yaml#/~1v1~1widgets~1{widget_id}~1blueprint'
+  /v1/token:
+    $ref: '../paths/widgets.yaml#/~1v1~1token'

@@ -279,6 +279,39 @@ running the generator. Do not edit them; change the specification, or the
 generator, and regenerate. `make check-generated` fails when the committed
 output no longer matches the specs.
 
+## Releasing
+
+Versions are git tags; there is nothing to bump in the repository. The bump
+itself is derived from the exported API rather than from commit messages —
+`scripts/apidiff.sh` compares against the last tag and says what changed and
+what it implies, and CI runs it on every pull request.
+
+The SDK is v0.x while the surface settles, so it carries no compatibility
+promise yet. See [RELEASING.md](RELEASING.md), which also explains why a major
+version is a deliberate edit here: from v2 onward Go changes the module path,
+and a v2 tag without that change is a release nothing can import.
+
+## Tests
+
+```bash
+make test          # unit tests, plus the generator's own
+make integration   # read-only, against a live region; needs credentials
+make apidiff       # what this change does to the exported API
+```
+
+There are no generated per-operation tests, deliberately. A test asserting
+that `GetInstance` sends `GET /v1/instances/{instance_id}` would read its
+expectation from the same specification node the code was emitted from, so an
+emitter bug would produce a matching bug in the test.
+
+What the suite does instead is walk all 393 generated methods by reflection
+and assert properties the specification cannot express: that no placeholder
+survives into a URL, that positional arguments reach it in the order they were
+passed, that a credential is attached unless the operation is one of the four
+that deliberately has none, and that every paginator terminates. Those are
+checked against the SDK's own contract rather than against the specification,
+so they catch real emitter faults.
+
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).

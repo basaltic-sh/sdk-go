@@ -1,0 +1,152 @@
+/v1/widgets:
+  get:
+    operationId: listWidgets
+    summary: List widgets
+    description: List every widget in the account.
+    parameters:
+      - name: limit
+        in: query
+        schema: { type: integer, default: 20 }
+        description: Maximum number of items to return.
+      - name: marker
+        in: query
+        schema: { type: string }
+        description: Opaque pagination cursor.
+      - name: widget_state
+        in: query
+        schema: { $ref: '../components/schemas/widget.yaml#/WidgetState' }
+        description: Filter by lifecycle state.
+      - name: include_retired
+        in: query
+        schema: { type: boolean }
+        description: Include retired widgets.
+    responses:
+      '200':
+        description: A page of widgets
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/widget.yaml#/WidgetListResponse' }
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+
+  post:
+    operationId: createWidget
+    summary: Create a widget
+    parameters:
+      - name: Idempotency-Key
+        in: header
+        schema: { type: string }
+        description: Makes the create replay-safe.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/widget.yaml#/WidgetCreateRequest' }
+    responses:
+      '202':
+        description: Creation started
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                widget: { $ref: '../components/schemas/widget.yaml#/Widget' }
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+
+/v1/widgets/{widget_id}:
+  get:
+    operationId: getWidget
+    summary: Get a widget
+    parameters:
+      - name: widget_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: Widget ID
+    responses:
+      '200':
+        description: The widget
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/widget.yaml#/WidgetResponse' }
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+
+  delete:
+    operationId: deleteWidget
+    summary: Delete a widget
+    parameters:
+      - name: widget_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: Widget ID
+    responses:
+      '204':
+        description: Deleted
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+
+/v1/widgets/{widget_id}/blueprint:
+  get:
+    operationId: downloadBlueprint
+    summary: Download a widget blueprint
+    parameters:
+      - name: widget_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: Widget ID
+    responses:
+      '200':
+        description: The blueprint
+        content:
+          application/pdf:
+            schema: { type: string, format: binary }
+      '404':
+        description: Not found
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }
+
+/v1/token:
+  post:
+    operationId: getToken
+    summary: Exchange credentials for a token
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              grant_type: { type: string }
+    responses:
+      '200':
+        description: A token
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                access_token: { type: string }
+                expires_in: { type: integer }
+      '401':
+        description: Refused
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/common.yaml#/Error' }

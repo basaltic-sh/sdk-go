@@ -1,0 +1,17 @@
+PaginationMeta:
+  type: object
+  properties:
+    total: { type: integer }
+    limit: { type: integer }
+    marker: { type: string }
+    has_more: { type: boolean }
+
+Error:
+  type: object
+  required: [error]
+  properties:
+    error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }

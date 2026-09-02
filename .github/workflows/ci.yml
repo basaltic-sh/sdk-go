@@ -53,3 +53,22 @@ jobs:
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./...
+
+  api-compatibility:
+    # Reports how this change affects the exported API, and what version bump
+    # that implies. The answer comes from the API itself rather than from
+    # commit messages: for a generated SDK the specification decides whether a
+    # change is breaking, and a commit prefix is downstream of that.
+    #
+    # Informational — it does not fail the build. A break in v0 is allowed and
+    # sometimes correct; what matters is that it is visible in the review.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # apidiff needs the tags and their history
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go install golang.org/x/exp/cmd/apidiff@latest
+      - run: scripts/apidiff.sh

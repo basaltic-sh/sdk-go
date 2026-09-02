@@ -1,0 +1,58 @@
+# Exercises the shapes the real specifications actually contain: an enum, a
+# list envelope with meta, a single-field response envelope, required versus
+# optional request fields, a map alias, and a description attached to a $ref
+# through a one-element allOf.
+
+WidgetState:
+  type: string
+  enum: [pending, active, retired]
+  description: Lifecycle state of a widget.
+
+Tags:
+  type: object
+  additionalProperties: { type: string }
+
+Widget:
+  type: object
+  description: A widget.
+  properties:
+    id: { type: string, format: uuid }
+    name: { type: string }
+    widget_state:
+      $ref: '#/WidgetState'
+    created_at: { type: string, format: date-time }
+    primary_ipv6: { type: string }
+    tags:
+      $ref: '#/Tags'
+    parent:
+      allOf:
+        - $ref: '#/Widget'
+      description: >-
+        The widget this one was cloned from. Omitted when it was created
+        directly.
+
+WidgetCreateRequest:
+  type: object
+  required: [name]
+  properties:
+    name: { type: string }
+    description: { type: string }
+    enabled: { type: boolean }
+    size_gb: { type: integer }
+    tags:
+      $ref: '#/Tags'
+
+WidgetListResponse:
+  type: object
+  properties:
+    widgets:
+      type: array
+      items: { $ref: '#/Widget' }
+    meta:
+      $ref: './common.yaml#/PaginationMeta'
+
+WidgetResponse:
+  type: object
+  properties:
+    widget:
+      $ref: '#/Widget'
