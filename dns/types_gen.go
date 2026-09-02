@@ -46,133 +46,6 @@ type RecordCreateRequest struct {
 	Values []*RecordValue `json:"values"`
 }
 
-// RecordGeoAnswer one named answer variant and the client prefixes it answers for. The
-// record's own `values` stay the default answer — what a query
-// matching no prefix gets — so this list describes overrides, never
-// the fallback.
-type RecordGeoAnswer struct {
-	// Label name for the variant, unique within the record. `default` is
-	// reserved: it is what the record's own values are called.
-	Label string `json:"label"`
-
-	// Prefixes client prefixes in CIDR form, written as the network address
-	// (`185.0.0.0/8`, not `185.1.2.3/8`). Selection is longest-prefix
-	// match, so overlapping prefixes of different lengths are meaningful
-	// rather than a conflict; the same prefix on two variants is rejected.
-	// No longer than /24 (IPv4) or /56 (IPv6).
-	Prefixes []string `json:"prefixes"`
-
-	// Values answer for clients in `prefixes`, valid rdata for the record's type.
-	// A CNAME variant takes exactly one value — a variant is still a
-	// CNAME RRset.
-	Values []string `json:"values"`
-}
-
-type RecordGeoRouting struct {
-	Answers []*RecordGeoAnswer `json:"answers,omitempty"`
-
-	// Default the record's own values — what a query matching no prefix is
-	// answered with. Reported rather than left implicit: it is the answer
-	// most of the internet actually gets.
-	Default []string `json:"default,omitempty"`
-}
-
-type RecordGeoRoutingRequest struct {
-	// Answers the complete set of variants, replacing whatever was configured.
-	// Capped at 8 because each variant is another signature minted on
-	// every re-sign of the zone.
-	//
-	// Required.
-	Answers []*RecordGeoAnswer `json:"answers"`
-}
-
-type RecordHealthCheck struct {
-	HealthyThreshold int    `json:"healthy_threshold,omitempty"`
-	IntervalSec      int    `json:"interval_sec,omitempty"`
-	Matcher          string `json:"matcher,omitempty"`
-	Path             string `json:"path,omitempty"`
-	Port             int    `json:"port,omitempty"`
-
-	// One of: "http", "https", "tcp".
-	Protocol string `json:"protocol,omitempty"`
-
-	// Served the values the nameservers are answering with right now. The
-	// record's own `values` stay whatever was configured — the
-	// difference between the two IS the failover, so it is reported rather
-	// than left to be inferred.
-	Served             []string                         `json:"served,omitempty"`
-	Targets            []*RecordHealthCheckTargetStatus `json:"targets,omitempty"`
-	TimeoutSec         int                              `json:"timeout_sec,omitempty"`
-	UnhealthyThreshold int                              `json:"unhealthy_threshold,omitempty"`
-}
-
-type RecordHealthCheckRequest struct {
-	// HealthyThreshold consecutive successes before a target is answered again.
-	HealthyThreshold *int `json:"healthy_threshold,omitempty"`
-	IntervalSec      *int `json:"interval_sec,omitempty"`
-
-	// Matcher HTTP status or inclusive range counted as healthy. Ignored for
-	// `tcp`.
-	Matcher *string `json:"matcher,omitempty"`
-
-	// Path Probed HTTP path. Ignored for `tcp`.
-	Path *string `json:"path,omitempty"`
-
-	// Port required — a record's value is a bare address with no port to
-	// inherit.
-	//
-	// Required.
-	Port int `json:"port"`
-
-	// Protocol no `udp`: a UDP probe cannot distinguish a healthy target from a
-	// silent one. `https` probes do not verify the certificate, because
-	// the probe dials an address rather than a name — it measures
-	// whether the target is serving, not who it is.
-	//
-	// One of: "http", "https", "tcp".
-	//
-	// Required.
-	Protocol string `json:"protocol"`
-
-	// Targets failover positions. Any value left out defaults to priority 0. A
-	// value that is not one of the record's values is rejected.
-	Targets []*RecordHealthCheckTarget `json:"targets,omitempty"`
-
-	// TimeoutSec must be below `interval_sec`, or a slow target's probes overlap each
-	// other.
-	TimeoutSec *int `json:"timeout_sec,omitempty"`
-
-	// UnhealthyThreshold consecutive failures before a target stops being answered. Every
-	// transition re-signs the whole zone, so this is damping rather than
-	// decoration.
-	UnhealthyThreshold *int `json:"unhealthy_threshold,omitempty"`
-}
-
-// RecordHealthCheckTarget one of the record's values and its failover position. Lower priority
-// is preferred; values sharing a priority are one tier and are answered
-// together, so 0 and 1 is a failover pair and 0 and 0 is active/active.
-type RecordHealthCheckTarget struct {
-	// Content an address that is already one of the record's values.
-	//
-	// Required.
-	Content  string `json:"content"`
-	Priority *int   `json:"priority,omitempty"`
-}
-
-type RecordHealthCheckTargetStatus struct {
-	Content          string    `json:"content,omitempty"`
-	LastCheckedAt    time.Time `json:"last_checked_at,omitempty"`
-	LastTransitionAt time.Time `json:"last_transition_at,omitempty"`
-	Priority         int       `json:"priority,omitempty"`
-
-	// Status `initial` is a target no probe has yet reached a verdict on. It is
-	// ANSWERED while initial, so a freshly created record resolves
-	// immediately rather than being dark until its first probe.
-	//
-	// One of: "initial", "healthy", "unhealthy".
-	Status string `json:"status,omitempty"`
-}
-
 // RecordType curated subset of supported DNS record types. SOA and DNSSEC-managed
 // types (DNSKEY, DS, NSEC*, RRSIG, …) are managed by the platform and
 // not creatable through the API.
@@ -546,6 +419,13 @@ type ZoneRecordImport struct {
 	// State `pending` while the background job runs. `complete` means the scan
 	// ran and what it found was applied — not that everything the domain
 	// has is now here; see `complete`.
+	//
+	// `pending` is bounded. A scan is capped well below the point at which
+	// this stops reporting it, so a job that dies without recording an
+	// outcome is reported as `failed` rather than staying `pending` for
+	// the life of the zone. There is no state that means "still importing"
+	// after that bound, and nothing you can poll for that would ever
+	// change.
 	//
 	// One of: "pending", "complete", "failed".
 	State     string    `json:"state,omitempty"`

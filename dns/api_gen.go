@@ -19,7 +19,12 @@ import (
 // ListRecordsParams are the optional filters and pagination controls for
 // [Client.ListRecords]. A nil *ListRecordsParams sends none of them.
 type ListRecordsParams struct {
-	Limit int
+	// IncludeManaged include the platform-stamped rows (SOA, apex NS, and the DNSSEC set)
+	// alongside your own. Off by default — they cannot be edited or
+	// deleted, and on a signed zone there are more of them than there are
+	// of yours.
+	IncludeManaged *bool
+	Limit          int
 
 	// Marker resume token — the last record id from the previous page.
 	Marker string
@@ -37,6 +42,9 @@ func (p *ListRecordsParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.IncludeManaged != nil {
+		q.Set("include_managed", strconv.FormatBool(*p.IncludeManaged))
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -189,40 +197,6 @@ func (c *Client) DeleteRecord(ctx context.Context, zoneID string, recordID strin
 	return nil
 }
 
-// DeleteRecordGeoRouting deletes record geo routing.
-//
-// Remove every variant. The record answers its own values to everyone
-// again.
-func (c *Client) DeleteRecordGeoRouting(ctx context.Context, zoneID string, recordID string, opts ...basaltic.RequestOption) error {
-	op := &basaltic.Operation{
-		ID:       "deleteRecordGeoRouting",
-		Method:   "DELETE",
-		Path:     "/v1/zones/{zone_id}/records/{record_id}/geo-routing",
-		PathArgs: []string{zoneID, recordID},
-	}
-	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
-		return err
-	}
-	return nil
-}
-
-// DeleteRecordHealthCheck deletes record health check.
-//
-// Remove the health check. The record goes back to answering with every
-// configured value.
-func (c *Client) DeleteRecordHealthCheck(ctx context.Context, zoneID string, recordID string, opts ...basaltic.RequestOption) error {
-	op := &basaltic.Operation{
-		ID:       "deleteRecordHealthCheck",
-		Method:   "DELETE",
-		Path:     "/v1/zones/{zone_id}/records/{record_id}/health-check",
-		PathArgs: []string{zoneID, recordID},
-	}
-	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
-		return err
-	}
-	return nil
-}
-
 // DeleteZone deletes zone.
 //
 // Start deleting a DNS zone and every record it owns.
@@ -275,14 +249,10 @@ func (c *Client) DissociateZoneVPC(ctx context.Context, zoneID string, vpcID str
 // deletes**, so without a file taken beforehand there is no way back to
 // the previous state.
 //
-// The records carry the values you CONFIGURED, not the subset a health
-// check is currently answering with. A backup that captured a live
-// failover state would silently drop your primary when restored.
-//
 // **The file cannot describe the whole zone**, and says so in its own
-// header: health checks, failover priorities, geo routing variants and
-// private-zone VPC associations have no zone-file representation.
-// Re-importing restores the records; those have to be set up again.
+// header: private-zone VPC associations have no zone-file
+// representation. Re-importing restores the records; those have to be
+// set up again.
 //
 // The DNSSEC records are omitted — they sign keys held by this
 // platform and mean nothing elsewhere. The SOA and apex NS are included,
@@ -320,46 +290,6 @@ func (c *Client) GetRecord(ctx context.Context, zoneID string, recordID string, 
 		return nil, err
 	}
 	return out.Record, nil
-}
-
-// GetRecordGeoRouting gets record geo routing.
-//
-// Return the record's answer variants and the default answer its own
-// values provide.
-func (c *Client) GetRecordGeoRouting(ctx context.Context, zoneID string, recordID string, opts ...basaltic.RequestOption) (*RecordGeoRouting, error) {
-	op := &basaltic.Operation{
-		ID:       "getRecordGeoRouting",
-		Method:   "GET",
-		Path:     "/v1/zones/{zone_id}/records/{record_id}/geo-routing",
-		PathArgs: []string{zoneID, recordID},
-	}
-	var out struct {
-		GeoRouting *RecordGeoRouting `json:"geo_routing"`
-	}
-	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return nil, err
-	}
-	return out.GeoRouting, nil
-}
-
-// GetRecordHealthCheck gets record health check.
-//
-// Return the record's health check, each target's observed health, and
-// the values the nameservers are currently answering with.
-func (c *Client) GetRecordHealthCheck(ctx context.Context, zoneID string, recordID string, opts ...basaltic.RequestOption) (*RecordHealthCheck, error) {
-	op := &basaltic.Operation{
-		ID:       "getRecordHealthCheck",
-		Method:   "GET",
-		Path:     "/v1/zones/{zone_id}/records/{record_id}/health-check",
-		PathArgs: []string{zoneID, recordID},
-	}
-	var out struct {
-		HealthCheck *RecordHealthCheck `json:"health_check"`
-	}
-	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return nil, err
-	}
-	return out.HealthCheck, nil
 }
 
 // GetZone gets zone.
@@ -467,6 +397,16 @@ func (c *Client) ImportZoneFile(ctx context.Context, zoneID string, body *ZoneIm
 // List records in a DNS zone, newest-RRset-first. Supports filtering by
 // `type` and a substring match on `name`. Keyset- paginated by record id
 // (UUIDv7) — pass the last id from the previous page as `marker`.
+//
+// **Returns your records only.** The rows the platform stamps for itself
+// — the SOA, the apex NS, and the DNSSEC set (`DNSKEY`, `DS`,
+// `NSEC`/`NSEC3`, `NSEC3PARAM`, `RRSIG`, `CDS`, `CDNSKEY`) — are left
+// out unless you ask for them. On a signed zone they outnumber customer
+// records, none of them can be edited or deleted, and the DNSSEC
+// material you might actually want is on the zone itself under `dnssec`.
+//
+// Pass `include_managed=true` to get the zone exactly as it is served,
+// which is what a zone-diffing tool wants.
 //
 // Returns one page. Use ListRecordsAll to walk every page.
 func (c *Client) ListRecords(ctx context.Context, zoneID string, params *ListRecordsParams, opts ...basaltic.RequestOption) (*basaltic.Page[Record], error) {
@@ -596,67 +536,6 @@ func (c *Client) ListZonesAll(ctx context.Context, params *ListZonesParams, opts
 	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[Zone], error) {
 		return c.ListZones(ctx, params.withMarker(marker), opts...)
 	})
-}
-
-// PutRecordGeoRouting configures record geo routing.
-//
-// Set the record's geo answer variants. The nameservers then answer each
-// query with the variant whose prefix matches the client — the EDNS
-// Client Subnet the resolver sent, or failing that the resolver's own
-// address — and with the record's own values when no prefix matches.
-//
-// Each variant is signed separately and a response carries exactly one
-// variant's RRset together with that variant's RRSIG, so scoped answers
-// stay valid under DNSSEC. A response to a query that carried a client
-// subnet echoes it back with a scope length equal to the record's
-// longest configured prefix, which is how far a resolver may reuse the
-// answer.
-//
-// Only A, AAAA and CNAME records can carry variants, and a record cannot
-// have both geo routing and a health check.
-func (c *Client) PutRecordGeoRouting(ctx context.Context, zoneID string, recordID string, body *RecordGeoRoutingRequest, opts ...basaltic.RequestOption) (*RecordGeoRouting, error) {
-	op := &basaltic.Operation{
-		ID:       "putRecordGeoRouting",
-		Method:   "PUT",
-		Path:     "/v1/zones/{zone_id}/records/{record_id}/geo-routing",
-		PathArgs: []string{zoneID, recordID},
-		Body:     body,
-	}
-	var out struct {
-		GeoRouting *RecordGeoRouting `json:"geo_routing"`
-	}
-	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return nil, err
-	}
-	return out.GeoRouting, nil
-}
-
-// PutRecordHealthCheck configures record health check.
-//
-// Attach or replace the record's health check. The nameservers then
-// answer only with the healthy targets at the most-preferred priority,
-// failing over to the next priority when those go unhealthy, and
-// answering with every configured value if none is healthy.
-//
-// Only A and AAAA records can carry a check, and only for addresses the
-// control plane can reach — a check on a private (RFC1918 or
-// unique-local) address is refused, because the prober runs in the
-// control plane and could never reach a tenant VPC.
-func (c *Client) PutRecordHealthCheck(ctx context.Context, zoneID string, recordID string, body *RecordHealthCheckRequest, opts ...basaltic.RequestOption) (*RecordHealthCheck, error) {
-	op := &basaltic.Operation{
-		ID:       "putRecordHealthCheck",
-		Method:   "PUT",
-		Path:     "/v1/zones/{zone_id}/records/{record_id}/health-check",
-		PathArgs: []string{zoneID, recordID},
-		Body:     body,
-	}
-	var out struct {
-		HealthCheck *RecordHealthCheck `json:"health_check"`
-	}
-	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return nil, err
-	}
-	return out.HealthCheck, nil
 }
 
 // UpdateRecord updates record.

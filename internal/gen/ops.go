@@ -52,8 +52,17 @@ type result struct {
 }
 
 type operation struct {
-	ID              string
-	GoName          string
+	ID      string
+	GoName  string
+	Summary string
+	// Resource and Verb place this operation in a command tree:
+	// `basaltic <service> <resource> <verb>`. Derived in resource.go and
+	// carried in the manifest, so the CLI does not re-derive them.
+	Resource string
+	Verb     string
+	// xResource is the specification's x-resource, kept until the
+	// service-wide derivation pass can use it.
+	xResource       string
 	Doc             []string
 	Method          string
 	Path            string
@@ -109,6 +118,14 @@ func (b *builder) buildOperations(spec map[string]any, specFile string) error {
 		}
 	}
 	sort.Slice(b.ops, func(i, j int) bool { return b.ops[i].GoName < b.ops[j].GoName })
+
+	// Placing an operation in the command tree needs to know which
+	// collections the API creates members of, so it runs once every operation
+	// in the service is known.
+	res := newResolver(b.service, b.ops)
+	for _, op := range b.ops {
+		op.Resource, op.Verb = res.resolve(op, op.xResource)
+	}
 	return nil
 }
 
@@ -141,6 +158,8 @@ func (b *builder) buildOperation(path, method string, om map[string]any, base st
 	if err := b.buildResult(op, om, base); err != nil {
 		return nil, err
 	}
+	op.Summary = strings.TrimSpace(str(om, "summary"))
+	op.xResource = str(om, "x-resource")
 	op.Doc = b.operationDoc(op, om)
 	return op, nil
 }
@@ -359,7 +378,7 @@ func (b *builder) buildResult(op *operation, om map[string]any, base string) err
 		}
 		rm, _ := mapOf(resolved)
 		if itemsJSON, itemsSchema, hasMeta, isList := listEnvelope(rm); isList {
-			itemType, err := b.typeForSchema(itemsSchema, r.file, exportedName(singular(itemsJSON)), false)
+			itemType, err := b.typeForSchema(itemsSchema, r.file, exportedName(singularHint(itemsJSON)), false)
 			if err != nil {
 				return err
 			}

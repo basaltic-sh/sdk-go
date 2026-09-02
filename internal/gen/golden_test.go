@@ -28,7 +28,7 @@ func TestGeneratorOutputMatchesGolden(t *testing.T) {
 	}
 	outDir := t.TempDir()
 
-	ops, types, err := generate(specDir, outDir, "widget")
+	ops, types, _, err := generate(specDir, outDir, "widget")
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}

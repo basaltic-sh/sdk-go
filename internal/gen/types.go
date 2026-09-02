@@ -418,7 +418,7 @@ func (b *builder) typeForSchema(schema node, base, hint string, requestSide bool
 		if !ok {
 			return "[]any", nil
 		}
-		elem, err := b.typeForSchema(items, base, singular(hint), requestSide)
+		elem, err := b.typeForSchema(items, base, singularHint(hint), requestSide)
 		if err != nil {
 			return "", err
 		}
@@ -495,9 +495,10 @@ func (b *builder) inlineStruct(m map[string]any, base, hint string, requestSide 
 	return "*" + name, nil
 }
 
-// singular trims a trailing plural from a hint so a slice element type reads
-// as one thing rather than many.
-func singular(s string) string {
+// singularHint trims a trailing plural from a type-name hint so a slice
+// element type reads as one thing rather than many. It appends "Item" when it
+// cannot, so the hint is always distinct from its container's name.
+func singularHint(s string) string {
 	switch {
 	case strings.HasSuffix(s, "ies"):
 		return strings.TrimSuffix(s, "ies") + "y"

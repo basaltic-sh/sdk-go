@@ -5,3 +5,6 @@
 # Go build and coverage output.
 *.test
 *.out
+
+# Compiled generator binary, if someone runs `go build` in its directory.
+/internal/gen/gen
