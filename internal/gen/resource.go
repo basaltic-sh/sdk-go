@@ -36,6 +36,10 @@ var resourceOverrides = map[string]struct{ Resource, Verb string }{
 	"getConsoleOutput":     {"instance", "console-output"},
 	"getConsoleScreenshot": {"instance", "console-screenshot"},
 	"startSerialConsole":   {"instance", "serial-console"},
+	// Mints a short-lived ticket for a browser, whose WebSocket constructor
+	// takes a URL and cannot send an Authorization header. Named for what it
+	// produces, not for the verb the path uses.
+	"createSerialConsoleTicket": {"instance", "console-ticket"},
 
 	// Two paths delete the same rule. The one nested under its listener is
 	// the documented route and keeps the plain verb.

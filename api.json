@@ -1182,7 +1182,7 @@
           "path": "/v1/instances/{instance_id}/console/ticket",
           "summary": "Mint a ticket for the serial console",
           "resource": "instance",
-          "verb": "create-console",
+          "verb": "console-ticket",
           "path_params": [
             {
               "wire": "instance_id",
