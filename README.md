@@ -59,8 +59,6 @@ With no options, `NewConfig` reads the environment:
 | `BASALTIC_ACCESS_TOKEN` | A bearer token to use directly, instead of the key pair |
 | `BASALTIC_REGION` | Region for regional services |
 | `BASALTIC_ACCOUNT_ID` | Account to act on |
-| `BASALTIC_DOMAIN` | Build endpoints from another domain |
-| `BASALTIC_ENDPOINT_URL_<SERVICE>` | Point one service somewhere else |
 
 Options beat the environment, so a program can take its region from the
 environment and still override it at one call site.
@@ -242,21 +240,6 @@ inst, err := c.CreateInstance(ctx, req,
 	basaltic.WithRequestTimeout(10*time.Second),
 	basaltic.WithResponseHeader(&hdr),
 )
-```
-
-## Pointing at another deployment
-
-```go
-// Every service, another domain: compute becomes
-// https://compute.sa-saopaulo-1.cloud.example.dev
-basaltic.WithDomain("cloud.example.dev")
-
-// One service, everything else untouched.
-basaltic.WithServiceEndpoint("compute", "http://127.0.0.1:8080")
-
-// Anything else.
-basaltic.WithEndpointResolver(basaltic.EndpointResolverFunc(
-	func(service, region string) (string, error) { ... }))
 ```
 
 ## Generated code
