@@ -138,7 +138,7 @@ func run(specDir, outDir, only string) error {
 		}
 	}
 
-	man := manifest{Module: "github.com/basaltic-sh/sdk-go", Version: sdkVersion}
+	man := manifest{Module: "github.com/basaltic-sh/sdk-go", Version: sdkVersion()}
 	totalOps, totalTypes := 0, 0
 	for _, svc := range wanted {
 		ops, types, ms, err := generate(specDir, outDir, svc)
@@ -182,9 +182,18 @@ func generate(specDir, outDir, svc string) (int, int, manifestService, error) {
 	return len(b.ops), len(b.types), b.buildManifest(info), nil
 }
 
-// sdkVersion mirrors basaltic.Version, recorded in the manifest so a consumer
-// can tell which surface it was generated against.
-const sdkVersion = "0.1.0"
+// sdkVersion records which surface the manifest describes.
+//
+// Taken from the repository's most recent tag rather than a constant: a
+// constant has to be edited in the same commit as the tag, and the one that
+// used to be here was two releases stale before anyone noticed.
+func sdkVersion() string {
+	out, err := exec.Command("git", "describe", "--tags", "--abbrev=0").Output()
+	if err != nil {
+		return "dev"
+	}
+	return strings.TrimPrefix(strings.TrimSpace(string(out)), "v")
+}
 
 // readServer takes the service's endpoint template from its specification, so
 // the SDK does not carry a second list of which services are regional.

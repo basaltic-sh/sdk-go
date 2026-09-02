@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "services": [
     {
       "name": "audit",

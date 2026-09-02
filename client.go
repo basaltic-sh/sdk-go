@@ -9,12 +9,47 @@ import (
 	"net/http"
 	"net/url"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 )
 
 // Version is this SDK's version, reported in the User-Agent.
-const Version = "0.1.0"
+//
+// Read from the build information of the program that imports this package,
+// which is where the answer actually lives: Go records the resolved version of
+// every dependency. A constant here would have to be edited in the same commit
+// as the tag and would be wrong the moment someone forgot — which is how it
+// was found reporting 0.1.0 two releases later.
+//
+// Falls back to "dev" for a build with no module information: `go run`, a
+// binary built with -buildvcs=false, or this module built as the main one.
+var Version = readVersion()
+
+// modulePath is this module, used to find its own entry in the build info.
+const modulePath = "github.com/basaltic-sh/sdk-go"
+
+func readVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "dev"
+	}
+	for _, dep := range info.Deps {
+		if dep.Path != modulePath {
+			continue
+		}
+		// A replaced module reports the replacement's version, which is what
+		// is actually linked in.
+		if dep.Replace != nil && dep.Replace.Version != "" {
+			return strings.TrimPrefix(dep.Replace.Version, "v")
+		}
+		if dep.Version != "" && dep.Version != "(devel)" {
+			return strings.TrimPrefix(dep.Version, "v")
+		}
+		return "dev"
+	}
+	return "dev"
+}
 
 // Client is the transport one service is reached through. Generated service
 // packages wrap it; construct one directly only to call an endpoint the SDK
