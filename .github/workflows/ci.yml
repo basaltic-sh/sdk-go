@@ -14,10 +14,13 @@ jobs:
         # no dependencies, so this matrix is the whole compatibility surface.
         go: ['1.23', 'stable']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
+          # The SDK has no dependencies and therefore no go.sum, so there is
+          # nothing for the module cache to key on.
+          cache: false
 
       - name: Build
         run: go build ./...
@@ -46,10 +49,12 @@ jobs:
       run:
         working-directory: internal/gen
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
+          # The generator is the one module here that has a dependency.
+          cache-dependency-path: internal/gen/go.sum
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./...
@@ -64,11 +69,12 @@ jobs:
     # sometimes correct; what matters is that it is visible in the review.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # apidiff needs the tags and their history
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
+          cache: false
       - run: go install golang.org/x/exp/cmd/apidiff@latest
       - run: scripts/apidiff.sh
