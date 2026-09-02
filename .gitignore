@@ -1,0 +1,7 @@
+# Left behind when the generator emits source that does not parse, so the
+# error can be read where it happened.
+*.broken
+
+# Go build and coverage output.
+*.test
+*.out
