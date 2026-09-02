@@ -157,7 +157,12 @@ only optional fields in request bodies are pointers.
 ## Errors
 
 Every operation returns an `*basaltic.Error` when the platform answers with a
-failure. Test for classes of failure rather than comparing codes:
+failure. Test for classes of failure with the helpers — **do not match on the
+error code yourself**, however precise that looks. The platform names errors
+per resource: `INSTANCE_NOT_FOUND`, `VOLUME_NOT_FOUND`,
+`DATABASE_USER_NOT_FOUND`. There are 77 distinct codes ending in `_NOT_FOUND`
+and 39 ending in `_EXISTS`, and adding a resource kind adds another. The HTTP
+status is the stable signal, and it is what these helpers use.
 
 ```go
 inst, err := c.GetInstance(ctx, id)
@@ -165,17 +170,23 @@ switch {
 case basaltic.IsNotFound(err):
 	// gone, or not visible to this credential — the platform answers the
 	// same way for both
-case basaltic.IsAccessDenied(err):
-	// authenticated, but policy said no: a policy change, not a new key
 case basaltic.IsQuotaExceeded(err):
 	// retrying will not clear this; raising the quota will
+case basaltic.IsAccessDenied(err):
+	// authenticated, but policy said no: a policy change, not a new key
 case err != nil:
 	return err
 }
 ```
 
-`IsUnauthorized`, `IsConflict`, `IsInvalidInput` and `IsRateLimited` round out
-the set. For the details, including the request id to quote when reporting a
+A quota refusal and an authorization refusal are both `403`, and their
+remedies are opposite — raise the quota, versus change the policy. The two
+helpers are mutually exclusive, so the order of the cases above does not
+matter; what matters is asking `IsQuotaExceeded` at all rather than reading
+every `403` as "permission denied".
+
+`IsUnauthorized`, `IsConflict`, `IsInvalidInput`, `IsRateLimited` and
+`IsTransient` round out the set. For the details, including the request id to quote when reporting a
 problem:
 
 ```go

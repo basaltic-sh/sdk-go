@@ -43,9 +43,22 @@
 //
 // Every operation returns an [*Error] when the platform answers with a
 // failure status. It carries the platform's error code, message and request
-// id — quote the request id when reporting a problem. Test for classes of
-// failure with [IsNotFound], [IsAccessDenied] and their siblings rather than
-// comparing codes by hand.
+// id — quote the request id when reporting a problem.
+//
+// Test for classes of failure with [IsNotFound], [IsAccessDenied] and their
+// siblings. Do not match on the error code yourself, however precise that
+// looks: the platform names errors per resource, so there are 77 distinct
+// codes ending in _NOT_FOUND and 39 ending in _EXISTS, and adding a resource
+// kind adds another. The HTTP status is the stable signal, and it is what
+// these helpers use — a new resource kind adds a code, never a status.
+//
+// One status is not enough on its own. A quota refusal and an authorization
+// refusal are both 403, and their remedies are opposite: raise the quota
+// versus change the policy. [IsQuotaExceeded] is therefore carved out of
+// [IsAccessDenied] by code, and is the one place the SDK reads one. The two
+// are mutually exclusive, so the order of the cases does not matter — what
+// matters is asking about quota at all, rather than reading every 403 as
+// "permission denied".
 //
 // # Pagination
 //

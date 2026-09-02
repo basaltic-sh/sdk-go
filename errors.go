@@ -14,16 +14,27 @@ import (
 // Every service answers a failure with the same envelope, so one type covers
 // all of them:
 //
-//	{"error": {"code": "NOT_FOUND", "message": "...", "request_id": "..."}}
+//	{"error": {"code": "INSTANCE_NOT_FOUND", "message": "...", "request_id": "..."}}
 //
 // RequestID identifies the call in the platform's logs. Include it verbatim
 // when reporting a problem — it is the fastest way to find what happened.
+//
+// Classify failures with [IsNotFound], [IsAccessDenied] and their siblings
+// rather than by comparing [Error.Code]. Code looks like the precise thing to
+// match and is the wrong thing to match: the platform names errors per
+// resource — INSTANCE_NOT_FOUND, VOLUME_NOT_FOUND, DATABASE_USER_NOT_FOUND —
+// with 77 distinct codes ending in _NOT_FOUND and 39 in _EXISTS, and a new
+// resource kind adds another. [Error.StatusCode] is the stable signal: a new
+// kind adds a code, never a status.
+//
+// Read Code to report or log what happened, not to decide what to do.
 type Error struct {
 	// StatusCode is the HTTP status that carried the failure.
 	StatusCode int
-	// Code is the platform's stable error code, such as "NOT_FOUND" or
-	// "QUOTA_EXCEEDED". Prefer the Is* helpers over comparing it directly:
-	// a class of failure can gain new codes, and the helpers move with it.
+	// Code is the platform's error code. It is named per resource —
+	// "INSTANCE_NOT_FOUND", "CERTIFICATE_NAME_EXISTS" — so it is the wrong
+	// thing to compare against; see the note on this type. Report it, do not
+	// branch on it.
 	Code string
 	// Message is the human-readable explanation. It is meant for an operator
 	// reading a log, not for matching on.
@@ -109,13 +120,6 @@ func AsError(err error) (*Error, bool) {
 	}
 	return nil, false
 }
-
-// The platform names errors precisely: there are 77 distinct codes ending in
-// _NOT_FOUND, one per resource kind, and as many again for conflicts. Every
-// one of them carries an HTTP status chosen for it, and that status is the
-// stable signal — a new resource kind adds a code but never a new status. So
-// these helpers classify on the status and consult the code only where one
-// status covers two situations whose remedies differ.
 
 // IsNotFound reports whether the resource does not exist — or is not visible
 // to this credential, which the platform answers the same way, deliberately.
