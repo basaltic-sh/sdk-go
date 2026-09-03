@@ -227,7 +227,13 @@ func (c *Client) do(ctx context.Context, op *Operation, opts []RequestOption) (i
 		}
 
 		httpClient := c.cfg.HTTPClient
-		if rs.stream {
+		// The deadline exemption follows the BODY, not the caller's choice of
+		// method. DoStream sets rs.stream for a streaming response, but an
+		// operation that streams its REQUEST — uploading an object — reaches
+		// here through Do, because it returns a decoded value. Sending a
+		// multi-gigabyte body under a 30-second total-request timeout fails at
+		// 30 seconds regardless of how well it is going.
+		if rs.stream || op.Stream != nil {
 			httpClient = c.stream
 		}
 		resp, err := httpClient.Do(req)

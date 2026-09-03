@@ -3,6 +3,7 @@ package basaltic
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -563,5 +564,76 @@ func TestIsTransient(t *testing.T) {
 		if IsTransient(&Error{StatusCode: status}) {
 			t.Errorf("IsTransient() = true for http %d", status)
 		}
+	}
+}
+
+// TestStreamingRequestBodyIgnoresTheRequestTimeout is the regression for a
+// real defect: a streaming request body went through the configured client and
+// so inherited its total-request timeout. Uploading an object larger than the
+// timeout allowed would fail at the deadline no matter how healthy the
+// transfer was, and only for uploads big enough that nobody tests them.
+func TestStreamingRequestBodyIgnoresTheRequestTimeout(t *testing.T) {
+	const timeout = 150 * time.Millisecond
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Read the body slowly enough that a client bounded by `timeout`
+		// would give up part way through.
+		buf := make([]byte, 64)
+		for {
+			n, err := r.Body.Read(buf)
+			if n > 0 {
+				time.Sleep(20 * time.Millisecond)
+			}
+			if err != nil {
+				break
+			}
+		}
+		fmt.Fprint(w, `{"ok":true}`)
+	}))
+	defer srv.Close()
+
+	cfg := newTestConfig(t, srv, WithHTTPClient(&http.Client{Timeout: timeout}))
+	c := NewClient(cfg, "compute")
+
+	op := &Operation{
+		ID: "putObject", Method: "PUT", Path: "/v1/x",
+		Stream:      strings.NewReader(strings.Repeat("a", 1024)),
+		ContentType: "application/octet-stream",
+	}
+	start := time.Now()
+	if err := c.Do(context.Background(), op, nil); err != nil {
+		t.Fatalf("a streaming upload was cut off by the request timeout: %v", err)
+	}
+	// If it had used the configured client the call would have died at the
+	// deadline; proving it ran past that is the whole point.
+	if elapsed := time.Since(start); elapsed < timeout {
+		t.Fatalf("the upload finished in %v, faster than the %v timeout — the test did not exercise the deadline", elapsed, timeout)
+	}
+}
+
+// A streaming request must still honour context cancellation, which is the
+// only thing left bounding it once the timeout is gone.
+func TestStreamingRequestStillRespectsContextCancellation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		time.Sleep(2 * time.Second)
+		fmt.Fprint(w, `{}`)
+	}))
+	defer srv.Close()
+
+	c := NewClient(newTestConfig(t, srv), "compute")
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	op := &Operation{
+		ID: "putObject", Method: "PUT", Path: "/v1/x",
+		Stream: strings.NewReader("payload"),
+	}
+	err := c.Do(ctx, op, nil)
+	if err == nil {
+		t.Fatal("a cancelled upload reported success")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("err = %v, want the context deadline to surface", err)
 	}
 }
