@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -635,5 +636,126 @@ func TestStreamingRequestStillRespectsContextCancellation(t *testing.T) {
 	}
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("err = %v, want the context deadline to surface", err)
+	}
+}
+
+// TestStreamingBodyDeclaresItsLength is the client half of the truncated-object
+// defect. Go cannot derive a length from an arbitrary io.Reader, so it sends
+// chunked with no Content-Length — and a server has then been promised nothing,
+// so it cannot tell a truncated upload from a complete short one. Declaring the
+// length is what makes a short write refusable.
+func TestStreamingBodyDeclaresItsLength(t *testing.T) {
+	var gotLength int64
+	var gotTE []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotLength, gotTE = r.ContentLength, r.TransferEncoding
+		_, _ = io.Copy(io.Discard, r.Body)
+		fmt.Fprint(w, `{}`)
+	}))
+	defer srv.Close()
+
+	f, err := os.CreateTemp(t.TempDir(), "body")
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := strings.Repeat("x", 4096)
+	if _, err := f.WriteString(payload); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+
+	c := NewClient(newTestConfig(t, srv), "compute")
+	op := &Operation{ID: "putObject", Method: "PUT", Path: "/v1/x", Stream: f}
+	if err := c.Do(context.Background(), op, nil); err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	if gotLength != int64(len(payload)) {
+		t.Errorf("Content-Length = %d, want %d — the server cannot detect a truncated upload without it", gotLength, len(payload))
+	}
+	if len(gotTE) != 0 {
+		t.Errorf("Transfer-Encoding = %v, want none; chunked declares no length", gotTE)
+	}
+}
+
+// A wrapper around the body — a progress reporter, say — hides the *os.File,
+// so it reports the length itself. Without this the wrapping silently removes
+// the protection the unwrapped path has.
+func TestStreamingBodyTakesLengthFromAWrapper(t *testing.T) {
+	var gotLength int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotLength = r.ContentLength
+		_, _ = io.Copy(io.Discard, r.Body)
+		fmt.Fprint(w, `{}`)
+	}))
+	defer srv.Close()
+
+	c := NewClient(newTestConfig(t, srv), "compute")
+	op := &Operation{
+		ID: "putObject", Method: "PUT", Path: "/v1/x",
+		Stream: sizedReader{Reader: strings.NewReader("hello"), n: 5},
+	}
+	if err := c.Do(context.Background(), op, nil); err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	if gotLength != 5 {
+		t.Errorf("Content-Length = %d, want 5 from the wrapper's Size()", gotLength)
+	}
+}
+
+// A body whose length genuinely cannot be known — a pipe, stdin — must still
+// work, chunked. Refusing it would be worse than not checking it.
+func TestStreamingBodyOfUnknownLengthStillSends(t *testing.T) {
+	var gotBody string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		fmt.Fprint(w, `{}`)
+	}))
+	defer srv.Close()
+
+	pr, pw := io.Pipe()
+	go func() { _, _ = pw.Write([]byte("piped")); pw.Close() }()
+
+	c := NewClient(newTestConfig(t, srv), "compute")
+	op := &Operation{ID: "putObject", Method: "PUT", Path: "/v1/x", Stream: pr}
+	if err := c.Do(context.Background(), op, nil); err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	if gotBody != "piped" {
+		t.Errorf("body = %q, want %q", gotBody, "piped")
+	}
+}
+
+type sizedReader struct {
+	io.Reader
+	n int64
+}
+
+func (s sizedReader) Size() int64 { return s.n }
+
+// A wrapper that does not know its length reports -1, which must be treated as
+// unknown rather than as a real length. Treating it as 0 would declare an empty
+// body and upload nothing — the failure mode of reading from stdin.
+func TestStreamingBodyIgnoresANegativeReportedSize(t *testing.T) {
+	var gotBody string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		fmt.Fprint(w, `{}`)
+	}))
+	defer srv.Close()
+
+	c := NewClient(newTestConfig(t, srv), "compute")
+	op := &Operation{
+		ID: "putObject", Method: "PUT", Path: "/v1/x",
+		Stream: sizedReader{Reader: strings.NewReader("real payload"), n: -1},
+	}
+	if err := c.Do(context.Background(), op, nil); err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	if gotBody != "real payload" {
+		t.Errorf("body = %q, want the payload; a -1 size was treated as a real length", gotBody)
 	}
 }

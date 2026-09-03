@@ -305,6 +305,20 @@ func (c *Client) newRequest(ctx context.Context, op *Operation, target, payload 
 	if err != nil {
 		return nil, fmt.Errorf("basaltic: %s: %w", op.ID, err)
 	}
+	if op.Stream != nil {
+		// Declare the length when it can be known.
+		//
+		// Go cannot determine a length from an arbitrary io.Reader, so it
+		// falls back to chunked encoding with no Content-Length. That is
+		// correct HTTP and it costs the platform its only defence against a
+		// truncated upload: with nothing declared, a body that stops early is
+		// indistinguishable from a complete short one, and the object is
+		// committed at whatever arrived. Declaring the length is what lets the
+		// server refuse a short write.
+		if n, ok := streamLength(op.Stream); ok {
+			req.ContentLength = n
+		}
+	}
 
 	for k, vs := range c.cfg.baseHeaders {
 		for _, v := range vs {
@@ -353,6 +367,38 @@ func (c *Client) newRequest(ctx context.Context, op *Operation, target, payload 
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	return req, nil
+}
+
+// streamLength reports how many bytes a streaming body will yield, when that
+// can be established without consuming it.
+//
+// Two sources, in order. A body that knows its own size says so — which is how
+// a wrapper (a progress reporter, say) passes the length of what it wraps
+// through. Otherwise a seekable body is measured from its current position to
+// the end and rewound, which covers an *os.File.
+func streamLength(r io.Reader) (int64, bool) {
+	if s, ok := r.(interface{ Size() int64 }); ok {
+		if n := s.Size(); n >= 0 {
+			return n, true
+		}
+	}
+	seeker, ok := r.(io.Seeker)
+	if !ok {
+		return 0, false
+	}
+	cur, err := seeker.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return 0, false
+	}
+	end, err := seeker.Seek(0, io.SeekEnd)
+	if err != nil {
+		return 0, false
+	}
+	// Put it back where it was, or the body starts at EOF and sends nothing.
+	if _, err := seeker.Seek(cur, io.SeekStart); err != nil {
+		return 0, false
+	}
+	return end - cur, true
 }
 
 func (c *Client) userAgent() string {
