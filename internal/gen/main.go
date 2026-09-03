@@ -26,15 +26,19 @@ import (
 
 // services are the packages the SDK ships.
 //
-// The platform serves more than these. Deliberately absent: registry, queue,
-// notifications and email, which are not part of the release; and objects,
-// which is S3-compatible and spoken to with an AWS SDK rather than this one.
+// The platform serves more than these. Deliberately absent: database, registry,
+// queue, notifications and email, which are not part of the release; and
+// objects, which is S3-compatible and spoken to with an AWS SDK rather than
+// this one.
+//
+// A service dropped from this list leaves its package behind — the generator
+// rewrites packages, it does not remove them — so delete the directory in the
+// same change, or `go get` keeps handing out a client for something unreleased.
 var services = []string{
 	"audit",
 	"billing",
 	"certificate",
 	"compute",
-	"database",
 	"dns",
 	"iam",
 	"kms",

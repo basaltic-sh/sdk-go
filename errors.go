@@ -22,7 +22,7 @@ import (
 // Classify failures with [IsNotFound], [IsAccessDenied] and their siblings
 // rather than by comparing [Error.Code]. Code looks like the precise thing to
 // match and is the wrong thing to match: the platform names errors per
-// resource — INSTANCE_NOT_FOUND, VOLUME_NOT_FOUND, DATABASE_USER_NOT_FOUND —
+// resource — INSTANCE_NOT_FOUND, VOLUME_NOT_FOUND, SECURITY_GROUP_NOT_FOUND —
 // with 77 distinct codes ending in _NOT_FOUND and 39 in _EXISTS, and a new
 // resource kind adds another. [Error.StatusCode] is the stable signal: a new
 // kind adds a code, never a status.

@@ -72,9 +72,8 @@ One package per service. Import only what you use.
 | `compute` | regional | `iam` | global |
 | `network` | regional | `dns` | global |
 | `storage` | regional | `billing` | global |
-| `database` | regional | `audit` | global |
-| `loadbalancer` | regional | `quota` | global |
-| `kms` | regional | | |
+| `loadbalancer` | regional | `audit` | global |
+| `kms` | regional | `quota` | global |
 | `secrets` | regional | | |
 | `certificate` | regional | | |
 | `telemetry` | regional | | |
@@ -158,7 +157,7 @@ Every operation returns an `*basaltic.Error` when the platform answers with a
 failure. Test for classes of failure with the helpers — **do not match on the
 error code yourself**, however precise that looks. The platform names errors
 per resource: `INSTANCE_NOT_FOUND`, `VOLUME_NOT_FOUND`,
-`DATABASE_USER_NOT_FOUND`. There are 77 distinct codes ending in `_NOT_FOUND`
+`SECURITY_GROUP_NOT_FOUND`. There are 77 distinct codes ending in `_NOT_FOUND`
 and 39 ending in `_EXISTS`, and adding a resource kind adds another. The HTTP
 status is the stable signal, and it is what these helpers use.
 

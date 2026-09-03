@@ -16,7 +16,6 @@ import (
 	"github.com/basaltic-sh/sdk-go/billing"
 	"github.com/basaltic-sh/sdk-go/certificate"
 	"github.com/basaltic-sh/sdk-go/compute"
-	"github.com/basaltic-sh/sdk-go/database"
 	"github.com/basaltic-sh/sdk-go/dns"
 	"github.com/basaltic-sh/sdk-go/iam"
 	"github.com/basaltic-sh/sdk-go/kms"
@@ -109,7 +108,6 @@ func allClients(cfg *basaltic.Config) map[string]any {
 		"billing":      billing.New(cfg),
 		"certificate":  certificate.New(cfg),
 		"compute":      compute.New(cfg),
-		"database":     database.New(cfg),
 		"dns":          dns.New(cfg),
 		"iam":          iam.New(cfg),
 		"kms":          kms.New(cfg),
@@ -349,7 +347,7 @@ func TestEveryServiceResolvesToItsOwnHost(t *testing.T) {
 	}
 
 	regional := map[string]bool{
-		"certificate": true, "compute": true, "database": true, "kms": true,
+		"certificate": true, "compute": true, "kms": true,
 		"loadbalancer": true, "network": true, "secrets": true, "storage": true,
 		"telemetry": true,
 	}
