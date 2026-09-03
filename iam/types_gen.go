@@ -246,6 +246,47 @@ type ListRegionsResult struct {
 	Regions []*Region `json:"regions"`
 }
 
+// OAuthAuthorizeRequest a signed-in user approving a client, from the console's consent page.
+type OAuthAuthorizeRequest struct {
+	// ClientID the registered client being approved.
+	//
+	// Required.
+	ClientID string `json:"client_id"`
+
+	// CodeChallenge Base64url SHA-256 of the client's PKCE verifier, without padding.
+	//
+	// Required.
+	CodeChallenge string `json:"code_challenge"`
+
+	// CodeChallengeMethod S256 only. `plain` is refused rather than merely discouraged:
+	// whoever intercepts the code also saw the challenge, so a plain
+	// challenge protects nothing.
+	//
+	// One of: "S256".
+	//
+	// Required.
+	CodeChallengeMethod string `json:"code_challenge_method"`
+
+	// OrganizationID which organization the resulting session is scoped to. The user must
+	// be a member of it.
+	//
+	// Required.
+	OrganizationID string `json:"organization_id"`
+
+	// RedirectURI where to deliver the code. For the CLI this must be a loopback
+	// address with any port — `http://127.0.0.1:<port>/...` or
+	// `http://[::1]:<port>/...` (RFC 8252 section 7.3). `localhost` is
+	// refused: it is a name, and whatever resolves it decides where the
+	// code goes.
+	//
+	// Required.
+	RedirectURI string `json:"redirect_uri"`
+
+	// State opaque value echoed back on the redirect, unchanged. The client
+	// generated it and compares it on return.
+	State *string `json:"state,omitempty"`
+}
+
 type OAuthRevokeRequest struct {
 	// Token the access token to revoke.
 	//
@@ -271,19 +312,45 @@ type OAuthTokenRequest struct {
 	// ClientSecret the secret access key. Omit when using HTTP Basic.
 	ClientSecret *string `json:"client_secret,omitempty"`
 
+	// Code the authorization code from the consent redirect. Single use, and
+	// valid for five minutes. `authorization_code` grant only.
+	Code *string `json:"code,omitempty"`
+
+	// CodeVerifier The PKCE verifier whose SHA-256 was sent as `code_challenge` when
+	// the flow started (RFC 7636). Required with `authorization_code`: it
+	// is what proves this is the client that began the flow, since a CLI
+	// holds no client secret.
+	CodeVerifier *string `json:"code_verifier,omitempty"`
+
 	// DurationSeconds requested token lifetime. A Basaltic extension, not an OAuth
 	// parameter — omit it and you get the default. Values outside the
 	// range are clamped into it rather than refused, so asking for a day
 	// yields the longest token allowed.
 	DurationSeconds *int `json:"duration_seconds,omitempty"`
 
-	// GrantType only `client_credentials` is served. A service account exchanging
-	// its own access key for a token.
+	// GrantType `client_credentials` is the one to use for a service account: it
+	// exchanges an access key pair for a token, and needs nothing else.
 	//
-	// One of: "client_credentials".
+	// `authorization_code` and `refresh_token` belong to the interactive
+	// login a person runs (`basaltic login`), where the token names a USER
+	// rather than a service account. They are driven by the CLI, not
+	// written by hand. Check the authorization-server metadata document
+	// before branching on them — they are advertised only where an
+	// authorization endpoint is configured.
+	//
+	// One of: "client_credentials", "authorization_code", "refresh_token".
 	//
 	// Required.
 	GrantType string `json:"grant_type"`
+
+	// RedirectURI the same `redirect_uri` the code was issued for. Re-checked here, so
+	// a code cannot be redeemed against a different destination.
+	RedirectURI *string `json:"redirect_uri,omitempty"`
+
+	// RefreshToken `refresh_token` grant only. Renews a user session without another
+	// trip through the browser. Rotated on every use — store the new
+	// one.
+	RefreshToken *string `json:"refresh_token,omitempty"`
 }
 
 // OAuthTokenResponse RFC 6749 token response.
@@ -294,6 +361,16 @@ type OAuthTokenResponse struct {
 
 	// ExpiresIn seconds until the token expires.
 	ExpiresIn int `json:"expires_in"`
+
+	// RefreshToken returned only by the user grants (`authorization_code` and
+	// `refresh_token`). Present it to the `refresh_token` grant to renew
+	// without another browser round trip; it is ROTATED on each use, so
+	// replace the stored copy every time.
+	//
+	// A service account gets none. It already holds a long-lived access
+	// key and can simply run `client_credentials` again, so a refresh
+	// token would be a second credential to store for no gain.
+	RefreshToken string `json:"refresh_token,omitempty"`
 
 	// One of: "Bearer".
 	TokenType string `json:"token_type"`

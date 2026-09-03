@@ -105,8 +105,16 @@ type RecordValue struct {
 	// Content RDATA — wire representation per record type.
 	Content string `json:"content"`
 
-	// Disabled when true the value is retained but not served in DNS responses.
-	// Useful for staged changes.
+	// Disabled must be `false`. `true` is **refused**.
+	//
+	// There is nowhere to keep a value that is not served, so a disabled
+	// value used to be accepted, echoed back in the response, and then
+	// dropped — the staged value was gone by the next read, with the
+	// write having reported success. Refusing is the honest version.
+	//
+	// The field remains on the schema because the console and CLI send it
+	// on every value; only `true` is rejected. To take a value out of an
+	// RRset, remove it from `values`.
 	Disabled bool `json:"disabled,omitempty"`
 }
 

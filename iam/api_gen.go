@@ -963,6 +963,44 @@ func (c *Client) AttachUserPolicy(ctx context.Context, userID string, body *Poli
 	return nil
 }
 
+// AuthorizeOAuthClient — Approve a CLI login and issue an authorization code.
+//
+// Approve a client to act as you, and receive the redirect that hands it
+// an authorization code.
+//
+// **This is the console's endpoint, not a client's.** It is called by
+// the Basaltic console's consent page on behalf of a signed-in user; the
+// CLI never calls it. A CLI opens a browser at that page, and the page
+// calls this. Anything driving it directly would need the user's console
+// session, at which point it already has everything the code would
+// grant.
+//
+// It is the half of the authorization-code flow that establishes WHO is
+// approving. The user must already be signed in — including any second
+// factor — and must be a member of the organization named in
+// `organization_id`. The organization is explicit rather than inferred:
+// a person in several has no single obvious answer, and choosing one for
+// them would scope the resulting token to something they did not pick.
+//
+// Unlike the token endpoint, this answers in the usual API envelope. It
+// is not part of the surface a third-party OAuth client talks to, so it
+// follows the caller — and the caller is our own front end.
+func (c *Client) AuthorizeOAuthClient(ctx context.Context, body *OAuthAuthorizeRequest, opts ...basaltic.RequestOption) (string, error) {
+	op := &basaltic.Operation{
+		ID:     "authorizeOAuthClient",
+		Method: "POST",
+		Path:   "/v1/oauth/authorize",
+		Body:   body,
+	}
+	var out struct {
+		RedirectTo string `json:"redirect_to"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return "", err
+	}
+	return out.RedirectTo, nil
+}
+
 // CancelInvitation cancels invitation.
 //
 // Cancel a pending invitation.

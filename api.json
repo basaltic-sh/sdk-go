@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "services": [
     {
       "name": "audit",
@@ -3922,6 +3922,72 @@
           "idempotent": true
         },
         {
+          "id": "authorizeOAuthClient",
+          "go_name": "AuthorizeOAuthClient",
+          "method": "POST",
+          "path": "/v1/oauth/authorize",
+          "summary": "Approve a CLI login and issue an authorization code",
+          "resource": "oauth",
+          "verb": "authorize",
+          "body_type": "*OAuthAuthorizeRequest",
+          "body_kind": "json",
+          "body_fields": [
+            {
+              "wire": "client_id",
+              "go_name": "ClientID",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true,
+              "doc": "The registered client being approved"
+            },
+            {
+              "wire": "code_challenge",
+              "go_name": "CodeChallenge",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true,
+              "doc": "Base64url SHA-256 of the client's PKCE verifier, without padding"
+            },
+            {
+              "wire": "code_challenge_method",
+              "go_name": "CodeChallengeMethod",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true,
+              "enum": [
+                "S256"
+              ],
+              "doc": "S256 only"
+            },
+            {
+              "wire": "organization_id",
+              "go_name": "OrganizationID",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true,
+              "doc": "Which organization the resulting session is scoped to"
+            },
+            {
+              "wire": "redirect_uri",
+              "go_name": "RedirectURI",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true,
+              "doc": "Where to deliver the code"
+            },
+            {
+              "wire": "state",
+              "go_name": "State",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "Opaque value echoed back on the redirect, unchanged"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "string"
+        },
+        {
           "id": "cancelInvitation",
           "go_name": "CancelInvitation",
           "method": "DELETE",
@@ -4558,6 +4624,22 @@
               "doc": "The secret access key"
             },
             {
+              "wire": "code",
+              "go_name": "Code",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "The authorization code from the consent redirect"
+            },
+            {
+              "wire": "code_verifier",
+              "go_name": "CodeVerifier",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "The PKCE verifier whose SHA-256 was sent as code_challenge when the flow started (RFC 7636)"
+            },
+            {
               "wire": "duration_seconds",
               "go_name": "DurationSeconds",
               "go_type": "*int",
@@ -4572,9 +4654,27 @@
               "flag_kind": "string",
               "required": true,
               "enum": [
-                "client_credentials"
+                "client_credentials",
+                "authorization_code",
+                "refresh_token"
               ],
-              "doc": "Only client_credentials is served"
+              "doc": "client_credentials is the one to use for a service account: it exchanges an access key pair for a token, and needs nothing else"
+            },
+            {
+              "wire": "redirect_uri",
+              "go_name": "RedirectURI",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "The same redirect_uri the code was issued for"
+            },
+            {
+              "wire": "refresh_token",
+              "go_name": "RefreshToken",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "refresh_token grant only"
             }
           ],
           "result_kind": "value",
