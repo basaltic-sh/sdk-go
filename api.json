@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.2.2",
+  "version": "0.3.2",
   "services": [
     {
       "name": "audit",
@@ -2375,6 +2375,23 @@
           "summary": "Delete zone",
           "resource": "zone",
           "verb": "delete",
+          "path_params": [
+            {
+              "wire": "zone_id",
+              "go_name": "zoneID",
+              "doc": "DNS Zone ID"
+            }
+          ],
+          "result_kind": "none"
+        },
+        {
+          "id": "deleteZoneRecordImport",
+          "go_name": "DeleteZoneRecordImport",
+          "method": "DELETE",
+          "path": "/v1/zones/{zone_id}/record-import",
+          "summary": "Discard the record-import outcome",
+          "resource": "zone",
+          "verb": "delete-record-import",
           "path_params": [
             {
               "wire": "zone_id",
@@ -5900,21 +5917,8 @@
               "go_name": "CertificateCRN",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
-            },
-            {
-              "wire": "certificate_pem",
-              "go_name": "CertificatePEM",
-              "go_type": "string",
-              "flag_kind": "string",
-              "required": true
-            },
-            {
-              "wire": "chain_pem",
-              "go_name": "ChainPEM",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
+              "required": true,
+              "doc": "The certificate to serve, by CRN"
             },
             {
               "wire": "is_default",
@@ -5923,13 +5927,6 @@
               "flag_kind": "bool",
               "pointer": true,
               "doc": "When true, demote whatever's currently default and promote this cert in the same transaction"
-            },
-            {
-              "wire": "private_key_pem",
-              "go_name": "PrivateKeyPEM",
-              "go_type": "string",
-              "flag_kind": "string",
-              "required": true
             }
           ],
           "result_kind": "value",

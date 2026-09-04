@@ -149,9 +149,13 @@ type VPCAssociationRequest struct {
 
 type Zone struct {
 	// CRN Cloud Resource Name.
-	CRN    string      `json:"crn,omitempty"`
-	DNSSEC *ZoneDNSSEC `json:"dnssec,omitempty"`
-	ID     string      `json:"id,omitempty"`
+	CRN string `json:"crn,omitempty"`
+
+	// Description free text set at creation. Read-only after that — `tags` are the
+	// mutable metadata and the only thing `PATCH` accepts.
+	Description string      `json:"description,omitempty"`
+	DNSSEC      *ZoneDNSSEC `json:"dnssec,omitempty"`
+	ID          string      `json:"id,omitempty"`
 
 	// Name Zone FQDN.
 	Name string `json:"name,omitempty"`

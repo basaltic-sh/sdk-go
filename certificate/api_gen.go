@@ -124,15 +124,17 @@ func (c *Client) GetCertificate(ctx context.Context, certificateID string, opts 
 // GetCertificateMaterial fetches certificate material (leaf, chain, private key).
 //
 // Return the certificate's full PEM bundle including the DECRYPTED
-// private key, for a caller holding certificate:GetCertificateMaterial
-// on the cert's CRN. This is the one path that surfaces key material;
-// every other read omits it.
+// private key. This is the one path that surfaces key material; every
+// other read omits it.
 //
-// Intended for in-VM data-plane agents (a load balancer's or CDN's
-// instance role, signed via IMDS→STS) that reference a certificate by
-// CRN through the feed and fetch material with their own identity. The
-// `fingerprint` lets the caller confirm it got the generation the feed
-// named. Machine identity only — no cookie/console auth.
+// Requires `certificate:GetCertificateMaterial` on the certificate's
+// CRN. That is a different action from `certificate:GetCertificate`, so
+// reading and listing certificates does not reach the key — and it is
+// the only thing gating this endpoint, so grant it deliberately.
+//
+// The `fingerprint` accompanies the PEM blocks. A caller replacing what
+// it currently serves can compare it to confirm it has the generation it
+// meant to install: a renewed certificate has a new one.
 func (c *Client) GetCertificateMaterial(ctx context.Context, certificateID string, opts ...basaltic.RequestOption) (*Material, error) {
 	op := &basaltic.Operation{
 		ID:       "getCertificateMaterial",

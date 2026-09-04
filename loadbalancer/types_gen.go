@@ -11,19 +11,16 @@ import (
 )
 
 type AttachListenerCertificateRequest struct {
+	// CertificateCRN the certificate to serve, by CRN. The listener stores a reference
+	// — no key material is sent here, and the replicas fetch it from the
+	// certificate service under their own identity.
+	//
 	// Required.
 	CertificateCRN string `json:"certificate_crn"`
-
-	// Required.
-	CertificatePEM string  `json:"certificate_pem"`
-	ChainPEM       *string `json:"chain_pem,omitempty"`
 
 	// IsDefault when true, demote whatever's currently default and promote this cert
 	// in the same transaction.
 	IsDefault *bool `json:"is_default,omitempty"`
-
-	// Required.
-	PrivateKeyPEM string `json:"private_key_pem"`
 }
 
 type AttachTargetRequest struct {

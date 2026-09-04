@@ -226,6 +226,33 @@ func (c *Client) DeleteZone(ctx context.Context, zoneID string, opts ...basaltic
 	return nil
 }
 
+// DeleteZoneRecordImport — Discard the record-import outcome.
+//
+// Forget what came of `import_existing_records`. **The imported records
+// stay** — by the time you read this they are ordinary records in the
+// zone, and this only discards the note about where they came from.
+//
+// The outcome describes something that happened once and never changes,
+// so the console keeps showing it — including the warning that a
+// probe-based import may not have found everything. That warning is
+// worth reading once and is noise afterwards, so this is how you put it
+// away.
+//
+// Answers `204` whether or not there was an outcome to discard: the
+// request asks for a state, and that state is reached either way.
+func (c *Client) DeleteZoneRecordImport(ctx context.Context, zoneID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "deleteZoneRecordImport",
+		Method:   "DELETE",
+		Path:     "/v1/zones/{zone_id}/record-import",
+		PathArgs: []string{zoneID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
 // DissociateZoneVPC dissociates a VPC from a private zone.
 func (c *Client) DissociateZoneVPC(ctx context.Context, zoneID string, vpcID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
