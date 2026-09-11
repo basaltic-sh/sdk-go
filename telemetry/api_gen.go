@@ -435,6 +435,22 @@ func (c *Client) DeleteLogGroup(ctx context.Context, id string, opts ...basaltic
 	return nil
 }
 
+// DeleteTraceSettings deletes trace settings.
+//
+// Restore implicit defaults. Requires telemetry:PutTraceSettings. Stored
+// data retains its original retention and encryption.
+func (c *Client) DeleteTraceSettings(ctx context.Context, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:     "deleteTraceSettings",
+		Method: "DELETE",
+		Path:   "/v1/trace-settings",
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetLog gets a single log record by id.
 func (c *Client) GetLog(ctx context.Context, logID string, opts ...basaltic.RequestOption) (*LogRecord, error) {
 	op := &basaltic.Operation{
@@ -467,6 +483,27 @@ func (c *Client) GetLogGroup(ctx context.Context, id string, opts ...basaltic.Re
 		return nil, err
 	}
 	return out.LogGroup, nil
+}
+
+// GetRetainedTelemetryPresence — Check retained telemetry presence.
+//
+// Requires telemetry:GetTraceSettings. Reports physical presence of
+// account logs, spans, metrics and retention rollups in this region,
+// including expired rows awaiting reclamation. Does not return record
+// payloads or bypass TTLs.
+func (c *Client) GetRetainedTelemetryPresence(ctx context.Context, opts ...basaltic.RequestOption) (bool, error) {
+	op := &basaltic.Operation{
+		ID:     "getRetainedTelemetryPresence",
+		Method: "GET",
+		Path:   "/v1/trace-settings/retained-data",
+	}
+	var out struct {
+		HasResources bool `json:"has_resources"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return false, err
+	}
+	return out.HasResources, nil
 }
 
 // GetTrace gets all spans for a trace.

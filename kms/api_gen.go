@@ -289,8 +289,11 @@ func (c *Client) ListKeysAll(ctx context.Context, params *ListKeysParams, opts .
 // Move the key into state=pending_deletion. Quota is released
 // immediately so the customer can create a fresh key inside the same
 // quota; the key material + record are hard-deleted once now() reaches
-// deletion_scheduled_at. The caller can cancel any time inside the
-// window via cancel-deletion.
+// scheduled_purge_at. The caller can cancel any time inside the window
+// via cancel-deletion. recovery_window_days is an integer from 7 to 30
+// (default 7). The deprecated pending_window_in_days alias remains
+// through this release and is removed in the following release;
+// supplying conflicting values is rejected.
 func (c *Client) ScheduleKeyDeletion(ctx context.Context, keyID string, body *ScheduleKeyDeletionRequest, opts ...basaltic.RequestOption) (*Key, error) {
 	op := &basaltic.Operation{
 		ID:       "scheduleKeyDeletion",

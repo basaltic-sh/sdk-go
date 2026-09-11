@@ -394,8 +394,8 @@ type SnapshotCreateRequest struct {
 //
 // The floor is one minute, because that pass is what evaluates the
 // schedule and nothing finer can be honoured; the ceiling is 30 days.
-// Sub-hourly intervals multiply Ceph snapshot churn and count against
-// the `snapshots` quota, so pick the largest interval that meets your
+// Sub-hourly intervals multiply snapshot churn and count against the
+// `snapshots` quota, so pick the largest interval that meets your
 // recovery point objective.
 type SnapshotIntervalMinutes = int
 
@@ -472,9 +472,12 @@ type SnapshotPolicyCreateRequest struct {
 	VolumeID string `json:"volume_id"`
 }
 
-// SnapshotPolicyUpdateRequest PATCH semantics — an omitted field keeps its current value. Changing
-// `interval_minutes` re-bases the next run off now, so shortening a
-// daily schedule to hourly takes effect within the hour.
+// SnapshotPolicyUpdateRequest names are fixed at creation because they form the CRN used by IAM
+// policies. Sending name in an update, including an unchanged, empty or
+// null value, returns a validation error. PATCH semantics — an omitted
+// field keeps its current value. Changing `interval_minutes` re-bases
+// the next run off now, so shortening a daily schedule to hourly takes
+// effect within the hour.
 type SnapshotPolicyUpdateRequest struct {
 	Description *string `json:"description,omitempty"`
 
@@ -486,7 +489,6 @@ type SnapshotPolicyUpdateRequest struct {
 	// reaped on that run.
 	Enabled         *bool                    `json:"enabled,omitempty"`
 	IntervalMinutes *SnapshotIntervalMinutes `json:"interval_minutes,omitempty"`
-	Name            *string                  `json:"name,omitempty"`
 	RetentionCount  *SnapshotRetentionCount  `json:"retention_count,omitempty"`
 	RetentionDays   *SnapshotRetentionDays   `json:"retention_days,omitempty"`
 	Tags            Tags                     `json:"tags,omitempty"`
@@ -513,9 +515,11 @@ const (
 	SnapshotStatusError     SnapshotStatus = "error"
 )
 
+// SnapshotUpdateRequest names are fixed at creation because they form the CRN used by IAM
+// policies. Sending name in an update, including an unchanged, empty or
+// null value, returns a validation error.
 type SnapshotUpdateRequest struct {
 	Description *string `json:"description,omitempty"`
-	Name        *string `json:"name,omitempty"`
 	Tags        Tags    `json:"tags,omitempty"`
 }
 
@@ -609,7 +613,7 @@ type VolumeType struct {
 }
 
 // VolumeTypeName customer-facing storage tier a volume is stored on. Mapped per-region
-// to a Ceph pool by operator config (the mapping is opaque to API
+// to a storage pool by operator config (the mapping is opaque to API
 // callers).
 type VolumeTypeName string
 
@@ -620,8 +624,10 @@ const (
 	VolumeTypeNameNVMe VolumeTypeName = "nvme"
 )
 
+// VolumeUpdateRequest names are fixed at creation because they form the CRN used by IAM
+// policies. Sending name in an update, including an unchanged, empty or
+// null value, returns a validation error.
 type VolumeUpdateRequest struct {
 	Description *string `json:"description,omitempty"`
-	Name        *string `json:"name,omitempty"`
 	Tags        Tags    `json:"tags,omitempty"`
 }

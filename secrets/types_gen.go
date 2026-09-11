@@ -21,9 +21,16 @@ type CreateSecretRequest struct {
 	// Name unique within the calling account.
 	//
 	// Required.
-	Name                  string `json:"name"`
-	RecoveryWindowSeconds *int   `json:"recovery_window_seconds,omitempty"`
-	Tags                  Tags   `json:"tags,omitempty"`
+	Name               string `json:"name"`
+	RecoveryWindowDays *int   `json:"recovery_window_days,omitempty"`
+
+	// RecoveryWindowSeconds legacy alias: 86400–2592000 in multiples of 86400; zero keeps the
+	// legacy default. Must equal recovery_window_days times 86400 when
+	// both are supplied. Conflicting or sub-day values are rejected.
+	// Retained through the introducing release and removed in the
+	// following release.
+	RecoveryWindowSeconds *int `json:"recovery_window_seconds,omitempty"`
+	Tags                  Tags `json:"tags,omitempty"`
 
 	// Value base64 of the initial value bytes (1 byte - 64 KiB).
 	//
@@ -32,7 +39,14 @@ type CreateSecretRequest struct {
 }
 
 type DeleteSecretRequest struct {
-	// RecoveryWindowSeconds override the secret's default window. Omit to keep it.
+	// RecoveryWindowDays override the secret's stored window. Omit to keep it.
+	RecoveryWindowDays *int `json:"recovery_window_days,omitempty"`
+
+	// RecoveryWindowSeconds legacy alias: 86400–2592000 in multiples of 86400; zero keeps the
+	// stored window. Must equal recovery_window_days times 86400 when both
+	// are supplied. Conflicting or sub-day values are rejected. Retained
+	// through the introducing release and removed in the following
+	// release.
 	RecoveryWindowSeconds *int `json:"recovery_window_seconds,omitempty"`
 }
 
@@ -60,8 +74,14 @@ type Secret struct {
 	// Managed true when a platform service generated this value and reads it back
 	// to act on. You can read and delete a managed secret, but
 	// UpdateSecret and PutSecretValue answer 403 SECRET_PLATFORM_MANAGED.
-	Managed               bool      `json:"managed"`
-	Name                  string    `json:"name"`
+	Managed bool   `json:"managed"`
+	Name    string `json:"name"`
+
+	// RecoveryWindowDays whole-day recovery window.
+	RecoveryWindowDays int `json:"recovery_window_days"`
+
+	// RecoveryWindowSeconds equals recovery_window_days times 86400. Retained through the
+	// introducing release and removed in the following release.
 	RecoveryWindowSeconds int       `json:"recovery_window_seconds"`
 	ScheduledPurgeAt      time.Time `json:"scheduled_purge_at,omitempty"`
 	Tags                  Tags      `json:"tags,omitempty"`

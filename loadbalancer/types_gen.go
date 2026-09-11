@@ -57,22 +57,13 @@ type CreateListenerCertificate struct {
 	PrivateKeyPEM string `json:"private_key_pem"`
 }
 
-// CreateListenerRequest HTTPS listeners require >=1 certificate. Pass them via `certificates`;
-// the first entry becomes the default (the fallback when SNI doesn't
-// match). The legacy singular fields (certificate_crn + certificate_pem
-// + chain_pem + private_key_pem) are still accepted for back-compat and
-// fold into a one-element certificates list.
+// CreateListenerRequest HTTPS listeners require >=1 certificate, named by CRN in
+// `certificates`; the first entry becomes the default (the fallback when
+// SNI doesn't match). No key material is accepted — the agent fetches
+// it from the certificate service against the CRN.
 type CreateListenerRequest struct {
-	// CertificateCRN deprecated — use certificates[]
-	CertificateCRN *string `json:"certificate_crn,omitempty"`
-
-	// CertificatePEM deprecated — use certificates[]
-	CertificatePEM *string                      `json:"certificate_pem,omitempty"`
-	Certificates   []*CreateListenerCertificate `json:"certificates,omitempty"`
-
-	// ChainPEM deprecated — use certificates[]
-	ChainPEM             *string `json:"chain_pem,omitempty"`
-	DefaultTargetGroupID *string `json:"default_target_group_id,omitempty"`
+	Certificates         []*CreateListenerCertificate `json:"certificates,omitempty"`
+	DefaultTargetGroupID *string                      `json:"default_target_group_id,omitempty"`
 
 	// Exposure Which LB addresses are bound. Defaults to 'both'; pick private_only
 	// when the LB has no FIP yet.
@@ -82,9 +73,6 @@ type CreateListenerRequest struct {
 
 	// Required.
 	Port int `json:"port"`
-
-	// PrivateKeyPEM deprecated — use certificates[]
-	PrivateKeyPEM *string `json:"private_key_pem,omitempty"`
 
 	// One of: "http", "https", "tcp", "udp".
 	//
@@ -439,26 +427,31 @@ type TargetGroup struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
-// UpdateListenerRequest patch a listener. Certificate rotation requires *all* of
-// certificate_crn + certificate_pem + private_key_pem to be set in the
-// same request; chain_pem is optional. Set
-// clear_default_target_group=true to remove the default; otherwise
+// UpdateListenerRequest patch a listener.
+//
+// `certificate_crn` names a certificate ALREADY attached to this
+// listener and re-stamps it, which makes the agent re-fetch material —
+// the on-demand rotation trigger. It does not attach: an unattached CRN
+// is refused, and the attach-certificate endpoint is what adds one. No
+// key material is accepted here.
+//
+// Set clear_default_target_group=true to remove the default; otherwise
 // omitting default_target_group_id leaves it unchanged.
 type UpdateListenerRequest struct {
 	CertificateCRN          *string `json:"certificate_crn,omitempty"`
-	CertificatePEM          *string `json:"certificate_pem,omitempty"`
-	ChainPEM                *string `json:"chain_pem,omitempty"`
 	ClearDefaultTargetGroup *bool   `json:"clear_default_target_group,omitempty"`
 	DefaultTargetGroupID    *string `json:"default_target_group_id,omitempty"`
 
 	// Exposure mutate which addresses are bound. Omit to leave unchanged.
 	//
 	// One of: "public_only", "private_only", "both".
-	Exposure      *string `json:"exposure,omitempty"`
-	PrivateKeyPEM *string `json:"private_key_pem,omitempty"`
-	Tags          Tags    `json:"tags,omitempty"`
+	Exposure *string `json:"exposure,omitempty"`
+	Tags     Tags    `json:"tags,omitempty"`
 }
 
+// UpdateLoadBalancerRequest names are fixed at creation because they form the CRN used by IAM
+// policies. Sending name in an update, including an unchanged, empty or
+// null value, returns a validation error.
 type UpdateLoadBalancerRequest struct {
 	// FlavorID resize each replica to a different compute flavor. Must be a
 	// loadbalancer-family flavor.
@@ -485,7 +478,6 @@ type UpdateLoadBalancerRequest struct {
 	// the replacement replica, so a resize cannot half-apply and leave the
 	// load balancer short.
 	FlavorID *string `json:"flavor_id,omitempty"`
-	Name     *string `json:"name,omitempty"`
 
 	// ReplicaCount resize the set of load balancer instances. Scale-out provisions the
 	// new replicas in sequence; scale-in removes the highest-indexed
@@ -507,9 +499,11 @@ type UpdateRuleRequest struct {
 	TargetGroupID string `json:"target_group_id"`
 }
 
+// UpdateTargetGroupRequest names are fixed at creation because they form the CRN used by IAM
+// policies. Sending name in an update, including an unchanged, empty or
+// null value, returns a validation error.
 type UpdateTargetGroupRequest struct {
 	HealthCheck *HealthCheck `json:"health_check,omitempty"`
-	Name        *string      `json:"name,omitempty"`
 
 	// ProxyProtocol Toggle PROXY v2 framing on upstream connections. Omitting the field
 	// leaves the current setting; setting true/false flips it explicitly.

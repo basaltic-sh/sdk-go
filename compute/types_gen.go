@@ -56,30 +56,6 @@ type AttachInstanceVolumeRequest struct {
 	VolumeID string `json:"volume_id"`
 }
 
-type BlockDeviceMapping struct {
-	// BootIndex boot order (0 for boot device, -1 for non-boot)
-	BootIndex           *int  `json:"boot_index,omitempty"`
-	DeleteOnTermination *bool `json:"delete_on_termination,omitempty"`
-
-	// One of: "volume", "local".
-	DestinationType *string `json:"destination_type,omitempty"`
-
-	// DeviceName device name (e.g., /dev/vda)
-	DeviceName *string `json:"device_name,omitempty"`
-
-	// One of: "volume", "snapshot", "image", "blank".
-	SourceType *string `json:"source_type,omitempty"`
-
-	// UUID volume or snapshot ID
-	UUID *string `json:"uuid,omitempty"`
-
-	// VolumeSize volume size in GB
-	VolumeSize *int `json:"volume_size,omitempty"`
-
-	// VolumeType volume type name or ID
-	VolumeType *string `json:"volume_type,omitempty"`
-}
-
 type CreateKeypairKeypair struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
@@ -94,9 +70,26 @@ type CreateKeypairKeypair struct {
 
 	// PublicKey SSH public key
 	PublicKey string `json:"public_key,omitempty"`
-	RegionID  string `json:"region_id,omitempty"`
 	Tags      Tags   `json:"tags,omitempty"`
 }
+
+// CurrentState where an instance actually is. The transitional states live here, not
+// on desired_state — nobody asks for `stopping`.
+type CurrentState string
+
+// Values CurrentState accepts.
+const (
+	CurrentStatePending   CurrentState = "pending"
+	CurrentStateBuilding  CurrentState = "building"
+	CurrentStateRunning   CurrentState = "running"
+	CurrentStateStopping  CurrentState = "stopping"
+	CurrentStateStopped   CurrentState = "stopped"
+	CurrentStateRebooting CurrentState = "rebooting"
+	CurrentStateMigrating CurrentState = "migrating"
+	CurrentStateDeleting  CurrentState = "deleting"
+	CurrentStateDeleted   CurrentState = "deleted"
+	CurrentStateError     CurrentState = "error"
+)
 
 // Flavor a compute size (vCPU + RAM). A flavor carries no disk size — the
 // boot disk is a customer volume sized at launch, floored by the image's
@@ -125,8 +118,7 @@ type Flavor struct {
 	Name   string `json:"name,omitempty"`
 
 	// RAMMB RAM in MB
-	RAMMB    int    `json:"ram_mb,omitempty"`
-	RegionID string `json:"region_id,omitempty"`
+	RAMMB int `json:"ram_mb,omitempty"`
 
 	// One of: "active", "disabled".
 	Status    string    `json:"status,omitempty"`
@@ -268,10 +260,6 @@ type Image struct {
 	Name      string `json:"name"`
 	OS        string `json:"os,omitempty"`
 	OSVersion string `json:"os_version,omitempty"`
-
-	// RegionID region the catalog row is served from. Stamped by the service; the
-	// row itself doesn't carry one.
-	RegionID  string `json:"region_id"`
 	SizeBytes int64  `json:"size_bytes,omitempty"`
 
 	// One of: "pending", "importing", "active", "error", "hidden".
@@ -365,9 +353,26 @@ type Instance struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
 	// CRN Cloud Resource Name
-	CRN         string         `json:"crn,omitempty"`
-	Description string         `json:"description,omitempty"`
-	Fault       *InstanceFault `json:"fault,omitempty"`
+	CRN string `json:"crn,omitempty"`
+
+	// CurrentState where the instance actually is. Read this one to answer "is it up"
+	// — the transitional states live here, not on desired_state, because
+	// nobody asks for `stopping`.
+	//
+	// desired_state=running with current_state=stopped is an instance that
+	// was asked to start and has not come up yet.
+	//
+	// One of: "pending", "building", "running", "stopping", "stopped", "rebooting", "migrating", "deleting", "deleted", "error".
+	CurrentState string `json:"current_state,omitempty"`
+	Description  string `json:"description,omitempty"`
+
+	// DesiredState what was asked for. Only three values, because there are only three
+	// things you can ask an instance to be: Create/Start/Reboot ask for
+	// running, Stop for stopped, Delete for deleted.
+	//
+	// One of: "running", "stopped", "deleted".
+	DesiredState string         `json:"desired_state,omitempty"`
+	Fault        *InstanceFault `json:"fault,omitempty"`
 
 	// Flavor resolved flavor (compute size) the instance runs on. Omitted if the
 	// referenced flavor row has been retired.
@@ -379,7 +384,7 @@ type Instance struct {
 
 	// Image resolved source image the instance booted from. Omitted for a
 	// volume-only boot or if the referenced image row is gone.
-	Image *InstanceImage `json:"image,omitempty"`
+	Image *Image `json:"image,omitempty"`
 
 	// Keypairs SSH keypairs baked into the instance at launch. These are embedded
 	// — unlike attached volumes, NICs, and security groups, which each
@@ -388,7 +393,6 @@ type Instance struct {
 	LaunchedAt time.Time  `json:"launched_at,omitempty"`
 	Metadata   Metadata   `json:"metadata,omitempty"`
 	Name       string     `json:"name,omitempty"`
-	PowerState PowerState `json:"power_state,omitempty"`
 
 	// PrimaryIP the primary NIC's IPv4 address, resolved at read time.
 	PrimaryIP string `json:"primary_ip,omitempty"`
@@ -408,7 +412,6 @@ type Instance struct {
 	// interface: each NIC carries its own `public_ip` and
 	// `floating_ip_id`.
 	PublicIP string `json:"public_ip,omitempty"`
-	RegionID string `json:"region_id,omitempty"`
 	Tags     Tags   `json:"tags,omitempty"`
 
 	// TaskState in-flight transition, if any; null when settled.
@@ -417,30 +420,11 @@ type Instance struct {
 	UpdatedAt    time.Time `json:"updated_at,omitempty"`
 
 	// UserData base64-encoded cloud-init user-data supplied at launch.
-	UserData string  `json:"user_data,omitempty"`
-	VMState  VMState `json:"vm_state,omitempty"`
+	UserData string `json:"user_data,omitempty"`
 }
 
 type InstanceCreateRequest struct {
-	// AssignPublicIP the older, instance-wide spelling of `networks[0].assign_public_ip`,
-	// and it means the primary NIC — the only interface it could ever
-	// have addressed. Still honoured. Setting both is asking for the same
-	// address twice, not for two.
-	AssignPublicIP *bool `json:"assign_public_ip,omitempty"`
-
-	// BootVolumeSizeGB boot disk size cloned from the image; omitted = the image's
-	// min_disk_gb. Must be within the volume size range (1..16384) and at
-	// least the image's min_disk_gb.
-	BootVolumeSizeGB *int `json:"boot_volume_size_gb,omitempty"`
-
-	// BootVolumeType boot disk tier; omitted = the region default.
-	//
-	// One of: "ssd", "nvme".
-	BootVolumeType *string `json:"boot_volume_type,omitempty"`
-
-	// DataVolumes blank data volumes created and bound with the instance.
-	DataVolumes []*PoolTemplateVolume `json:"data_volumes,omitempty"`
-	Description *string               `json:"description,omitempty"`
+	Description *string `json:"description,omitempty"`
 
 	// FlavorID Flavor ID
 	//
@@ -467,8 +451,13 @@ type InstanceCreateRequest struct {
 	// Required.
 	Name string `json:"name"`
 
-	// Networks to attach
-	Networks []*NetworkConfig `json:"networks,omitempty"`
+	// Networks interfaces to attach, at least one. index 0 is the primary NIC.
+	//
+	// Required because an instance with no interface boots with no network
+	// at all, and nothing inside it can add one afterwards.
+	//
+	// Required.
+	Networks []*NetworkConfig `json:"networks"`
 
 	// SecurityGroups security group names or IDs
 	SecurityGroups []string `json:"security_groups,omitempty"`
@@ -477,8 +466,12 @@ type InstanceCreateRequest struct {
 	// UserData base64-encoded user data (cloud-init)
 	UserData []byte `json:"user_data,omitempty"`
 
-	// Volumes volume attachments for boot from volume
-	Volumes []*BlockDeviceMapping `json:"volumes,omitempty"`
+	// Volumes disks created and bound with the instance, the boot disk included
+	// — mark it with `boot: true`. At most one entry may.
+	//
+	// Omit the boot entry to take the image's minimum size and the
+	// region's default tier.
+	Volumes []*InstanceVolume `json:"volumes,omitempty"`
 }
 
 type InstanceFault struct {
@@ -488,51 +481,6 @@ type InstanceFault struct {
 	Code    string `json:"code,omitempty"`
 	Details string `json:"details,omitempty"`
 	Message string `json:"message,omitempty"`
-}
-
-type InstanceImage struct {
-	Architecture string `json:"architecture,omitempty"`
-
-	// Attributes free-form key/value image attributes.
-	Attributes map[string]string `json:"attributes,omitempty"`
-	CreatedAt  time.Time         `json:"created_at,omitempty"`
-
-	// CRN Cloud Resource Name
-	CRN         string `json:"crn,omitempty"`
-	Description string `json:"description,omitempty"`
-
-	// Format on-disk format of the stored image bits.
-	Format string `json:"format,omitempty"`
-	ID     string `json:"id,omitempty"`
-
-	// MinDiskGB minimum boot-volume size, in GB, an instance must request to boot
-	// this image. Defaults to ceil(size_bytes / 1 GiB) at upload.
-	MinDiskGB int `json:"min_disk_gb,omitempty"`
-
-	// MinRAMMB Minimum RAM in MB
-	MinRAMMB int    `json:"min_ram_mb,omitempty"`
-	Name     string `json:"name,omitempty"`
-
-	// OS family
-	OS        string `json:"os,omitempty"`
-	OSVersion string `json:"os_version,omitempty"`
-	RegionID  string `json:"region_id,omitempty"`
-
-	// SizeBytes virtual size of the stored image, in bytes.
-	SizeBytes int64 `json:"size_bytes,omitempty"`
-
-	// Status catalog lifecycle state.
-	//
-	// One of: "pending", "importing", "active", "error", "hidden".
-	Status    string    `json:"status,omitempty"`
-	Tags      Tags      `json:"tags,omitempty"`
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
-
-	// Visibility "private" (owned by the caller's account) or "public" (a global,
-	// platform-owned image visible to every account).
-	//
-	// One of: "private", "public".
-	Visibility string `json:"visibility,omitempty"`
 }
 
 // InstancePool a launch template plus a desired count. Creating a pool spawns
@@ -545,42 +493,22 @@ type InstanceImage struct {
 // reaches no instance. `template.tags` is the set stamped on every
 // replica the pool launches.
 type InstancePool struct {
-	AccountID string `json:"account_id,omitempty"`
-
-	// AssignPublicIP each replica gets a floating IP on its PRIMARY NIC, allocated by the
-	// reconciler and released on scale-in. Secondary interfaces carry
-	// their own flag — read `template.networks[]` or `extra_nics[]` for
-	// those.
-	AssignPublicIP   bool `json:"assign_public_ip,omitempty"`
-	BootVolumeSizeGB int  `json:"boot_volume_size_gb,omitempty"`
-
-	// One of: "ssd", "nvme".
-	BootVolumeType string `json:"boot_volume_type,omitempty"`
-
 	// CRN Cloud Resource Name. This is the value an IAM policy statement must
 	// name to scope a permission to this pool alone; a policy written
 	// against anything else will not match.
-	CRN          string                `json:"crn,omitempty"`
-	DataVolumes  []*PoolTemplateVolume `json:"data_volumes,omitempty"`
-	Description  string                `json:"description,omitempty"`
-	DesiredCount int                   `json:"desired_count,omitempty"`
+	CRN          string `json:"crn,omitempty"`
+	Description  string `json:"description,omitempty"`
+	DesiredCount int    `json:"desired_count,omitempty"`
 
 	// ErrorMessage the last failure the reconciler recorded, cleared when the pool
 	// reaches its target. Set alongside status `error`, and left in place
 	// through a later resize — a pool that failed to spawn and is being
 	// scaled again has not yet proved the failure is behind it.
-	ErrorMessage string             `json:"error_message,omitempty"`
-	ExtraNICs    []*PoolTemplateNIC `json:"extra_nics,omitempty"`
-	FlavorID     string             `json:"flavor_id,omitempty"`
-	IAMRoleID    string             `json:"iam_role_id,omitempty"`
-	ID           string             `json:"id,omitempty"`
-	ImageID      string             `json:"image_id,omitempty"`
-	KeypairNames []string           `json:"keypair_names,omitempty"`
+	ErrorMessage string `json:"error_message,omitempty"`
+	ID           string `json:"id,omitempty"`
 
-	// LiveCount how many members are UP — bound instances in vm_state `running`.
-	// This is the number to alert or scale on. It can sit below
-	// member_count while a replica boots, and below desired_count on an
-	// `active` pool whose members have stopped.
+	// LiveCount how many members are UP — bound instances whose current_state is
+	// `running`.
 	LiveCount int    `json:"live_count,omitempty"`
 	ManagedBy string `json:"managed_by,omitempty"`
 	MaxCount  int    `json:"max_count,omitempty"`
@@ -590,18 +518,16 @@ type InstancePool struct {
 	// reflects, so member_count == desired_count with live_count below it
 	// means the pool has the members it was asked for and some of them are
 	// not up.
-	MemberCount int      `json:"member_count,omitempty"`
-	Metadata    Metadata `json:"metadata,omitempty"`
-	MinCount    int      `json:"min_count,omitempty"`
-	Name        string   `json:"name,omitempty"`
+	MemberCount int    `json:"member_count,omitempty"`
+	MinCount    int    `json:"min_count,omitempty"`
+	Name        string `json:"name,omitempty"`
 
 	// RefreshInProgress true while a rolling replacement requested through POST
 	// /v1/instance-pools/{pool_id}/refresh is still running. It clears
 	// itself once every member is on the current template. The pool reads
 	// `scaling` for the duration, since it runs one instance over its
 	// target while a replacement comes up.
-	RefreshInProgress bool     `json:"refresh_in_progress,omitempty"`
-	SecurityGroupIDs  []string `json:"security_group_ids,omitempty"`
+	RefreshInProgress bool `json:"refresh_in_progress,omitempty"`
 
 	// StaleInstanceCount how many members were launched from a template other than the pool's
 	// current one — that is, how many a refresh would replace. Non-zero
@@ -625,8 +551,7 @@ type InstancePool struct {
 	// teardown in flight.
 	//
 	// One of: "active", "scaling", "error", "deleting".
-	Status   string `json:"status,omitempty"`
-	SubnetID string `json:"subnet_id,omitempty"`
+	Status string `json:"status,omitempty"`
 
 	// Tags labels on the POOL itself, for IAM conditions
 	// (`basalt:ResourceTag/<key>`) and cost attribution. They are attached
@@ -637,13 +562,10 @@ type InstancePool struct {
 	// on its own.
 	Tags Tags `json:"tags,omitempty"`
 
-	// Template the same launch config as the flat fields above, rendered in
-	// instance-create's shape. Both are always emitted and they cannot
-	// disagree — this is a projection of the one stored template, not a
-	// second copy of it. Read this one; the flat fields are kept for
-	// clients written before it existed.
+	// Template the pool's launch config, in the shape instance create takes. The
+	// only place it appears: a flat copy of it beside this was two
+	// spellings of one thing, and two spellings drift.
 	Template *InstancePoolTemplate `json:"template,omitempty"`
-	UserData []byte                `json:"user_data,omitempty"`
 }
 
 // InstancePoolCreateRequest two shapes are accepted for the launch config. `template` is the
@@ -660,50 +582,13 @@ type InstancePool struct {
 // `template.networks[0].subnet_id`, or as the flat `flavor_id` +
 // `subnet_id`.
 type InstancePoolCreateRequest struct {
-	// AssignPublicIP superseded by `template.assign_public_ip`.
-	AssignPublicIP *bool `json:"assign_public_ip,omitempty"`
-
-	// BootVolumeSizeGB superseded by `template.boot_volume_size_gb`.
-	BootVolumeSizeGB *int `json:"boot_volume_size_gb,omitempty"`
-
-	// BootVolumeType superseded by `template.boot_volume_type`.
-	//
-	// One of: "ssd", "nvme".
-	BootVolumeType *string `json:"boot_volume_type,omitempty"`
-
-	// DataVolumes superseded by `template.data_volumes`.
-	DataVolumes  []*PoolTemplateVolume `json:"data_volumes,omitempty"`
-	Description  *string               `json:"description,omitempty"`
-	DesiredCount *int                  `json:"desired_count,omitempty"`
-
-	// ExtraNICs superseded by `template.networks[1:]`.
-	ExtraNICs []*PoolTemplateNIC `json:"extra_nics,omitempty"`
-
-	// FlavorID superseded by `template.flavor_id`.
-	FlavorID *string `json:"flavor_id,omitempty"`
-
-	// IAMRoleID superseded by `template.iam_role_id`.
-	IAMRoleID *string `json:"iam_role_id,omitempty"`
-
-	// ImageID superseded by `template.image_id`.
-	ImageID *string `json:"image_id,omitempty"`
-
-	// KeypairNames superseded by `template.key_names`.
-	KeypairNames []string `json:"keypair_names,omitempty"`
-	MaxCount     *int     `json:"max_count,omitempty"`
-
-	// Metadata superseded by `template.metadata`.
-	Metadata Metadata `json:"metadata,omitempty"`
-	MinCount *int     `json:"min_count,omitempty"`
+	Description  *string `json:"description,omitempty"`
+	DesiredCount *int    `json:"desired_count,omitempty"`
+	MaxCount     *int    `json:"max_count,omitempty"`
+	MinCount     *int    `json:"min_count,omitempty"`
 
 	// Required.
 	Name string `json:"name"`
-
-	// SecurityGroupIDs superseded by `template.networks[0].security_group_ids`.
-	SecurityGroupIDs []string `json:"security_group_ids,omitempty"`
-
-	// SubnetID superseded by `template.networks[0].subnet_id`.
-	SubnetID *string `json:"subnet_id,omitempty"`
 
 	// Tags labels on the pool resource, for IAM conditions
 	// (`basalt:RequestTag/<key>` here, `basalt:ResourceTag/<key>` on later
@@ -712,11 +597,10 @@ type InstancePoolCreateRequest struct {
 	// field, so it may be sent with either launch-config shape — unlike
 	// the deprecated flat fields below, it does not conflict with
 	// `template`. Replica tags are only reachable through `template.tags`.
-	Tags     Tags                  `json:"tags,omitempty"`
-	Template *InstancePoolTemplate `json:"template,omitempty"`
+	Tags Tags `json:"tags,omitempty"`
 
-	// UserData superseded by `template.user_data`.
-	UserData []byte `json:"user_data,omitempty"`
+	// Required.
+	Template *InstancePoolTemplate `json:"template"`
 }
 
 type InstancePoolFloatingIPAttachRequest struct {
@@ -739,23 +623,7 @@ type InstancePoolFloatingIPAttachRequest struct {
 // fixed address would have the second replica ask for one the first
 // already holds.
 type InstancePoolTemplate struct {
-	// AssignPublicIP the older spelling of `networks[0].assign_public_ip`: each replica
-	// gets a floating IP on its PRIMARY NIC, allocated by the reconciler
-	// and released on scale-in. Per-NIC flags live on `networks[]`, and a
-	// replica can be public on a secondary interface while its primary
-	// stays private.
-	AssignPublicIP   bool `json:"assign_public_ip,omitempty"`
-	BootVolumeSizeGB int  `json:"boot_volume_size_gb,omitempty"`
-
-	// BootVolumeType boot disk tier for every replica; omitted = the region default.
-	//
-	// One of: "ssd", "nvme".
-	BootVolumeType string `json:"boot_volume_type,omitempty"`
-
-	// DataVolumes blank per-replica data volumes, created and reclaimed with each
-	// replica.
-	DataVolumes []*PoolTemplateVolume `json:"data_volumes,omitempty"`
-	FlavorID    string                `json:"flavor_id,omitempty"`
+	FlavorID string `json:"flavor_id,omitempty"`
 
 	// IAMRoleID IAM role attached to every replica, reachable from its IMDS
 	// endpoint.
@@ -796,6 +664,10 @@ type InstancePoolTemplate struct {
 
 	// UserData base64-encoded user data (cloud-init), stamped on every replica.
 	UserData []byte `json:"user_data,omitempty"`
+
+	// Volumes per-replica disks, the boot disk included — mark it with `boot:
+	// true`. Same shape as instance create.
+	Volumes []*InstanceVolume `json:"volumes,omitempty"`
 }
 
 // InstancePoolUpdateRequest every field is optional; an omitted one is left alone, and sending
@@ -846,6 +718,27 @@ type InstanceUpdateRequest struct {
 	Tags        Tags     `json:"tags,omitempty"`
 }
 
+// InstanceVolume one disk created with the instance. `boot: true` marks the one cloned
+// from image_id; every other entry is a blank volume the in-guest agent
+// formats and mounts.
+type InstanceVolume struct {
+	// Boot marks the boot disk. It takes no mount_path or fstype — both come
+	// from the image — and sending either is refused rather than
+	// ignored.
+	Boot bool `json:"boot,omitempty"`
+
+	// DeleteOnTermination destroyed with the instance unless set false.
+	DeleteOnTermination bool `json:"delete_on_termination,omitempty"`
+
+	// Fstype filesystem the in-guest agent formats the volume with.
+	Fstype    string `json:"fstype,omitempty"`
+	MountPath string `json:"mount_path,omitempty"`
+	SizeGB    int    `json:"size_gb"`
+
+	// VolumeType tier; omitted = the region default.
+	VolumeType string `json:"volume_type,omitempty"`
+}
+
 type Keypair struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
@@ -857,7 +750,6 @@ type Keypair struct {
 
 	// PublicKey SSH public key
 	PublicKey string `json:"public_key,omitempty"`
-	RegionID  string `json:"region_id,omitempty"`
 	Tags      Tags   `json:"tags,omitempty"`
 }
 
@@ -968,52 +860,6 @@ type PoolInstance struct {
 	SequenceNum int `json:"sequence_num,omitempty"`
 }
 
-// PoolTemplateNIC one extra per-replica network interface.
-type PoolTemplateNIC struct {
-	// AssignPublicIP Give THIS interface a floating IP on every replica, independently of
-	// the primary's. One allocation per replica per interface, each
-	// counted against the account's floating_ips quota and released on
-	// scale-in.
-	AssignPublicIP   bool     `json:"assign_public_ip,omitempty"`
-	SecurityGroupIDs []string `json:"security_group_ids,omitempty"`
-	SubnetID         string   `json:"subnet_id"`
-}
-
-// PoolTemplateVolume one blank per-replica data volume, created with each replica and
-// deleted with it. A mount_path makes the in-guest agent format (fstype,
-// default ext4, only if blank) and mount it.
-type PoolTemplateVolume struct {
-	// DeleteOnTermination whether the volume is destroyed with the instance (default) or
-	// released back to available on teardown. Honoured on a pool template
-	// too: a replica scaled in, replaced or torn down with the pool
-	// releases the volume instead of destroying it when this is false.
-	DeleteOnTermination bool `json:"delete_on_termination,omitempty"`
-
-	// Fstype filesystem the in-guest agent formats the volume with. Only
-	// consulted when `mount_path` is set and the disk is blank.
-	//
-	// One of: "ext4", "xfs".
-	Fstype    string `json:"fstype,omitempty"`
-	MountPath string `json:"mount_path,omitempty"`
-	SizeGB    int    `json:"size_gb"`
-
-	// One of: "ssd", "nvme".
-	VolumeType string `json:"volume_type,omitempty"`
-}
-
-// PowerState power state observed on the hypervisor.
-type PowerState string
-
-// Values PowerState accepts.
-const (
-	PowerStateNostate   PowerState = "nostate"
-	PowerStateRunning   PowerState = "running"
-	PowerStatePaused    PowerState = "paused"
-	PowerStateShutdown  PowerState = "shutdown"
-	PowerStateCrashed   PowerState = "crashed"
-	PowerStateSuspended PowerState = "suspended"
-)
-
 type ReinstallInstanceRequest struct {
 	// ImageID replacement image. Omit to reinstall from the instance's current
 	// image.
@@ -1057,22 +903,6 @@ type UpdateInstanceVolumeAttachmentRequest struct {
 	// Required.
 	DeleteOnTermination bool `json:"delete_on_termination"`
 }
-
-// VMState lifecycle state the control plane tracks for the instance.
-type VMState string
-
-// Values VMState accepts.
-const (
-	VMStatePending   VMState = "pending"
-	VMStateBuilding  VMState = "building"
-	VMStateRunning   VMState = "running"
-	VMStateStopping  VMState = "stopping"
-	VMStateStopped   VMState = "stopped"
-	VMStateRebooting VMState = "rebooting"
-	VMStateDeleting  VMState = "deleting"
-	VMStateDeleted   VMState = "deleted"
-	VMStateError     VMState = "error"
-)
 
 // VolumeMount what the in-guest agent reported about this attachment.
 //

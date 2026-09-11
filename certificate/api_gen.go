@@ -56,15 +56,19 @@ func (p *ListCertificatesParams) withMarker(marker string) *ListCertificatesPara
 // Create a new certificate. Defaults to ACME issuance; set
 // `source=uploaded` to store customer-supplied PEM material directly.
 //
-// For ACME source: returns 202 with status pending and an empty
-// `challenges` list — the challenges are planned by the issuance
-// workflow just after the row is created, not by this call. Poll GET
-// /v1/certificates/{certificate_id} to pick them up: the row moves to
-// pending_dns and grows one `challenges` entry per domain. The CNAME is
-// created automatically when our_dns=true, otherwise the customer must
-// add `_acme-challenge.<domain> CNAME <expected_cname>` at their
-// registrar. The cert flips to active once every challenge verifies and
-// issuance completes.
+// For ACME source: returns 202 with status pending_dns and one
+// `challenges` entry per normalized domain, including
+// `cname_record_name`, `expected_cname` and `our_dns`. Use these fields
+// directly from the create response to configure DNS. Challenge planning
+// completes before creation is accepted; a planning failure rejects the
+// request without saving a certificate or partial challenge plan.
+//
+// When `our_dns=true`, the CNAME is created automatically during
+// asynchronous issuance. Otherwise, publish `cname_record_name CNAME
+// expected_cname` at your DNS provider. Wildcards validate at their
+// parent name; an apex and its wildcard share the same CNAME. Poll GET
+// /v1/certificates/{certificate_id} for progress. The certificate
+// becomes active once every challenge verifies and issuance completes.
 //
 // For uploaded source: returns 201 with status active.
 //

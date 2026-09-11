@@ -284,29 +284,6 @@ func (c *Client) DeleteLoadBalancer(ctx context.Context, id string, opts ...basa
 	return nil
 }
 
-// DeleteRule deletes a rule (superseded).
-//
-// Deletes a rule without naming the listener that owns it — the same
-// resource `DELETE
-// /v1/load-balancers/{id}/listeners/{listener_id}/rules/{rule_id}`
-// addresses, and every other rule verb is listener-nested. Use the
-// nested form; this one remains for clients already on it.
-//
-// Because the path carries no listener, the service has to scan the load
-// balancer's listeners to prove the rule belongs to it before deleting.
-func (c *Client) DeleteRule(ctx context.Context, id string, ruleID string, opts ...basaltic.RequestOption) error {
-	op := &basaltic.Operation{
-		ID:       "deleteRule",
-		Method:   "DELETE",
-		Path:     "/v1/load-balancers/{id}/rules/{rule_id}",
-		PathArgs: []string{id, ruleID},
-	}
-	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
-		return err
-	}
-	return nil
-}
-
 // DeleteRuleInListener deletes a routing rule.
 //
 // Deletes a rule addressed under the listener that owns it. Prefer this

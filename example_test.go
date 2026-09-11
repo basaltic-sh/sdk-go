@@ -34,12 +34,15 @@ func Example() {
 		Name:     "web-01",
 		FlavorID: "c8b0a4f2-1d3e-4a5b-8c7d-9e0f1a2b3c4d",
 		ImageID:  basaltic.String("debian-13"),
-		Tags:     compute.Tags{"environment": "production"},
+		Networks: []*compute.NetworkConfig{
+			{SubnetID: "9b2e4f1a-3c5d-4e6f-8a90-1b2c3d4e5f60"},
+		},
+		Tags: compute.Tags{"environment": "production"},
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(inst.ID, inst.VMState)
+	fmt.Println(inst.ID, inst.DesiredState, inst.CurrentState)
 }
 
 // One Config serves every service client, so authenticating a program that
@@ -66,7 +69,7 @@ func ExampleClient_do_pagination() {
 	c := compute.New(cfg)
 
 	for inst, err := range c.ListInstancesAll(ctx, &compute.ListInstancesParams{
-		VMState: compute.VMStateRunning,
+		CurrentState: compute.CurrentStateRunning,
 	}) {
 		if err != nil {
 			log.Fatal(err)

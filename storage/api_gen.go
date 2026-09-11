@@ -614,12 +614,14 @@ func (c *Client) DeleteVolume(ctx context.Context, volumeID string, opts ...basa
 
 // ExtendVolume extends volume.
 //
-// Accept a volume extend request. The row is flipped to `extending` and
-// the resize is provisioned asynchronously. Poll GET until status
-// changes back to `available` (with the new size) or `error`. The resize
-// is online — once the volume is bigger, the guest sees the new size
-// on its next rescan (rescans aren't triggered from here; that's the
-// compute service's job).
+// Grow a volume in `available` or `in_use`, including an attached boot
+// volume. The request returns `extending`; poll GET until the volume
+// returns to `available` (detached) or `in_use` (attached) at the new
+// size. Attached devices are refreshed before completion, with the
+// instance running or stopped. Resize and refresh failures retry while
+// the volume remains protected in `extending`. The new size must be
+// larger than the current size and at most 16384 GB. The customer must
+// grow the guest partition and filesystem separately.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -1352,7 +1354,14 @@ func (c *Client) PutBucketVersioning(ctx context.Context, bucket string, body *P
 // A single upload carries at most 5 GiB. Anything larger is a multipart
 // upload: initiate one under `/v1/buckets/{bucket}/multipart-uploads`,
 // send the bytes as parts, and complete it. A body over the limit is
-// refused with 413 whether it declares its size or streams past it.
+// refused with 413 for an oversized declaration or a body that streams
+// past the limit.
+//
+// Payload uploads require Content-Length, including 0 for an empty body.
+// Bare chunked uploads with no declared length return HTTP 411
+// (MISSING_CONTENT_LENGTH) before storage. Buffer unknown-length output
+// first, or upload buffered multipart parts with a known length per
+// part.
 func (c *Client) PutObject(ctx context.Context, bucket string, key string, body io.Reader, opts ...basaltic.RequestOption) (*PutObjectResponse, error) {
 	op := &basaltic.Operation{
 		ID:          "putObject",
@@ -1455,6 +1464,12 @@ func (c *Client) UpdateVolume(ctx context.Context, volumeID string, body *Volume
 // Store one part of an in-flight upload. A part holds at most 5 GiB;
 // every part except the last one named at completion must be at least 5
 // MiB, which completion is where that floor is checked.
+//
+// Payload uploads require Content-Length, including 0 for an empty body.
+// Bare chunked uploads with no declared length return HTTP 411
+// (MISSING_CONTENT_LENGTH) before storage. Buffer unknown-length output
+// first, or upload buffered multipart parts with a known length per
+// part.
 func (c *Client) UploadPart(ctx context.Context, bucket string, uploadID string, partNumber string, body io.Reader, opts ...basaltic.RequestOption) (*UploadPartResponse, error) {
 	op := &basaltic.Operation{
 		ID:          "uploadPart",

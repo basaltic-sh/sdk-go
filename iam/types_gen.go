@@ -273,11 +273,14 @@ type OAuthAuthorizeRequest struct {
 	// Required.
 	OrganizationID string `json:"organization_id"`
 
-	// RedirectURI where to deliver the code. For the CLI this must be a loopback
-	// address with any port — `http://127.0.0.1:<port>/...` or
-	// `http://[::1]:<port>/...` (RFC 8252 section 7.3). `localhost` is
-	// refused: it is a name, and whatever resolves it decides where the
-	// code goes.
+	// RedirectURI for the CLI this must be `urn:ietf:wg:oauth:2.0:oob` — the
+	// out-of-band pseudo-redirect, meaning the code is DISPLAYED rather
+	// than delivered anywhere. Nothing else is accepted for that client.
+	//
+	// Out-of-band because a redirect assumes the browser and the client
+	// are on the same machine, which is false for anyone signing in on a
+	// server they reach over SSH. What makes redemption safe is PKCE, not
+	// the delivery address.
 	//
 	// Required.
 	RedirectURI string `json:"redirect_uri"`
@@ -285,6 +288,24 @@ type OAuthAuthorizeRequest struct {
 	// State opaque value echoed back on the redirect, unchanged. The client
 	// generated it and compares it on return.
 	State *string `json:"state,omitempty"`
+}
+
+// OAuthAuthorizeResponse what the consent page does next. Exactly one of `code` and
+// `redirect_to` is present, decided by the client's registered redirect.
+type OAuthAuthorizeResponse struct {
+	// Code the authorization code, for an out-of-band client — one with
+	// nowhere to redirect to. Show it to the user so they can carry it to
+	// the program that asked. Treat it as a credential: single use, and
+	// not something to log.
+	Code string `json:"code,omitempty"`
+
+	// ExpiresIn how long the code stays redeemable, in seconds.
+	ExpiresIn int `json:"expires_in"`
+
+	// RedirectTo send the browser here, for a client that registered a real redirect.
+	// The URL carries the authorization code and the state — treat it as
+	// a credential, and do not log it.
+	RedirectTo string `json:"redirect_to,omitempty"`
 }
 
 type OAuthRevokeRequest struct {
@@ -343,8 +364,9 @@ type OAuthTokenRequest struct {
 	// Required.
 	GrantType string `json:"grant_type"`
 
-	// RedirectURI the same `redirect_uri` the code was issued for. Re-checked here, so
-	// a code cannot be redeemed against a different destination.
+	// RedirectURI the same `redirect_uri` the code was issued for — for the CLI,
+	// `urn:ietf:wg:oauth:2.0:oob`. Re-checked here, so a code cannot be
+	// redeemed under a different one (RFC 6749 4.1.3).
 	RedirectURI *string `json:"redirect_uri,omitempty"`
 
 	// RefreshToken `refresh_token` grant only. Renews a user session without another

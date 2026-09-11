@@ -965,12 +965,12 @@ func (c *Client) AttachUserPolicy(ctx context.Context, userID string, body *Poli
 
 // AuthorizeOAuthClient — Approve a CLI login and issue an authorization code.
 //
-// Approve a client to act as you, and receive the redirect that hands it
-// an authorization code.
+// Approve a client to act as you, and receive the authorization code
+// that hands it a token.
 //
 // **This is the console's endpoint, not a client's.** It is called by
 // the Basaltic console's consent page on behalf of a signed-in user; the
-// CLI never calls it. A CLI opens a browser at that page, and the page
+// CLI never calls it. A CLI prints a URL for that page, and the page
 // calls this. Anything driving it directly would need the user's console
 // session, at which point it already has everything the code would
 // grant.
@@ -985,20 +985,18 @@ func (c *Client) AttachUserPolicy(ctx context.Context, userID string, body *Poli
 // Unlike the token endpoint, this answers in the usual API envelope. It
 // is not part of the surface a third-party OAuth client talks to, so it
 // follows the caller — and the caller is our own front end.
-func (c *Client) AuthorizeOAuthClient(ctx context.Context, body *OAuthAuthorizeRequest, opts ...basaltic.RequestOption) (string, error) {
+func (c *Client) AuthorizeOAuthClient(ctx context.Context, body *OAuthAuthorizeRequest, opts ...basaltic.RequestOption) (*OAuthAuthorizeResponse, error) {
 	op := &basaltic.Operation{
 		ID:     "authorizeOAuthClient",
 		Method: "POST",
 		Path:   "/v1/oauth/authorize",
 		Body:   body,
 	}
-	var out struct {
-		RedirectTo string `json:"redirect_to"`
-	}
+	var out OAuthAuthorizeResponse
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return "", err
+		return nil, err
 	}
-	return out.RedirectTo, nil
+	return &out, nil
 }
 
 // CancelInvitation cancels invitation.
@@ -1399,6 +1397,29 @@ func (c *Client) GetAccount(ctx context.Context, accountID string, opts ...basal
 		return nil, err
 	}
 	return out.Account, nil
+}
+
+// GetAccountResources — Check account resource presence.
+//
+// Requires iam:GetAccount in the owning organization. Checks every
+// configured region and the global database, including retained storage
+// and hidden rows. A failed check returns an error; it never reports an
+// empty account. Telemetry data retention is exposed separately by each
+// regional telemetry API.
+func (c *Client) GetAccountResources(ctx context.Context, accountID string, opts ...basaltic.RequestOption) (bool, error) {
+	op := &basaltic.Operation{
+		ID:       "getAccountResources",
+		Method:   "GET",
+		Path:     "/v1/accounts/{account_id}/resources",
+		PathArgs: []string{accountID},
+	}
+	var out struct {
+		HasResources bool `json:"has_resources"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return false, err
+	}
+	return out.HasResources, nil
 }
 
 // GetGroup gets group.
@@ -3012,8 +3033,13 @@ func (c *Client) RevokeOAuthToken(ctx context.Context, body *OAuthRevokeRequest,
 
 // RevokeSTSSession revokes STS session.
 //
-// Revoke an active STS session, invalidating its credentials. Requires
-// `iam:RevokeSTSSession` permission.
+// Revoke an active STS session, invalidating its credentials.
+//
+// Needs **two** actions, not one. `iam:RevokeSession` decides whether
+// the revocation happens; the response then re-reads the session, which
+// checks `iam:GetSTSSession`. A caller holding only the first revokes
+// the session successfully and still receives a `403` — the
+// credentials are already dead at that point.
 func (c *Client) RevokeSTSSession(ctx context.Context, sessionID string, body *RevokeSTSSessionRequest, opts ...basaltic.RequestOption) (*STSSession, error) {
 	op := &basaltic.Operation{
 		ID:       "revokeSTSSession",

@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "services": [
     {
       "name": "audit",
@@ -847,41 +847,6 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "assign_public_ip",
-              "go_name": "AssignPublicIP",
-              "go_type": "*bool",
-              "flag_kind": "bool",
-              "pointer": true,
-              "doc": "The older, instance-wide spelling of networks[0].assign_public_ip, and it means the primary NIC — the only interface it could ever have addressed"
-            },
-            {
-              "wire": "boot_volume_size_gb",
-              "go_name": "BootVolumeSizeGB",
-              "go_type": "*int",
-              "flag_kind": "int",
-              "pointer": true,
-              "doc": "Boot disk size cloned from the image; omitted = the image's min_disk_gb"
-            },
-            {
-              "wire": "boot_volume_type",
-              "go_name": "BootVolumeType",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "enum": [
-                "ssd",
-                "nvme"
-              ],
-              "doc": "Boot disk tier; omitted = the region default"
-            },
-            {
-              "wire": "data_volumes",
-              "go_name": "DataVolumes",
-              "go_type": "[]*PoolTemplateVolume",
-              "flag_kind": "json",
-              "doc": "Blank data volumes created and bound with the instance"
-            },
-            {
               "wire": "description",
               "go_name": "Description",
               "go_type": "*string",
@@ -937,7 +902,8 @@
               "go_name": "Networks",
               "go_type": "[]*NetworkConfig",
               "flag_kind": "json",
-              "doc": "Networks to attach"
+              "required": true,
+              "doc": "Interfaces to attach, at least one"
             },
             {
               "wire": "security_groups",
@@ -962,9 +928,9 @@
             {
               "wire": "volumes",
               "go_name": "Volumes",
-              "go_type": "[]*BlockDeviceMapping",
+              "go_type": "[]*InstanceVolume",
               "flag_kind": "json",
-              "doc": "Volume attachments for boot from volume"
+              "doc": "Disks created and bound with the instance, the boot disk included — mark it with boot: true"
             }
           ],
           "result_kind": "value",
@@ -983,41 +949,6 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "assign_public_ip",
-              "go_name": "AssignPublicIP",
-              "go_type": "*bool",
-              "flag_kind": "bool",
-              "pointer": true,
-              "doc": "Superseded by template.assign_public_ip"
-            },
-            {
-              "wire": "boot_volume_size_gb",
-              "go_name": "BootVolumeSizeGB",
-              "go_type": "*int",
-              "flag_kind": "int",
-              "pointer": true,
-              "doc": "Superseded by template.boot_volume_size_gb"
-            },
-            {
-              "wire": "boot_volume_type",
-              "go_name": "BootVolumeType",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "enum": [
-                "ssd",
-                "nvme"
-              ],
-              "doc": "Superseded by template.boot_volume_type"
-            },
-            {
-              "wire": "data_volumes",
-              "go_name": "DataVolumes",
-              "go_type": "[]*PoolTemplateVolume",
-              "flag_kind": "json",
-              "doc": "Superseded by template.data_volumes"
-            },
-            {
               "wire": "description",
               "go_name": "Description",
               "go_type": "*string",
@@ -1032,56 +963,11 @@
               "pointer": true
             },
             {
-              "wire": "extra_nics",
-              "go_name": "ExtraNICs",
-              "go_type": "[]*PoolTemplateNIC",
-              "flag_kind": "json",
-              "doc": "Superseded by template.networks[1:]"
-            },
-            {
-              "wire": "flavor_id",
-              "go_name": "FlavorID",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Superseded by template.flavor_id"
-            },
-            {
-              "wire": "iam_role_id",
-              "go_name": "IAMRoleID",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Superseded by template.iam_role_id"
-            },
-            {
-              "wire": "image_id",
-              "go_name": "ImageID",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Superseded by template.image_id"
-            },
-            {
-              "wire": "keypair_names",
-              "go_name": "KeypairNames",
-              "go_type": "[]string",
-              "flag_kind": "stringSlice",
-              "doc": "Superseded by template.key_names"
-            },
-            {
               "wire": "max_count",
               "go_name": "MaxCount",
               "go_type": "*int",
               "flag_kind": "int",
               "pointer": true
-            },
-            {
-              "wire": "metadata",
-              "go_name": "Metadata",
-              "go_type": "Metadata",
-              "flag_kind": "json",
-              "doc": "Superseded by template.metadata"
             },
             {
               "wire": "min_count",
@@ -1098,21 +984,6 @@
               "required": true
             },
             {
-              "wire": "security_group_ids",
-              "go_name": "SecurityGroupIDs",
-              "go_type": "[]string",
-              "flag_kind": "stringSlice",
-              "doc": "Superseded by template.networks[0].security_group_ids"
-            },
-            {
-              "wire": "subnet_id",
-              "go_name": "SubnetID",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Superseded by template.networks[0].subnet_id"
-            },
-            {
               "wire": "tags",
               "go_name": "Tags",
               "go_type": "Tags",
@@ -1124,14 +995,8 @@
               "go_name": "Template",
               "go_type": "*InstancePoolTemplate",
               "flag_kind": "json",
-              "pointer": true
-            },
-            {
-              "wire": "user_data",
-              "go_name": "UserData",
-              "go_type": "[]byte",
-              "flag_kind": "bytes",
-              "doc": "Superseded by template.user_data"
+              "pointer": true,
+              "required": true
             }
           ],
           "result_kind": "value",
@@ -1505,6 +1370,14 @@
               "flag_kind": "string"
             },
             {
+              "wire": "include_hidden",
+              "go_name": "IncludeHidden",
+              "go_type": "*bool",
+              "flag_kind": "bool",
+              "pointer": true,
+              "doc": "Include the requesting account's hidden images for cleanup discovery"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -1646,6 +1519,25 @@
           "params_type": "ListInstancesParams",
           "params": [
             {
+              "wire": "current_state",
+              "go_name": "CurrentState",
+              "go_type": "CurrentState",
+              "flag_kind": "string",
+              "enum": [
+                "pending",
+                "building",
+                "running",
+                "stopping",
+                "stopped",
+                "rebooting",
+                "migrating",
+                "deleting",
+                "deleted",
+                "error"
+              ],
+              "doc": "Filter by where the instances actually are"
+            },
+            {
               "wire": "flavor_id",
               "go_name": "FlavorID",
               "go_type": "string",
@@ -1679,24 +1571,6 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Filter by name (exact match or prefix with *)"
-            },
-            {
-              "wire": "vm_state",
-              "go_name": "VMState",
-              "go_type": "VMState",
-              "flag_kind": "string",
-              "enum": [
-                "pending",
-                "building",
-                "running",
-                "stopping",
-                "stopped",
-                "rebooting",
-                "deleting",
-                "deleted",
-                "error"
-              ],
-              "doc": "Filter by lifecycle state"
             }
           ],
           "result_kind": "page",
@@ -3089,7 +2963,7 @@
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "Where to deliver the code"
+              "doc": "For the CLI this must be urn:ietf:wg:oauth:2.0:oob — the out-of-band pseudo-redirect, meaning the code is DISPLAYED rather than delivered anywhere"
             },
             {
               "wire": "state",
@@ -3101,7 +2975,7 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "string"
+          "result_type": "*OAuthAuthorizeResponse"
         },
         {
           "id": "cancelInvitation",
@@ -3656,6 +3530,23 @@
           "result_type": "*Account"
         },
         {
+          "id": "getAccountResources",
+          "go_name": "GetAccountResources",
+          "method": "GET",
+          "path": "/v1/accounts/{account_id}/resources",
+          "summary": "Check account resource presence",
+          "resource": "account",
+          "verb": "get-resource",
+          "path_params": [
+            {
+              "wire": "account_id",
+              "go_name": "accountID"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "bool"
+        },
+        {
           "id": "getGroup",
           "go_name": "GetGroup",
           "method": "GET",
@@ -3782,7 +3673,7 @@
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "The same redirect_uri the code was issued for"
+              "doc": "The same redirect_uri the code was issued for — for the CLI, urn:ietf:wg:oauth:2.0:oob"
             },
             {
               "wire": "refresh_token",
@@ -5739,8 +5630,8 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "pending_window_in_days",
-              "go_name": "PendingWindowInDays",
+              "wire": "recovery_window_days",
+              "go_name": "RecoveryWindowDays",
               "go_type": "*int",
               "flag_kind": "int",
               "pointer": true,
@@ -5811,13 +5702,6 @@
             {
               "wire": "description",
               "go_name": "Description",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
-            },
-            {
-              "wire": "name",
-              "go_name": "Name",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
@@ -5988,34 +5872,10 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "certificate_crn",
-              "go_name": "CertificateCRN",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Deprecated — use certificates[]"
-            },
-            {
-              "wire": "certificate_pem",
-              "go_name": "CertificatePEM",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Deprecated — use certificates[]"
-            },
-            {
               "wire": "certificates",
               "go_name": "Certificates",
               "go_type": "[]*CreateListenerCertificate",
               "flag_kind": "json"
-            },
-            {
-              "wire": "chain_pem",
-              "go_name": "ChainPEM",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Deprecated — use certificates[]"
             },
             {
               "wire": "default_target_group_id",
@@ -6043,14 +5903,6 @@
               "go_type": "int",
               "flag_kind": "int",
               "required": true
-            },
-            {
-              "wire": "private_key_pem",
-              "go_name": "PrivateKeyPEM",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Deprecated — use certificates[]"
             },
             {
               "wire": "protocol",
@@ -6353,26 +6205,6 @@
             {
               "wire": "id",
               "go_name": "id"
-            }
-          ],
-          "result_kind": "none"
-        },
-        {
-          "id": "deleteRule",
-          "go_name": "DeleteRule",
-          "method": "DELETE",
-          "path": "/v1/load-balancers/{id}/rules/{rule_id}",
-          "summary": "Delete a rule (superseded)",
-          "resource": "rule",
-          "verb": "delete-orphaned",
-          "path_params": [
-            {
-              "wire": "id",
-              "go_name": "id"
-            },
-            {
-              "wire": "rule_id",
-              "go_name": "ruleID"
             }
           ],
           "result_kind": "none"
@@ -6742,20 +6574,6 @@
               "pointer": true
             },
             {
-              "wire": "certificate_pem",
-              "go_name": "CertificatePEM",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
-            },
-            {
-              "wire": "chain_pem",
-              "go_name": "ChainPEM",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
-            },
-            {
               "wire": "clear_default_target_group",
               "go_name": "ClearDefaultTargetGroup",
               "go_type": "*bool",
@@ -6781,13 +6599,6 @@
                 "both"
               ],
               "doc": "Mutate which addresses are bound"
-            },
-            {
-              "wire": "private_key_pem",
-              "go_name": "PrivateKeyPEM",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
             },
             {
               "wire": "tags",
@@ -6823,13 +6634,6 @@
               "flag_kind": "string",
               "pointer": true,
               "doc": "Resize each replica to a different compute flavor"
-            },
-            {
-              "wire": "name",
-              "go_name": "Name",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
             },
             {
               "wire": "replica_count",
@@ -6921,13 +6725,6 @@
               "go_name": "HealthCheck",
               "go_type": "*HealthCheck",
               "flag_kind": "json",
-              "pointer": true
-            },
-            {
-              "wire": "name",
-              "go_name": "Name",
-              "go_type": "*string",
-              "flag_kind": "string",
               "pointer": true
             },
             {
@@ -8927,11 +8724,19 @@
               "doc": "Unique within the calling account"
             },
             {
+              "wire": "recovery_window_days",
+              "go_name": "RecoveryWindowDays",
+              "go_type": "*int",
+              "flag_kind": "int",
+              "pointer": true
+            },
+            {
               "wire": "recovery_window_seconds",
               "go_name": "RecoveryWindowSeconds",
               "go_type": "*int",
               "flag_kind": "int",
-              "pointer": true
+              "pointer": true,
+              "doc": "Legacy alias: 86400–2592000 in multiples of 86400; zero keeps the legacy default"
             },
             {
               "wire": "tags",
@@ -8970,12 +8775,20 @@
           "body_kind": "json",
           "body_fields": [
             {
+              "wire": "recovery_window_days",
+              "go_name": "RecoveryWindowDays",
+              "go_type": "*int",
+              "flag_kind": "int",
+              "pointer": true,
+              "doc": "Override the secret's stored window"
+            },
+            {
               "wire": "recovery_window_seconds",
               "go_name": "RecoveryWindowSeconds",
               "go_type": "*int",
               "flag_kind": "int",
               "pointer": true,
-              "doc": "Override the secret's default window"
+              "doc": "Legacy alias: 86400–2592000 in multiples of 86400; zero keeps the stored window"
             }
           ],
           "result_kind": "value",
@@ -10598,13 +10411,6 @@
               "pointer": true
             },
             {
-              "wire": "name",
-              "go_name": "Name",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
-            },
-            {
               "wire": "tags",
               "go_name": "Tags",
               "go_type": "Tags",
@@ -10655,13 +10461,6 @@
               "pointer": true
             },
             {
-              "wire": "name",
-              "go_name": "Name",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
-            },
-            {
               "wire": "retention_count",
               "go_name": "RetentionCount",
               "go_type": "*SnapshotRetentionCount",
@@ -10706,13 +10505,6 @@
             {
               "wire": "description",
               "go_name": "Description",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
-            },
-            {
-              "wire": "name",
-              "go_name": "Name",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
@@ -10832,6 +10624,16 @@
           "result_kind": "none"
         },
         {
+          "id": "deleteTraceSettings",
+          "go_name": "DeleteTraceSettings",
+          "method": "DELETE",
+          "path": "/v1/trace-settings",
+          "summary": "Delete trace settings",
+          "resource": "trace-setting",
+          "verb": "delete",
+          "result_kind": "none"
+        },
+        {
           "id": "getLog",
           "go_name": "GetLog",
           "method": "GET",
@@ -10864,6 +10666,17 @@
           ],
           "result_kind": "value",
           "result_type": "*LogGroup"
+        },
+        {
+          "id": "getRetainedTelemetryPresence",
+          "go_name": "GetRetainedTelemetryPresence",
+          "method": "GET",
+          "path": "/v1/trace-settings/retained-data",
+          "summary": "Check retained telemetry presence",
+          "resource": "trace-setting",
+          "verb": "get-retained-data",
+          "result_kind": "value",
+          "result_type": "bool"
         },
         {
           "id": "getTrace",

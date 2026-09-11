@@ -69,6 +69,10 @@ type ListImagesParams struct {
 	AllVersions  *bool
 	Architecture string
 
+	// IncludeHidden include the requesting account's hidden images for cleanup
+	// discovery.
+	IncludeHidden *bool
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -104,6 +108,9 @@ func (p *ListImagesParams) query() url.Values {
 	}
 	if p.Architecture != "" {
 		q.Set("architecture", p.Architecture)
+	}
+	if p.IncludeHidden != nil {
+		q.Set("include_hidden", strconv.FormatBool(*p.IncludeHidden))
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -183,6 +190,9 @@ func (p *ListInstancePoolsParams) withMarker(marker string) *ListInstancePoolsPa
 // ListInstancesParams are the optional filters and pagination controls for
 // [Client.ListInstances]. A nil *ListInstancesParams sends none of them.
 type ListInstancesParams struct {
+	// CurrentState filter by where the instances actually are.
+	CurrentState CurrentState
+
 	// FlavorID filter by flavor ID
 	FlavorID string
 
@@ -203,9 +213,6 @@ type ListInstancesParams struct {
 
 	// Name filter by name (exact match or prefix with *)
 	Name string
-
-	// VMState filter by lifecycle state.
-	VMState VMState
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -214,6 +221,9 @@ func (p *ListInstancesParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CurrentState != "" {
+		q.Set("current_state", string(p.CurrentState))
 	}
 	if p.FlavorID != "" {
 		q.Set("flavor_id", p.FlavorID)
@@ -229,9 +239,6 @@ func (p *ListInstancesParams) query() url.Values {
 	}
 	if p.Name != "" {
 		q.Set("name", p.Name)
-	}
-	if p.VMState != "" {
-		q.Set("vm_state", string(p.VMState))
 	}
 	return q
 }
@@ -382,9 +389,9 @@ func (c *Client) AttachInstancePoolFloatingIP(ctx context.Context, poolID string
 // AttachInstanceVolume attaches a data volume to an instance.
 //
 // Attach an existing, available storage volume to the instance and
-// republish the desired spec so the on-host compute-agent hot-plugs the
-// RBD disk into the running domain. The volume must be in the same
-// account and in status `available`.
+// record the change so the host hot-plugs the disk into the running
+// instance. The volume must be in the same account and in status
+// `available`.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -415,9 +422,9 @@ func (c *Client) AttachInstanceVolume(ctx context.Context, instanceID string, bo
 // The import runs in the background: the response is 202 with
 // status=importing, and a worker fetches the URL, converts it to the raw
 // base (qcow2 / raw / vmdk / vhd / vhdx / vdi are accepted), and imports
-// it into Ceph. The row flips to active (or error, with import_error
-// set) once it finishes — poll GET /v1/images/{image_id} for the
-// status.
+// it into regional storage. The row flips to active (or error, with
+// import_error set) once it finishes — poll GET /v1/images/{image_id}
+// for the status.
 //
 // A name behaves like a movable tag: by default the new image becomes
 // the "current" version for its (name, architecture), so future launches
@@ -593,8 +600,8 @@ func (c *Client) DeleteImage(ctx context.Context, imageID string, opts ...basalt
 // DeleteInstance deletes instance.
 //
 // Request instance deletion. Returns 202 Accepted — the delete is
-// async: the instance transitions to `deleting` and the on-host
-// compute-agent tears the domain down before it reaches `deleted`.
+// async: the instance transitions to `deleting` and the on-host the
+// instance is torn down on its host before it reaches `deleted`.
 func (c *Client) DeleteInstance(ctx context.Context, instanceID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "deleteInstance",
@@ -680,8 +687,8 @@ func (c *Client) DetachInstancePoolFloatingIP(ctx context.Context, poolID string
 
 // DetachInstanceVolume detaches a data volume from an instance.
 //
-// Remove the volume from the desired spec; the compute-agent hot-unplugs
-// the RBD disk, then compute clears the attachment.
+// Remove the volume from the instance; the host hot-unplugs the disk,
+// then compute clears the attachment.
 func (c *Client) DetachInstanceVolume(ctx context.Context, instanceID string, volumeID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "detachInstanceVolume",
@@ -878,6 +885,11 @@ func (c *Client) ListFlavors(ctx context.Context, params *ListFlavorsParams, opt
 // listed whatever its age, and so does a version staged with `current:
 // false` that is newer than the current one. Pass `all_versions=true`
 // for a tag's whole history.
+//
+// Account cleanup can also pass `include_hidden=true` to inspect its own
+// hidden images. This never exposes another account's hidden images,
+// including withdrawn platform images, and does not make tombstones
+// bootable.
 //
 // Returns one page. Use ListImagesAll to walk every page.
 func (c *Client) ListImages(ctx context.Context, params *ListImagesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Image], error) {
@@ -1249,8 +1261,8 @@ func (c *Client) RefreshInstancePool(ctx context.Context, poolID string, opts ..
 // IPs, keypairs, and cloud-init seed. The replacement is sized and
 // tiered by size_gb and volume_type, defaulting to the image's
 // min_disk_gb on the region default tier. The old boot volume is
-// deleted; attached data volumes are untouched. The new OS is applied
-// when the compute-agent redefines the domain on the next start.
+// deleted; attached data volumes are untouched. The new OS is applied on
+// the next start.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -1271,10 +1283,10 @@ func (c *Client) ReinstallInstance(ctx context.Context, instanceID string, body 
 // ResizeInstance resizes instance.
 //
 // Change a STOPPED instance's flavor (vCPU/RAM). The new size is
-// published to the desired spec now and materializes when the on-host
-// compute-agent redefines the domain on the next start — so resize the
-// instance, then start it. The instance must be stopped (libvirt can't
-// change a running domain's max vcpus/memory in place).
+// published now and materializes on the next start — so resize the
+// instance, then start it. A running instance cannot have its maximum
+// vCPU or memory changed underneath it, which is why the stop is
+// required rather than merely recommended.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.

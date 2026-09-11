@@ -87,17 +87,25 @@ type Key struct {
 	CreatedAt time.Time `json:"created_at"`
 	CRN       string    `json:"crn"`
 
-	// DeletionScheduledAt set only while state=pending_deletion. The key (and its
+	// DeletedAt when deletion was requested. Null for active keys and historical
+	// pending deletions whose request time is unknown.
+	DeletedAt   time.Time `json:"deleted_at,omitempty"`
+	Description string    `json:"description,omitempty"`
+	ID          string    `json:"id"`
+	KeySpec     KeySpec   `json:"key_spec"`
+	KeyUsage    KeyUsage  `json:"key_usage"`
+	Name        string    `json:"name"`
+
+	// RecoveryWindowDays chosen whole-day window. Null for active keys and historical pending
+	// deletions whose window is unknown.
+	RecoveryWindowDays int `json:"recovery_window_days,omitempty"`
+
+	// ScheduledPurgeAt set only while state=pending_deletion. The key (and its
 	// cryptographic material) is hard-deleted once now() reaches this
 	// timestamp; CancelKeyDeletion before then returns the key to
 	// state=disabled.
-	DeletionScheduledAt time.Time `json:"deletion_scheduled_at,omitempty"`
-	Description         string    `json:"description,omitempty"`
-	ID                  string    `json:"id"`
-	KeySpec             KeySpec   `json:"key_spec"`
-	KeyUsage            KeyUsage  `json:"key_usage"`
-	Name                string    `json:"name"`
-	State               KeyState  `json:"state"`
+	ScheduledPurgeAt time.Time `json:"scheduled_purge_at,omitempty"`
+	State            KeyState  `json:"state"`
 
 	// System present and true on platform-owned envelope keys (credential master,
 	// JWT signer, …), which are visible but not yours to operate on.
@@ -127,7 +135,7 @@ const (
 //   - enabled:          usable for spec/usage operations
 //   - disabled:         exists; refuses crypto ops; can be re-enabled
 //   - pending_deletion: scheduled for hard delete at
-//     deletion_scheduled_at; cancellable until then
+//     scheduled_purge_at; cancellable until then
 type KeyState string
 
 // Values KeyState accepts.
@@ -149,10 +157,10 @@ const (
 )
 
 type ScheduleKeyDeletionRequest struct {
-	// PendingWindowInDays how long the key sits in pending_deletion before it is hard-deleted.
+	// RecoveryWindowDays how long the key sits in pending_deletion before it is hard-deleted.
 	// Matches AWS KMS bounds; the deletion can be cancelled at any point
 	// inside the window.
-	PendingWindowInDays *int `json:"pending_window_in_days,omitempty"`
+	RecoveryWindowDays *int `json:"recovery_window_days,omitempty"`
 }
 
 type SignRequest struct {
@@ -187,11 +195,13 @@ const (
 
 type Tags = map[string]string
 
-// UpdateKeyRequest partial update — only the supplied fields are mutated. The key must
-// not be in state=pending_deletion.
+// UpdateKeyRequest names are fixed at creation because they form the CRN used by IAM
+// policies. Sending name in an update, including an unchanged, empty or
+// null value, returns a validation error. Partial update — only the
+// supplied fields are mutated. The key must not be in
+// state=pending_deletion.
 type UpdateKeyRequest struct {
 	Description *string `json:"description,omitempty"`
-	Name        *string `json:"name,omitempty"`
 	Tags        Tags    `json:"tags,omitempty"`
 }
 
