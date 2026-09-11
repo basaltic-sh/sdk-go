@@ -352,8 +352,8 @@ func (c *Client) AttachInstanceNIC(ctx context.Context, instanceID string, body 
 //
 // Binds an already-allocated floating IP of yours to the pool. One
 // public IP, answered by every replica — an anycast address — as
-// opposed to `template.assign_public_ip`, which gives each replica its
-// own.
+// opposed to `template.networks[].assign_public_ip`, which gives each
+// replica its own.
 //
 // THE OPERATION NAMES THE POOL because membership is then maintained for
 // you: the address's members are the pool's live replicas — every one
@@ -971,8 +971,8 @@ func (c *Client) ListInstanceNiCs(ctx context.Context, instanceID string, opts .
 // ListInstancePoolFloatingIPs lists the pool's shared public addresses.
 //
 // The addresses the WHOLE pool answers on. Not the per-replica addresses
-// `template.assign_public_ip` allocates — those belong to the replica
-// and are read from the instance.
+// `template.networks[].assign_public_ip` allocates — those belong to
+// the replica and are read from the instance.
 func (c *Client) ListInstancePoolFloatingIPs(ctx context.Context, poolID string, opts ...basaltic.RequestOption) (*basaltic.Page[FloatingIP], error) {
 	op := &basaltic.Operation{
 		ID:       "listInstancePoolFloatingIps",

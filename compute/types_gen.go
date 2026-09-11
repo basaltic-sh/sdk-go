@@ -640,9 +640,6 @@ type InstancePoolTemplate struct {
 	// build, change the template.
 	ImageID string `json:"image_id,omitempty"`
 
-	// KeyName SSH keypair name to authorize on every replica.
-	KeyName string `json:"key_name,omitempty"`
-
 	// KeyNames SSH keypair names to authorize on every replica.
 	KeyNames []string `json:"key_names,omitempty"`
 	Metadata Metadata `json:"metadata,omitempty"`
@@ -700,8 +697,8 @@ type InstancePoolUpdateRequest struct {
 	// Template replaces the launch config WHOLESALE — the object you send is what
 	// the pool launches next, and anything you leave out is cleared rather
 	// than kept. Replacement rather than a deep merge so a shorter
-	// `networks` or `data_volumes` cannot be read as a truncation and
-	// silently drop an interface or a disk.
+	// `networks` or `volumes` cannot be read as a truncation and silently
+	// drop an interface or a disk.
 	Template *InstancePoolTemplate `json:"template,omitempty"`
 }
 
