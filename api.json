@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "services": [
     {
       "name": "audit",
@@ -10629,7 +10629,7 @@
           "method": "DELETE",
           "path": "/v1/trace-settings",
           "summary": "Delete trace settings",
-          "resource": "trace-setting",
+          "resource": "trace-settings",
           "verb": "delete",
           "result_kind": "none"
         },
@@ -10673,7 +10673,7 @@
           "method": "GET",
           "path": "/v1/trace-settings/retained-data",
           "summary": "Check retained telemetry presence",
-          "resource": "trace-setting",
+          "resource": "trace-settings",
           "verb": "get-retained-data",
           "result_kind": "value",
           "result_type": "bool"

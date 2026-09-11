@@ -41,10 +41,9 @@ var resourceOverrides = map[string]struct{ Resource, Verb string }{
 	// produces, not for the verb the path uses.
 	"createSerialConsoleTicket": {"instance", "console-ticket"},
 
-	// Two paths delete the same rule. The one nested under its listener is
-	// the documented route and keeps the plain verb.
+	// Rules are nested under their listener, which is the only route that can
+	// scope one without scanning the LB.
 	"deleteRuleInListener": {"rule", "delete"},
-	"deleteRule":           {"rule", "delete-orphaned"},
 
 	// Reads as an action on the pool rather than a resource called "instance".
 	"listPoolInstances": {"instance-pool", "list-instances"},
@@ -61,9 +60,14 @@ var resourceOverrides = map[string]struct{ Resource, Verb string }{
 	"listMetricNamesPost":     {"metric", "list-names-body"},
 	"writeMetrics":            {"metric", "write"},
 
-	// One settings document per account, not a collection.
-	"getTraceSettings": {"trace-settings", "get"},
-	"putTraceSettings": {"trace-settings", "set"},
+	// One settings document per account, not a collection — so the plural
+	// stands and every operation on it has to say so. Miss one and it
+	// singularises into a SECOND command tree that shadows this one: cobra
+	// takes the first match and the other becomes unreachable.
+	"getTraceSettings":             {"trace-settings", "get"},
+	"putTraceSettings":             {"trace-settings", "set"},
+	"deleteTraceSettings":          {"trace-settings", "delete"},
+	"getRetainedTelemetryPresence": {"trace-settings", "get-retained-data"},
 
 	// Multipart upload is a resource with its own lifecycle, but the API
 	// never "creates" one — it initiates one — so the create-POST rule cannot
