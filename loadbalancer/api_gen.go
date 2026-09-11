@@ -267,10 +267,10 @@ func (c *Client) DeleteListener(ctx context.Context, id string, listenerID strin
 //
 // Request teardown. Returns 202 Accepted — the delete is async: the
 // load balancer transitions to `deleting` and stays readable while the
-// teardown saga releases the OVN rows, the replica pool, the replica IAM
-// role, and the VIP reservation, deleting the row last. Poll the load
-// balancer until it answers 404 rather than treating this response as
-// proof it is gone.
+// teardown saga releases the network objects, the replica pool, the
+// replica IAM role, and the VIP reservation, deleting the row last. Poll
+// the load balancer until it answers 404 rather than treating this
+// response as proof it is gone.
 func (c *Client) DeleteLoadBalancer(ctx context.Context, id string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "deleteLoadBalancer",
