@@ -10,6 +10,15 @@
 // security groups, internet, NAT and egress-only gateways, and floating
 // IPs.
 //
+// Relationship inputs use one reference field: UUID, CRN, or an exact
+// name when the request supplies its required parent scope. Subnets and
+// route tables are VPC-scoped; interfaces are subnet-scoped. Nested CRNs
+// use vpc/<vpc>/subnet/<subnet>, vpc/<vpc>/route-table/<table>, and
+// vpc/<vpc>/subnet/<subnet>/interface/<interface>. Names are immutable.
+// Unknown request fields and list parameters are rejected. Supplied
+// empty references are invalid and failed lookups never fall back to
+// another reference kind. Every list accepts exact name and crn filters.
+//
 // Build a client from a shared [basaltic.Config]:
 //
 //	c := network.New(cfg)

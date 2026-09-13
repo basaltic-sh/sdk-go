@@ -11,6 +11,14 @@
 // JSON envelopes), span ingest, and trace search/detail + per-account
 // trace settings.
 //
+// Log-group request references accept UUIDs, CRNs or exact
+// account-scoped names, classified by syntax without lookup fallback.
+// CRNs must match the authenticated account handle and serving region.
+// HTTP and gRPC OTLP logs use basaltic.log_group, falling back to
+// service.name, with the same reference contract. Trace/span
+// identifiers, metric labels and region search dimensions are protocol
+// values, independent of resource resolution.
+//
 // Build a client from a shared [basaltic.Config]:
 //
 //	c := telemetry.New(cfg)

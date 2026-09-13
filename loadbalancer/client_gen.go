@@ -6,8 +6,11 @@
 
 // Package loadbalancer is the Load Balancer API.
 //
-// Managed load balancers: listeners, target pools, health checks and the
-// TLS certificates a listener terminates.
+// Request relationships accept syntax-classified references resolved
+// within the caller account and region. Floating IP references accept
+// UUID or CRN only; IP targets stay literal. Managed load balancers:
+// listeners, target pools, health checks and the TLS certificates a
+// listener terminates.
 //
 // Build a client from a shared [basaltic.Config]:
 //

@@ -31,11 +31,11 @@ func Example() {
 	c := compute.New(cfg)
 
 	inst, err := c.CreateInstance(ctx, &compute.InstanceCreateRequest{
-		Name:     "web-01",
-		FlavorID: "c8b0a4f2-1d3e-4a5b-8c7d-9e0f1a2b3c4d",
-		ImageID:  basaltic.String("debian-13"),
+		Name:   "web-01",
+		Flavor: "c8b0a4f2-1d3e-4a5b-8c7d-9e0f1a2b3c4d",
+		Image:  basaltic.String("debian-13"),
 		Networks: []*compute.NetworkConfig{
-			{SubnetID: "9b2e4f1a-3c5d-4e6f-8a90-1b2c3d4e5f60"},
+			{Subnet: "9b2e4f1a-3c5d-4e6f-8a90-1b2c3d4e5f60"},
 		},
 		Tags: compute.Tags{"environment": "production"},
 	})
@@ -142,8 +142,11 @@ func ExampleWithIdempotencyKey() {
 	key := basaltic.NewIdempotencyKey()
 
 	inst, err := c.CreateInstance(ctx, &compute.InstanceCreateRequest{
-		Name:     "web-01",
-		FlavorID: "c8b0a4f2-1d3e-4a5b-8c7d-9e0f1a2b3c4d",
+		Name:   "web-01",
+		Flavor: "c8b0a4f2-1d3e-4a5b-8c7d-9e0f1a2b3c4d",
+		Networks: []*compute.NetworkConfig{
+			{Subnet: "9b2e4f1a-3c5d-4e6f-8a90-1b2c3d4e5f60"},
+		},
 	}, basaltic.WithIdempotencyKey(key))
 	if err != nil {
 		log.Fatal(err)

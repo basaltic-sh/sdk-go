@@ -41,10 +41,14 @@ type Certificate struct {
 	ID           string                  `json:"id,omitempty"`
 	IssuedAt     time.Time               `json:"issued_at,omitempty"`
 	KeyAlgorithm CertificateKeyAlgorithm `json:"key_algorithm,omitempty"`
-	Name         string                  `json:"name,omitempty"`
-	Source       CertificateSource       `json:"source,omitempty"`
-	Status       CertificateStatus       `json:"status,omitempty"`
-	Tags         Tags                    `json:"tags,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name   string            `json:"name,omitempty"`
+	Source CertificateSource `json:"source,omitempty"`
+	Status CertificateStatus `json:"status,omitempty"`
+	Tags   Tags              `json:"tags,omitempty"`
 }
 
 type CertificateChallenge struct {
@@ -92,7 +96,9 @@ type CertificateIssueRequest struct {
 
 	// Name unique per account. Surfaces in the CRN
 	// (`crn:certificate::<account>:certificate/<name>`), so it must be
-	// URL-safe — letters, digits, dot, dash, underscore.
+	// URL-safe — letters, digits, dot, dash, underscore. Resource names
+	// must not start with the literal crn: prefix or be UUIDs (canonical,
+	// compact, braced, or urn:uuid: forms, in either case).
 	//
 	// Required.
 	Name string `json:"name"`

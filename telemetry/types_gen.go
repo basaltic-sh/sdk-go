@@ -12,8 +12,17 @@ import (
 
 type CreateLogGroupRequest struct {
 	Description *string `json:"description,omitempty"`
-	KMSKeyCRN   *string `json:"kms_key_crn,omitempty"`
 
+	// KMSKey KMS key UUID, CRN or exact name in the authenticated account and
+	// serving region. The resolved UUID is pinned; deleting a key and
+	// reusing its name never retargets existing data. An empty string
+	// selects plaintext.
+	KMSKey *string `json:"kms_key,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 
@@ -28,7 +37,10 @@ type IngestRecord struct {
 	// Required.
 	Body string `json:"body"`
 
-	// LogGroup name of an existing log group. Rejected if not registered.
+	// LogGroup reference to an existing log group by UUID, CRN or exact name in the
+	// authenticated account. CRNs must identify telemetry/log-group in the
+	// serving region and account handle. Classification is by syntax with
+	// no lookup fallback; slash-bearing names are preserved.
 	//
 	// Required.
 	LogGroup string `json:"log_group"`
@@ -84,10 +96,18 @@ type LogGroup struct {
 	Description string `json:"description,omitempty"`
 	ID          string `json:"id,omitempty"`
 
-	// KMSKeyCRN KMS key associated with the group (empty = plaintext)
+	// KMSKeyCRN KMS key CRN. Omitted for plaintext or when kms_key_unavailable is
+	// true.
 	KMSKeyCRN string `json:"kms_key_crn,omitempty"`
 
-	// Name 1..512 chars, [A-Za-z0-9_./#-]. Leading "/" not allowed.
+	// KMSKeyUnavailable true when the bound key has been deleted. The CRN is omitted, but
+	// the binding remains encrypted under its original key identity; this
+	// does not select platform encryption or plaintext.
+	KMSKeyUnavailable bool `json:"kms_key_unavailable,omitempty"`
+
+	// Name 1..512 chars, [A-Za-z0-9_./#-]. Leading "/" not allowed. Resource
+	// names must not start with the literal crn: prefix or be UUIDs
+	// (canonical, compact, braced, or urn:uuid: forms, in either case).
 	Name string `json:"name,omitempty"`
 
 	// RetentionDays 1..3650 days, or null for never expire
@@ -214,9 +234,14 @@ type TraceSettings struct {
 	AccountID string    `json:"account_id,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
-	// KMSKeyCRN KMS key CRN that span bodies are envelope-encrypted under (empty =
-	// plaintext)
+	// KMSKeyCRN KMS key CRN. Omitted for plaintext or when kms_key_unavailable is
+	// true.
 	KMSKeyCRN string `json:"kms_key_crn,omitempty"`
+
+	// KMSKeyUnavailable true when the bound key has been deleted. The CRN is omitted, but
+	// the binding remains encrypted under its original key identity; this
+	// does not select platform encryption or plaintext.
+	KMSKeyUnavailable bool `json:"kms_key_unavailable,omitempty"`
 
 	// RetentionDays 1..3650, or null for never-expire
 	RetentionDays int       `json:"retention_days,omitempty"`
@@ -240,8 +265,11 @@ type UpdateLogGroupRequest struct {
 	ClearRetention *bool   `json:"clear_retention,omitempty"`
 	Description    *string `json:"description,omitempty"`
 
-	// KMSKeyCRN pass an empty string to disassociate
-	KMSKeyCRN *string `json:"kms_key_crn,omitempty"`
+	// KMSKey KMS key UUID, CRN or exact name in the authenticated account and
+	// serving region. Omission preserves the pinned UUID; an empty string
+	// clears encryption for future records. Unavailable key metadata does
+	// not clear the binding.
+	KMSKey *string `json:"kms_key,omitempty"`
 
 	// RetentionDays 1..3650; pass clear_retention to switch to never expire
 	RetentionDays *int              `json:"retention_days,omitempty"`
@@ -252,8 +280,11 @@ type UpdateTraceSettingsRequest struct {
 	// ClearRetention when true, sets retention to never-expire (ignores retention_days)
 	ClearRetention *bool `json:"clear_retention,omitempty"`
 
-	// KMSKeyCRN pass an empty string to disassociate
-	KMSKeyCRN *string `json:"kms_key_crn,omitempty"`
+	// KMSKey KMS key UUID, CRN or exact name in the authenticated account and
+	// serving region. PUT replaces settings; omission or an empty string
+	// selects plaintext for future spans. Historical ciphertext retains
+	// its original key UUID.
+	KMSKey *string `json:"kms_key,omitempty"`
 
 	// RetentionDays 1..3650; pass clear_retention=true to switch to never-expire
 	RetentionDays *int `json:"retention_days,omitempty"`

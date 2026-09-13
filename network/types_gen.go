@@ -11,17 +11,20 @@ import (
 )
 
 type AttachFloatingIPRequest struct {
+	// Interface UUID or nested CRN. Bare names have no subnet scope and
+	// are rejected.
+	//
 	// Required.
-	InterfaceID string `json:"interface_id"`
+	Interface string `json:"interface"`
 }
 
 type DetachFloatingIPRequest struct {
-	// InterfaceID the member to remove. Naming one member of a shared address removes
-	// just that member and leaves the address serving from the rest;
-	// omitting it detaches every member. On an address with a single
-	// member the two are the same thing. Naming a NIC that is not a member
-	// is a no-op.
-	InterfaceID *string `json:"interface_id,omitempty"`
+	// Interface UUID or nested CRN; bare names, null and empty references
+	// are rejected. Selecting one member leaves the address serving from
+	// the rest; omitting the field detaches every member. On an address
+	// with a single member the two are the same thing. Naming a NIC that
+	// is not a member is a no-op.
+	Interface *string `json:"interface,omitempty"`
 }
 
 // EgressOnlyGateway The IPv6 analogue of a NAT gateway, and its inverse: a subnet whose
@@ -32,28 +35,35 @@ type DetachFloatingIPRequest struct {
 // and reuses the VPC's internet gateway for the L3 uplink, so the VPC
 // must have an IGW attached. One per VPC.
 type EgressOnlyGateway struct {
-	CreatedAt   time.Time         `json:"created_at"`
-	CRN         string            `json:"crn"`
-	Description string            `json:"description,omitempty"`
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Tags        map[string]string `json:"tags"`
-	UpdatedAt   time.Time         `json:"updated_at"`
-	VPCID       string            `json:"vpc_id"`
+	CreatedAt   time.Time `json:"created_at"`
+	CRN         string    `json:"crn"`
+	Description string    `json:"description,omitempty"`
+	ID          string    `json:"id"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name      string            `json:"name"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
+	VPCID     string            `json:"vpc_id"`
 }
 
 type EgressOnlyGatewayCreateRequest struct {
 	Description *string `json:"description,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string            `json:"name"`
 	Tags map[string]string `json:"tags,omitempty"`
 
-	// VPCID The VPC must have an IPv6 CIDR (an egress-only gateway only routes
-	// v6).
+	// VPC UUID, CRN or exact name in the caller account.
 	//
 	// Required.
-	VPCID string `json:"vpc_id"`
+	VPC string `json:"vpc"`
 }
 
 type EgressOnlyGatewayUpdateRequest struct {
@@ -69,6 +79,7 @@ type FloatingIP struct {
 	CreatedAt             time.Time `json:"created_at"`
 	CRN                   string    `json:"crn"`
 	Description           string    `json:"description,omitempty"`
+	Family                IPFamily  `json:"family"`
 	ID                    string    `json:"id"`
 
 	// InstancePoolID the instance pool this address belongs to, or null for an ordinary
@@ -81,7 +92,9 @@ type FloatingIP struct {
 	// /v1/instance-pools/{pool_id}/floating-ips` and `DELETE
 	// /v1/instance-pools/{pool_id}/floating-ips/{floating_ip_id}`.
 	InstancePoolID string `json:"instance_pool_id,omitempty"`
-	IPAddress      string `json:"ip_address"`
+
+	// IPAddress the public address, in the family it was allocated in.
+	IPAddress string `json:"ip_address"`
 
 	// Members the floating IP's bindings. A floating IP fronts 0 members
 	// (allocated, unattached), 1 member (the everyday case), or N members
@@ -120,8 +133,14 @@ type FloatingIP struct {
 }
 
 type FloatingIPCreateRequest struct {
-	Description *string           `json:"description,omitempty"`
-	Tags        map[string]string `json:"tags,omitempty"`
+	Description *string `json:"description,omitempty"`
+
+	// Family which family to allocate in. Fixed for the life of the address —
+	// it decides the pool the address comes from, the quota it counts
+	// against (`floating_ips_v4` or `floating_ips_v6`) and the SKU it
+	// bills as. Omitted means `ipv4`.
+	Family *IPFamily         `json:"family,omitempty"`
+	Tags   map[string]string `json:"tags,omitempty"`
 }
 
 // FloatingIPMember one binding of a floating IP.
@@ -161,9 +180,38 @@ type FloatingIPUpdateRequest struct {
 	Tags        map[string]string `json:"tags,omitempty"`
 }
 
+// IPFamily the address family of a public address. A floating IP is the same
+// resource in either family — allocated, attached to one or more
+// members, advertised from their chassis — and the family is a
+// property of the address rather than a different product. What changes
+// with it:
+//
+//   - **Pool.** A `ipv4` address comes from the region's tenant IPv4 block,
+//     a `ipv6` one from its tenant IPv6 block.
+//   - **Attach.** A `ipv6` address can only be attached to an interface
+//     that has an IPv6 address — one on a dual-stack subnet — and the
+//     subnet needs a `::/0` route to an internet gateway, the way a
+//     `ipv4` one needs `0.0.0.0/0`. An interface holds at most one
+//     floating IP of each family; a v4 and a v6 on the same interface is
+//     fine.
+//   - **Identity.** While a `ipv6` floating IP is attached, it is the
+//     interface's public IPv6 identity: the interface's own address stops
+//     being reachable from the internet and comes back when the floating
+//     IP is detached. That is the same rule a `ipv4` floating IP has
+//     always had, applied to a family whose addresses are public to begin
+//     with.
+type IPFamily string
+
+// Values IPFamily accepts.
+const (
+	IPFamilyIPv4 IPFamily = "ipv4"
+	IPFamilyIPv6 IPFamily = "ipv6"
+)
+
 type Interface struct {
-	// AttachedTo Resource CRN this interface is attached to (e.g. a compute
-	// instance). Null until VM-attach lands with the compute rewrite.
+	// AttachedTo UUID of the instance holding this interface, including stopped
+	// instances. Null when no instance NIC binding exists. Deletion is
+	// refused while bound; floating IP attachment is tracked separately.
 	AttachedTo  string    `json:"attached_to,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	CRN         string    `json:"crn"`
@@ -172,13 +220,17 @@ type Interface struct {
 	IPAddress   string    `json:"ip_address"`
 
 	// IPv6Address the interface's /128, auto-assigned when its subnet is dual-stack.
-	IPv6Address string            `json:"ipv6_address,omitempty"`
-	MAC         string            `json:"mac"`
-	Name        string            `json:"name"`
-	SubnetID    string            `json:"subnet_id"`
-	Tags        map[string]string `json:"tags"`
-	UpdatedAt   time.Time         `json:"updated_at"`
-	VPCID       string            `json:"vpc_id"`
+	IPv6Address string `json:"ipv6_address,omitempty"`
+	MAC         string `json:"mac"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name      string            `json:"name"`
+	SubnetID  string            `json:"subnet_id"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
+	VPCID     string            `json:"vpc_id"`
 }
 
 type InterfaceCreateRequest struct {
@@ -190,17 +242,29 @@ type InterfaceCreateRequest struct {
 	// MAC defaults to a fresh locally-administered EUI-48
 	MAC *string `json:"mac,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 
+	// Subnet UUID or nested CRN (vpc/<vpc>/subnet/<subnet>). A bare name
+	// requires an explicit VPC filter; create requests without a VPC do
+	// not accept bare names.
+	//
 	// Required.
-	SubnetID string            `json:"subnet_id"`
-	Tags     map[string]string `json:"tags,omitempty"`
+	Subnet string            `json:"subnet"`
+	Tags   map[string]string `json:"tags,omitempty"`
 }
 
 type InterfaceSecurityGroupsRequest struct {
+	// SecurityGroups Security-group UUIDs, CRNs or account-scoped names. All entries
+	// resolve before replacement; duplicate canonical IDs collapse to one
+	// membership. An empty array removes all groups.
+	//
 	// Required.
-	SecurityGroupIDs []string `json:"security_group_ids"`
+	SecurityGroups []string `json:"security_groups"`
 }
 
 type InterfaceUpdateRequest struct {
@@ -210,26 +274,34 @@ type InterfaceUpdateRequest struct {
 
 type InternetGateway struct {
 	// AttachedVPCID VPC the IGW is currently attached to (null when detached).
-	AttachedVPCID string            `json:"attached_vpc_id,omitempty"`
-	CreatedAt     time.Time         `json:"created_at"`
-	CRN           string            `json:"crn"`
-	Description   string            `json:"description,omitempty"`
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	Tags          map[string]string `json:"tags"`
-	UpdatedAt     time.Time         `json:"updated_at"`
+	AttachedVPCID string    `json:"attached_vpc_id,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	CRN           string    `json:"crn"`
+	Description   string    `json:"description,omitempty"`
+	ID            string    `json:"id"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name      string            `json:"name"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
 }
 
 type InternetGatewayAttachRequest struct {
-	// VPCID VPC to attach this IGW to. At most one IGW per VPC.
+	// VPC UUID, CRN or exact name in the caller account.
 	//
 	// Required.
-	VPCID string `json:"vpc_id"`
+	VPC string `json:"vpc"`
 }
 
 type InternetGatewayCreateRequest struct {
 	Description *string `json:"description,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string            `json:"name"`
 	Tags map[string]string `json:"tags,omitempty"`
@@ -249,7 +321,11 @@ type NATGateway struct {
 	// lifetime.
 	ExternalIP string `json:"external_ip"`
 	ID         string `json:"id"`
-	Name       string `json:"name"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name"`
 
 	// SubnetID subnet the NAT GW lives in. Subnet delete is blocked while occupied.
 	SubnetID  string            `json:"subnet_id"`
@@ -263,15 +339,20 @@ type NATGateway struct {
 type NATGatewayCreateRequest struct {
 	Description *string `json:"description,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 
-	// SubnetID subnet the NAT GW lives in. The parent VPC must already have an
-	// Internet Gateway attached — the NAT GW reuses that uplink.
+	// Subnet UUID or nested CRN (vpc/<vpc>/subnet/<subnet>). A bare name
+	// requires an explicit VPC filter; create requests without a VPC do
+	// not accept bare names.
 	//
 	// Required.
-	SubnetID string            `json:"subnet_id"`
-	Tags     map[string]string `json:"tags,omitempty"`
+	Subnet string            `json:"subnet"`
+	Tags   map[string]string `json:"tags,omitempty"`
 }
 
 type NATGatewayUpdateRequest struct {
@@ -307,8 +388,8 @@ type Route struct {
 	UpdatedAt          time.Time       `json:"updated_at"`
 }
 
-// RouteCreateRequest exactly one of target_ip / target_internet_gateway_id /
-// target_nat_gateway_id / target_egress_only_gateway_id (and future
+// RouteCreateRequest exactly one of target_ip / target_internet_gateway /
+// target_nat_gateway / target_egress_only_gateway (and future
 // target_*_id fields) must be set.
 type RouteCreateRequest struct {
 	Description *string `json:"description,omitempty"`
@@ -317,15 +398,25 @@ type RouteCreateRequest struct {
 	Destination string            `json:"destination"`
 	Tags        map[string]string `json:"tags,omitempty"`
 
-	// TargetEgressOnlyGatewayID IPv6-only. Outbound v6 with no internet-initiated inbound.
-	TargetEgressOnlyGatewayID *string `json:"target_egress_only_gateway_id,omitempty"`
-	TargetInternetGatewayID   *string `json:"target_internet_gateway_id,omitempty"`
+	// TargetEgressOnlyGateway Gateway UUID, CRN or exact account-scoped name. Must belong to the
+	// route table VPC and match the destination address family. Exactly
+	// one route target is required.
+	TargetEgressOnlyGateway *string `json:"target_egress_only_gateway,omitempty"`
+
+	// TargetInternetGateway Gateway UUID, CRN or exact account-scoped name. Must belong to the
+	// route table VPC and match the destination address family. Exactly
+	// one route target is required.
+	TargetInternetGateway *string `json:"target_internet_gateway,omitempty"`
 
 	// TargetIP unicast next hop inside this VPC's CIDR (same IP family as
 	// destination). Not for internet egress — use a gateway target id
 	// instead.
-	TargetIP           *string `json:"target_ip,omitempty"`
-	TargetNATGatewayID *string `json:"target_nat_gateway_id,omitempty"`
+	TargetIP *string `json:"target_ip,omitempty"`
+
+	// TargetNATGateway Gateway UUID, CRN or exact account-scoped name. Must belong to the
+	// route table VPC and match the destination address family. Exactly
+	// one route target is required.
+	TargetNATGateway *string `json:"target_nat_gateway,omitempty"`
 }
 
 type RouteTable struct {
@@ -337,7 +428,11 @@ type RouteTable struct {
 	// IsMain true for the per-VPC default table. The main table is created
 	// automatically and can't be deleted. Subnets that don't specify a
 	// route_table_id at create time land here.
-	IsMain    bool              `json:"is_main"`
+	IsMain bool `json:"is_main"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
 	Name      string            `json:"name"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
@@ -348,15 +443,18 @@ type RouteTableCreateRequest struct {
 	Description *string `json:"description,omitempty"`
 
 	// Name 1-63 chars, lowercase alphanumeric + hyphen. `main` is reserved.
+	// Resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
 	//
 	// Required.
 	Name string            `json:"name"`
 	Tags map[string]string `json:"tags,omitempty"`
 
-	// VPCID VPC this table belongs to.
+	// VPC UUID, CRN or exact name in the caller account.
 	//
 	// Required.
-	VPCID string `json:"vpc_id"`
+	VPC string `json:"vpc"`
 }
 
 type RouteTableUpdateRequest struct {
@@ -384,18 +482,26 @@ type RouteUpdateRequest struct {
 }
 
 type SecurityGroup struct {
-	CreatedAt   time.Time         `json:"created_at"`
-	CRN         string            `json:"crn"`
-	Description string            `json:"description,omitempty"`
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Tags        map[string]string `json:"tags"`
-	UpdatedAt   time.Time         `json:"updated_at"`
+	CreatedAt   time.Time `json:"created_at"`
+	CRN         string    `json:"crn"`
+	Description string    `json:"description,omitempty"`
+	ID          string    `json:"id"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name      string            `json:"name"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
 }
 
 type SecurityGroupCreateRequest struct {
 	Description *string `json:"description,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string            `json:"name"`
 	Tags map[string]string `json:"tags,omitempty"`
@@ -434,9 +540,12 @@ type SecurityGroupRuleCreateRequest struct {
 	PortMin   *int                        `json:"port_min,omitempty"`
 
 	// Required.
-	Protocol              SecurityGroupRuleProtocol `json:"protocol"`
-	SourceCIDR            *string                   `json:"source_cidr,omitempty"`
-	SourceSecurityGroupID *string                   `json:"source_security_group_id,omitempty"`
+	Protocol   SecurityGroupRuleProtocol `json:"protocol"`
+	SourceCIDR *string                   `json:"source_cidr,omitempty"`
+
+	// SourceSecurityGroup Security-group UUID, CRN or exact account-scoped name. Mutually
+	// exclusive with source_cidr.
+	SourceSecurityGroup *string `json:"source_security_group,omitempty"`
 }
 
 type SecurityGroupRuleDirection string
@@ -482,7 +591,11 @@ type Subnet struct {
 	GatewayIP   string    `json:"gateway_ip"`
 	GatewayIPV6 string    `json:"gateway_ip_v6,omitempty"`
 	ID          string    `json:"id"`
-	Name        string    `json:"name"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name"`
 
 	// RouteTableID route table this subnet uses. Determines public/private semantics
 	// — a subnet is "public" if its route table has a 0.0.0.0/0 route
@@ -495,35 +608,51 @@ type Subnet struct {
 }
 
 type SubnetCreateRequest struct {
+	// AssignIPv6CIDR allocate the lowest free IPv6 /64 inside the VPC's IPv6 CIDR.
+	// Requires a VPC created with IPv6. Mutually exclusive with a nonempty
+	// cidr_v6. Returns 409 when the VPC has no free IPv6 /64s.
+	AssignIPv6CIDR *bool `json:"assign_ipv6_cidr,omitempty"`
+
 	// Required.
 	CIDR string `json:"cidr"`
 
 	// CIDRV6 makes the subnet dual-stack. A /64 inside the VPC's IPv6 CIDR (the
-	// VPC must have been created with assign_ipv6_cidr). Omit for a
-	// v4-only subnet.
+	// VPC must have been created with assign_ipv6_cidr). Mutually
+	// exclusive with assign_ipv6_cidr=true. Omit both fields for a v4-only
+	// subnet.
 	CIDRV6      *string `json:"cidr_v6,omitempty"`
 	Description *string `json:"description,omitempty"`
 
 	// GatewayIP defaults to the first usable host in the CIDR
 	GatewayIP *string `json:"gateway_ip,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 
-	// RouteTableID defaults to the VPC's main route table
-	RouteTableID *string           `json:"route_table_id,omitempty"`
-	Tags         map[string]string `json:"tags,omitempty"`
+	// RouteTable Route-table UUID, nested CRN or exact name within the subnet VPC. On
+	// PATCH the owned path subnet supplies the VPC. Omission on create
+	// selects main; an empty reference is invalid.
+	RouteTable *string           `json:"route_table,omitempty"`
+	Tags       map[string]string `json:"tags,omitempty"`
 
+	// VPC UUID, CRN or exact name in the caller account.
+	//
 	// Required.
-	VPCID string `json:"vpc_id"`
+	VPC string `json:"vpc"`
 }
 
 type SubnetUpdateRequest struct {
 	Description *string `json:"description,omitempty"`
 
-	// RouteTableID re-associate the subnet with a different route table
-	RouteTableID *string           `json:"route_table_id,omitempty"`
-	Tags         map[string]string `json:"tags,omitempty"`
+	// RouteTable Route-table UUID, nested CRN or exact name within the subnet VPC. On
+	// PATCH the owned path subnet supplies the VPC. Omission on create
+	// selects main; an empty reference is invalid.
+	RouteTable *string           `json:"route_table,omitempty"`
+	Tags       map[string]string `json:"tags,omitempty"`
 }
 
 type VPC struct {
@@ -543,7 +672,9 @@ type VPC struct {
 	Description string `json:"description,omitempty"`
 	ID          string `json:"id"`
 
-	// Name 1-63 chars, lowercase alphanumeric + hyphen
+	// Name 1-63 chars, lowercase alphanumeric + hyphen Resource names must not
+	// start with the literal crn: prefix or be UUIDs (canonical, compact,
+	// braced, or urn:uuid: forms, in either case).
 	Name      string            `json:"name"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
@@ -563,6 +694,10 @@ type VPCCreateRequest struct {
 	CIDRV4      string  `json:"cidr_v4"`
 	Description *string `json:"description,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string            `json:"name"`
 	Tags map[string]string `json:"tags,omitempty"`

@@ -6,13 +6,21 @@
 
 // Package secrets is the Secrets API.
 //
-// Versioned application secrets with KMS-backed envelope encryption.
+// KMS bindings use `kms_key`: a UUID, account-scoped name, or complete
+// `crn:kms:<region>:<account>:key/<name>` in the authenticated account
+// and current region. The key must be enabled, symmetric, and usable for
+// encryption. Bindings retain the key's immutable identity; responses
+// render its CRN. Invalid or foreign-scope CRNs are rejected with HTTP
+// 400; missing keys return HTTP 404 on binding or cryptographic use.
+// Metadata reads remain available for deleted bindings, with
+// kms_key_unavailable true and no kms_key_crn. Versioned application
+// secrets with KMS-backed envelope encryption.
 //
 // Secrets are regional. The value of every version is encrypted at rest
 // under a KMS key — only opaque ciphertext is persisted. By default a
-// secret uses the platform-managed key; pass kms_key_id on CreateSecret
-// to bind it to one of your own KMS keys instead (the key is fixed for
-// the secret's life, and every version is encrypted under it). Each
+// secret uses the platform-managed key; pass kms_key on CreateSecret to
+// bind it to one of your own KMS keys instead (the key is fixed for the
+// secret's life, and every version is encrypted under it). Each
 // PutSecretValue allocates a new monotonically-increasing version number
 // and flips is_current on the previous row; older versions remain
 // readable by explicit version query.

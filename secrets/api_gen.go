@@ -38,6 +38,13 @@ func (p *GetSecretValueParams) query() url.Values {
 // ListSecretsParams are the optional filters and pagination controls for
 // [Client.ListSecrets]. A nil *ListSecretsParams sends none of them.
 type ListSecretsParams struct {
+	// CRN exact secret CRN in the calling account and current region. Invalid,
+	// foreign-account, foreign-region or wrong-type CRNs return an empty
+	// page. Combined filters intersect; conflicting name and CRN filters
+	// return an empty page. With include_deleted, a reused name can match
+	// both deleted and active secrets.
+	CRN string
+
 	// IncludeDeleted include secrets in the recovery window.
 	IncludeDeleted *bool
 
@@ -45,6 +52,10 @@ type ListSecretsParams struct {
 	// rather than rejected, so page until `meta.has_more` is false.
 	Limit  int
 	Marker string
+
+	// Name exact, case-sensitive secret name in the calling account. Empty
+	// values match nothing.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -54,6 +65,9 @@ func (p *ListSecretsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.IncludeDeleted != nil {
 		q.Set("include_deleted", strconv.FormatBool(*p.IncludeDeleted))
 	}
@@ -62,6 +76,9 @@ func (p *ListSecretsParams) query() url.Values {
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }

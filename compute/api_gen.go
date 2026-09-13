@@ -41,11 +41,23 @@ func (p *GetConsoleOutputParams) query() url.Values {
 // ListFlavorsParams are the optional filters and pagination controls for
 // [Client.ListFlavors]. A nil *ListFlavorsParams sends none of them.
 type ListFlavorsParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
 	// Family filter by product family. Load-balancer and database create flows
 	// should list their own family; regular instances use "general".
 	//
 	// One of: "general", "loadbalancer", "database".
 	Family string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Interface names require a subnet parent; use a complete CRN on
+	// instance NIC lists. Floating IPs have no name identity and return an
+	// empty list for this filter.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -55,8 +67,14 @@ func (p *ListFlavorsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Family != "" {
 		q.Set("family", p.Family)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -68,6 +86,12 @@ type ListImagesParams struct {
 	// each tag contributes only the build worth launching.
 	AllVersions  *bool
 	Architecture string
+
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
 
 	// IncludeHidden include the requesting account's hidden images for cleanup
 	// discovery.
@@ -85,7 +109,8 @@ type ListImagesParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
-	// Name substring match on name
+	// Name exact, case-sensitive name match; an empty value matches no named
+	// resource.
 	Name string
 	OS   string
 
@@ -108,6 +133,9 @@ func (p *ListImagesParams) query() url.Values {
 	}
 	if p.Architecture != "" {
 		q.Set("architecture", p.Architecture)
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.IncludeHidden != nil {
 		q.Set("include_hidden", strconv.FormatBool(*p.IncludeHidden))
@@ -144,9 +172,79 @@ func (p *ListImagesParams) withMarker(marker string) *ListImagesParams {
 	return &out
 }
 
+// ListInstanceNiCsParams are the optional filters and pagination controls for
+// [Client.ListInstanceNiCs]. A nil *ListInstanceNiCsParams sends none of them.
+type ListInstanceNiCsParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Interface names require a subnet parent; use a complete CRN on
+	// instance NIC lists. Floating IPs have no name identity and return an
+	// empty list for this filter.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListInstanceNiCsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListInstancePoolFloatingIPsParams are the optional filters and pagination controls for
+// [Client.ListInstancePoolFloatingIPs]. A nil *ListInstancePoolFloatingIPsParams sends none of them.
+type ListInstancePoolFloatingIPsParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Interface names require a subnet parent; use a complete CRN on
+	// instance NIC lists. Floating IPs have no name identity and return an
+	// empty list for this filter.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListInstancePoolFloatingIPsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
 // ListInstancePoolsParams are the optional filters and pagination controls for
 // [Client.ListInstancePools]. A nil *ListInstancePoolsParams sends none of them.
 type ListInstancePoolsParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -158,6 +256,12 @@ type ListInstancePoolsParams struct {
 	// The token's internal form varies by endpoint (a resource ID, a
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Interface names require a subnet parent; use a complete CRN on
+	// instance NIC lists. Floating IPs have no name identity and return an
+	// empty list for this filter.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -167,11 +271,17 @@ func (p *ListInstancePoolsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -187,17 +297,57 @@ func (p *ListInstancePoolsParams) withMarker(marker string) *ListInstancePoolsPa
 	return &out
 }
 
+// ListInstanceVolumesParams are the optional filters and pagination controls for
+// [Client.ListInstanceVolumes]. A nil *ListInstanceVolumesParams sends none of them.
+type ListInstanceVolumesParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Interface names require a subnet parent; use a complete CRN on
+	// instance NIC lists. Floating IPs have no name identity and return an
+	// empty list for this filter.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListInstanceVolumesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
 // ListInstancesParams are the optional filters and pagination controls for
 // [Client.ListInstances]. A nil *ListInstancesParams sends none of them.
 type ListInstancesParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
 	// CurrentState filter by where the instances actually are.
 	CurrentState CurrentState
 
-	// FlavorID filter by flavor ID
-	FlavorID string
+	// Flavor filter by flavor reference (UUID, CRN or name; images also accept
+	// name:version).
+	Flavor string
 
-	// ImageID filter by image ID
-	ImageID string
+	// Image filter by image reference (UUID, CRN or name; images also accept
+	// name:version).
+	Image string
 
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
@@ -211,7 +361,10 @@ type ListInstancesParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
-	// Name filter by name (exact match or prefix with *)
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Interface names require a subnet parent; use a complete CRN on
+	// instance NIC lists. Floating IPs have no name identity and return an
+	// empty list for this filter.
 	Name string
 }
 
@@ -222,14 +375,17 @@ func (p *ListInstancesParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.CurrentState != "" {
 		q.Set("current_state", string(p.CurrentState))
 	}
-	if p.FlavorID != "" {
-		q.Set("flavor_id", p.FlavorID)
+	if p.Flavor != "" {
+		q.Set("flavor", p.Flavor)
 	}
-	if p.ImageID != "" {
-		q.Set("image_id", p.ImageID)
+	if p.Image != "" {
+		q.Set("image", p.Image)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -257,6 +413,12 @@ func (p *ListInstancesParams) withMarker(marker string) *ListInstancesParams {
 // ListKeypairsParams are the optional filters and pagination controls for
 // [Client.ListKeypairs]. A nil *ListKeypairsParams sends none of them.
 type ListKeypairsParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -268,6 +430,12 @@ type ListKeypairsParams struct {
 	// The token's internal form varies by endpoint (a resource ID, a
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Interface names require a subnet parent; use a complete CRN on
+	// instance NIC lists. Floating IPs have no name identity and return an
+	// empty list for this filter.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -277,11 +445,17 @@ func (p *ListKeypairsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -295,6 +469,38 @@ func (p *ListKeypairsParams) withMarker(marker string) *ListKeypairsParams {
 	}
 	out.Marker = marker
 	return &out
+}
+
+// ListPoolInstancesParams are the optional filters and pagination controls for
+// [Client.ListPoolInstances]. A nil *ListPoolInstancesParams sends none of them.
+type ListPoolInstancesParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Interface names require a subnet parent; use a complete CRN on
+	// instance NIC lists. Floating IPs have no name identity and return an
+	// empty list for this filter.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListPoolInstancesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
 }
 
 // StartSerialConsoleParams are the optional filters and pagination controls for
@@ -413,6 +619,9 @@ func (c *Client) AttachInstanceVolume(ctx context.Context, instanceID string, bo
 }
 
 // CreateImage imports an image from an object URL.
+//
+// Creating an image in the platform account requires
+// `compute:CreatePlatformImage` instead of `compute:CreateImage`.
 //
 // Registers an image for import from a presigned object URL — no image
 // bytes flow through this API. Upload your disk to any bucket you
@@ -572,6 +781,10 @@ func (c *Client) CreateSerialConsoleTicket(ctx context.Context, instanceID strin
 }
 
 // DeleteImage deletes (hide) an image.
+//
+// Deleting an image owned by the platform account additionally requires
+// `compute:DeletePlatformImage`; `compute:DeleteImage` is always checked
+// first.
 //
 // Soft-delete: the catalog row is flipped to status=hidden so in-flight
 // clones can still complete. The underlying image data is reclaimed as
@@ -952,13 +1165,14 @@ func (c *Client) ListImagesAll(ctx context.Context, params *ListImagesParams, op
 // addresses". The instance's own `public_ip` reports the primary NIC
 // alone, so an address that `networks[].assign_public_ip` put on a
 // secondary NIC appears here and nowhere else.
-func (c *Client) ListInstanceNiCs(ctx context.Context, instanceID string, opts ...basaltic.RequestOption) ([]*ListInstanceNiCsNIC, error) {
+func (c *Client) ListInstanceNiCs(ctx context.Context, instanceID string, params *ListInstanceNiCsParams, opts ...basaltic.RequestOption) ([]*ListInstanceNiCsNIC, error) {
 	op := &basaltic.Operation{
 		ID:       "listInstanceNICs",
 		Method:   "GET",
 		Path:     "/v1/instances/{instance_id}/nics",
 		PathArgs: []string{instanceID},
 	}
+	op.Query = params.query()
 	var out struct {
 		NICs []*ListInstanceNiCsNIC `json:"nics"`
 	}
@@ -973,13 +1187,14 @@ func (c *Client) ListInstanceNiCs(ctx context.Context, instanceID string, opts .
 // The addresses the WHOLE pool answers on. Not the per-replica addresses
 // `template.networks[].assign_public_ip` allocates — those belong to
 // the replica and are read from the instance.
-func (c *Client) ListInstancePoolFloatingIPs(ctx context.Context, poolID string, opts ...basaltic.RequestOption) (*basaltic.Page[FloatingIP], error) {
+func (c *Client) ListInstancePoolFloatingIPs(ctx context.Context, poolID string, params *ListInstancePoolFloatingIPsParams, opts ...basaltic.RequestOption) (*basaltic.Page[FloatingIP], error) {
 	op := &basaltic.Operation{
 		ID:       "listInstancePoolFloatingIps",
 		Method:   "GET",
 		Path:     "/v1/instance-pools/{pool_id}/floating-ips",
 		PathArgs: []string{poolID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []FloatingIP `json:"floating_ips"`
 	}
@@ -1052,13 +1267,14 @@ func (c *Client) ListInstancePoolsAll(ctx context.Context, params *ListInstanceP
 // Returns the instance's volume bindings ordered by boot index (boot
 // disk first), each resolved with the volume's current
 // name/type/size/status.
-func (c *Client) ListInstanceVolumes(ctx context.Context, instanceID string, opts ...basaltic.RequestOption) ([]*ListInstanceVolumesAttachment, error) {
+func (c *Client) ListInstanceVolumes(ctx context.Context, instanceID string, params *ListInstanceVolumesParams, opts ...basaltic.RequestOption) ([]*ListInstanceVolumesAttachment, error) {
 	op := &basaltic.Operation{
 		ID:       "listInstanceVolumes",
 		Method:   "GET",
 		Path:     "/v1/instances/{instance_id}/volumes",
 		PathArgs: []string{instanceID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Attachments []*ListInstanceVolumesAttachment `json:"attachments"`
 	}
@@ -1182,13 +1398,14 @@ func (c *Client) ListKeypairsAll(ctx context.Context, params *ListKeypairsParams
 //
 // The live (pool, instance) bindings, each with its stable sequence
 // number.
-func (c *Client) ListPoolInstances(ctx context.Context, poolID string, opts ...basaltic.RequestOption) (*basaltic.Page[PoolInstance], error) {
+func (c *Client) ListPoolInstances(ctx context.Context, poolID string, params *ListPoolInstancesParams, opts ...basaltic.RequestOption) (*basaltic.Page[PoolInstance], error) {
 	op := &basaltic.Operation{
 		ID:       "listPoolInstances",
 		Method:   "GET",
 		Path:     "/v1/instance-pools/{pool_id}/instances",
 		PathArgs: []string{poolID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []PoolInstance `json:"instances"`
 	}
@@ -1257,7 +1474,7 @@ func (c *Client) RefreshInstancePool(ctx context.Context, poolID string, opts ..
 // ReinstallInstance reinstalls instance.
 //
 // Re-image a STOPPED instance's boot volume from an image (the current
-// one, or a new image_id), keeping the instance's identity — id, name,
+// one, or a new image), keeping the instance's identity — id, name,
 // IPs, keypairs, and cloud-init seed. The replacement is sized and
 // tiered by size_gb and volume_type, defaulting to the image's
 // min_disk_gb on the region default tier. The old boot volume is
@@ -1389,6 +1606,10 @@ func (c *Client) StopInstance(ctx context.Context, instanceID string, opts ...ba
 }
 
 // UpdateImage updates an image's metadata.
+//
+// Updating an image owned by the platform account additionally requires
+// `compute:UpdatePlatformImage`; `compute:UpdateImage` is always checked
+// first.
 func (c *Client) UpdateImage(ctx context.Context, imageID string, body *ImageUpdateRequest, opts ...basaltic.RequestOption) (*Image, error) {
 	op := &basaltic.Operation{
 		ID:       "updateImage",

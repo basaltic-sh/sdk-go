@@ -22,7 +22,9 @@ type CreateKeyRequest struct {
 
 	// Name unique per account. Surfaces in the CRN
 	// (crn:kms:<region>:<account>:key/<name>) — letters, digits, dot,
-	// dash, underscore.
+	// dash, underscore. Resource names must not start with the literal
+	// crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid:
+	// forms, in either case).
 	//
 	// Required.
 	Name string `json:"name"`
@@ -94,7 +96,11 @@ type Key struct {
 	ID          string    `json:"id"`
 	KeySpec     KeySpec   `json:"key_spec"`
 	KeyUsage    KeyUsage  `json:"key_usage"`
-	Name        string    `json:"name"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name"`
 
 	// RecoveryWindowDays chosen whole-day window. Null for active keys and historical pending
 	// deletions whose window is unknown.

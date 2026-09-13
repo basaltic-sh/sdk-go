@@ -15,20 +15,29 @@ type Bucket struct {
 	CreatedAt time.Time `json:"created_at"`
 	CRN       string    `json:"crn"`
 
+	// DeletedAt when deletion was requested; null when not pending or for historical
+	// windows.
+	DeletedAt time.Time `json:"deleted_at"`
+
 	// DeletionProtection when true, DeleteBucket schedules deletion instead of removing the
-	// bucket immediately.
-	DeletionProtection bool `json:"deletion_protection"`
+	// bucket immediately. Default false deliberately preserves S3
+	// immediate deletion.
+	DeletionProtection bool   `json:"deletion_protection"`
+	ID                 string `json:"id"`
 
-	// DeletionRecoveryDays recovery window, in days, applied when a deletion is scheduled. 0
-	// means the service default is used.
-	DeletionRecoveryDays int    `json:"deletion_recovery_days"`
-	ID                   string `json:"id"`
-	Name                 string `json:"name"`
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name"`
 
-	// ScheduledDeletionAt deadline a protected bucket is deleted at. Present only while a
-	// deletion is pending — POST /v1/buckets/{bucket}/restore before it
-	// passes to cancel.
-	ScheduledDeletionAt time.Time `json:"scheduled_deletion_at,omitempty"`
+	// RecoveryWindowDays configured recovery window in whole days (default 7). New writes
+	// require 1–30; disabled historical buckets can retain legacy
+	// out-of-range values.
+	RecoveryWindowDays int `json:"recovery_window_days"`
+
+	// ScheduledPurgeAt purge deadline, present while deletion is pending. Restore before
+	// this time to cancel.
+	ScheduledPurgeAt time.Time `json:"scheduled_purge_at,omitempty"`
 
 	// Versioning state. `suspended` means versioning was on and was turned
 	// off — existing versions are kept, new writes stop creating them
@@ -95,6 +104,10 @@ const (
 )
 
 type CreateBucketRequest struct {
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 
@@ -302,9 +315,9 @@ type PutBucketDeletionProtectionRequest struct {
 	// Required.
 	Enabled bool `json:"enabled"`
 
-	// RecoveryDays recovery window when enabling protection. 0 uses the service
-	// default; values are clamped to [1,30].
-	RecoveryDays *int `json:"recovery_days,omitempty"`
+	// RecoveryWindowDays whole days; omitted defaults to 7. Explicit values outside 1–30
+	// return 400 even when disabling protection.
+	RecoveryWindowDays *int `json:"recovery_window_days,omitempty"`
 }
 
 type PutBucketEncryptionRequest struct {
@@ -355,7 +368,11 @@ type Snapshot struct {
 	// ErrorMessage last failure reason. Empty unless status=error.
 	ErrorMessage string `json:"error_message,omitempty"`
 	ID           string `json:"id,omitempty"`
-	Name         string `json:"name,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
 
 	// SizeGB frozen size of the source volume at the time the snapshot was taken
 	// — the volume may have been extended since.
@@ -377,6 +394,10 @@ type Snapshot struct {
 type SnapshotCreateRequest struct {
 	Description *string `json:"description,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 	Tags Tags   `json:"tags,omitempty"`
@@ -428,7 +449,11 @@ type SnapshotPolicy struct {
 
 	// LastRunAt when the policy last fired. Absent until the first fire.
 	LastRunAt time.Time `json:"last_run_at,omitempty"`
-	Name      string    `json:"name,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
 
 	// NextRunAt when the next snapshot is due. Re-stamped to `now +
 	// interval_minutes` each time the policy fires — never to `previous
@@ -458,7 +483,9 @@ type SnapshotPolicyCreateRequest struct {
 	IntervalMinutes SnapshotIntervalMinutes `json:"interval_minutes"`
 
 	// Name unique within the account — it names the policy in its CRN.
-	// Scheduled snapshots are named `<policy>-<UTC timestamp>`.
+	// Scheduled snapshots are named `<policy>-<UTC timestamp>`. Resource
+	// names must not start with the literal crn: prefix or be UUIDs
+	// (canonical, compact, braced, or urn:uuid: forms, in either case).
 	//
 	// Required.
 	Name string `json:"name"`
@@ -546,8 +573,12 @@ type Volume struct {
 	// ErrorMessage last failure reason. Empty unless status=error.
 	ErrorMessage string `json:"error_message,omitempty"`
 	ID           string `json:"id,omitempty"`
-	Name         string `json:"name,omitempty"`
-	SizeGB       int    `json:"size_gb,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name   string `json:"name,omitempty"`
+	SizeGB int    `json:"size_gb,omitempty"`
 
 	// SourceImageID image the volume was cloned from, when applicable.
 	SourceImageID string `json:"source_image_id,omitempty"`
@@ -564,6 +595,10 @@ type VolumeCreateRequest struct {
 	Bootable    *bool   `json:"bootable,omitempty"`
 	Description *string `json:"description,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 
@@ -608,7 +643,11 @@ type VolumeType struct {
 	Description string `json:"description,omitempty"`
 
 	// ID the type token (matches `volume_type` on a Volume).
-	ID   string `json:"id,omitempty"`
+	ID string `json:"id,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
 	Name string `json:"name,omitempty"`
 }
 

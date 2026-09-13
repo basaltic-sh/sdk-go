@@ -23,8 +23,13 @@ type ListAuditLogsParams struct {
 	// "iam.*")
 	Action string
 
-	// ActorID filter by actor ID (user or service account)
-	ActorID string
+	// Actor filter by a canonical UUID or an exact historical IAM actor CRN
+	// (`user`, `service-account`, or `role`, with empty region and
+	// account). Matches identities stored with events in the current
+	// organization, including deleted actors. Bare names and wildcard CRNs
+	// are unsupported. Events without a stored CRN remain searchable by
+	// UUID.
+	Actor string
 
 	// ActorType filter by actor type
 	//
@@ -49,8 +54,17 @@ type ListAuditLogsParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
-	// ResourceID filter by resource ID
-	ResourceID string
+	// Resource filter by a canonical UUID or an event-time resource CRN, without
+	// looking up a live resource. A CRN matches exactly and also matches
+	// descendants at a literal `/` boundary:
+	// `crn:network:region:account:vpc/prod` matches stored
+	// `crn:network:region:account:vpc/prod/subnet/private`. Account and
+	// region are matched exactly within the current organization. Percent
+	// and underscore characters are literal, not wildcards. Bare names and
+	// wildcard CRNs are unsupported. Events without a stored CRN remain
+	// searchable by UUID. The resource_type filter applies independently,
+	// including to descendant events.
+	Resource string
 
 	// ResourceType filter by resource type
 	ResourceType string
@@ -74,8 +88,8 @@ func (p *ListAuditLogsParams) query() url.Values {
 	if p.Action != "" {
 		q.Set("action", p.Action)
 	}
-	if p.ActorID != "" {
-		q.Set("actor_id", p.ActorID)
+	if p.Actor != "" {
+		q.Set("actor", p.Actor)
 	}
 	if p.ActorType != "" {
 		q.Set("actor_type", p.ActorType)
@@ -92,8 +106,8 @@ func (p *ListAuditLogsParams) query() url.Values {
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
 	}
-	if p.ResourceID != "" {
-		q.Set("resource_id", p.ResourceID)
+	if p.Resource != "" {
+		q.Set("resource", p.Resource)
 	}
 	if p.ResourceType != "" {
 		q.Set("resource_type", p.ResourceType)

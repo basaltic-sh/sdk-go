@@ -18,12 +18,17 @@ import (
 // ListKeysParams are the optional filters and pagination controls for
 // [Client.ListKeys]. A nil *ListKeysParams sends none of them.
 type ListKeysParams struct {
+	// CRN Exact KMS key CRN in the authenticated account and current region.
+	// Invalid, foreign or mismatched CRNs return an empty page. Combined
+	// with name and state filters.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last key id from the previous page.
 	Marker string
 
-	// Name optional substring filter on key name.
+	// Name exact, case-sensitive account-scoped key name. Combined with other
+	// filters.
 	Name string
 
 	// State optional state filter (enabled / disabled / pending_deletion).
@@ -36,6 +41,9 @@ func (p *ListKeysParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -291,9 +299,7 @@ func (c *Client) ListKeysAll(ctx context.Context, params *ListKeysParams, opts .
 // quota; the key material + record are hard-deleted once now() reaches
 // scheduled_purge_at. The caller can cancel any time inside the window
 // via cancel-deletion. recovery_window_days is an integer from 7 to 30
-// (default 7). The deprecated pending_window_in_days alias remains
-// through this release and is removed in the following release;
-// supplying conflicting values is rejected.
+// (default 7).
 func (c *Client) ScheduleKeyDeletion(ctx context.Context, keyID string, body *ScheduleKeyDeletionRequest, opts ...basaltic.RequestOption) (*Key, error) {
 	op := &basaltic.Operation{
 		ID:       "scheduleKeyDeletion",

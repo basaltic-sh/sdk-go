@@ -11,59 +11,52 @@ import (
 )
 
 type AttachListenerCertificateRequest struct {
-	// CertificateCRN the certificate to serve, by CRN. The listener stores a reference
-	// — no key material is sent here, and the replicas fetch it from the
-	// certificate service under their own identity.
+	// Certificate the certificate to serve, by CRN, UUID or exact account-scoped name.
+	// Certificate CRNs require an empty region. The listener stores a
+	// reference — no key material is sent here, and the replicas fetch
+	// it from the certificate service under their own identity.
 	//
 	// Required.
-	CertificateCRN string `json:"certificate_crn"`
+	Certificate string `json:"certificate"`
 
 	// IsDefault when true, demote whatever's currently default and promote this cert
 	// in the same transaction.
 	IsDefault *bool `json:"is_default,omitempty"`
 }
 
+// AttachTargetRequest target is a literal IP for IP groups or an instance UUID, CRN or exact
+// account-scoped name for instance groups.
 type AttachTargetRequest struct {
 	Port *int `json:"port,omitempty"`
 
-	// TargetRef must match the group's target_type: an IP address for `ip`, a
-	// compute instance id for `instance`. An `ip` ref has to be a routable
-	// unicast address — loopback, link-local (including the
-	// 169.254.169.254 metadata endpoint), multicast, and unspecified
-	// addresses are rejected.
+	// Target must match the group's target_type: an IP address for `ip`, a
+	// compute instance UUID, CRN or exact account-scoped name for
+	// `instance`. An `ip` ref has to be a routable unicast address —
+	// loopback, link-local (including the 169.254.169.254 metadata
+	// endpoint), multicast, and unspecified addresses are rejected.
 	//
 	// Required.
-	TargetRef string `json:"target_ref"`
+	Target string `json:"target"`
 }
 
 type CreateListenerCertificate struct {
-	// CertificateCRN cert reference stored alongside the PEM material so rotation flows
-	// can map back to the upstream cert id.
+	// Certificate CRN, UUID or exact name in the caller's account.
+	// Certificate CRNs require an empty region. No key material is
+	// accepted.
 	//
 	// Required.
-	CertificateCRN string `json:"certificate_crn"`
-
-	// CertificatePEM leaf cert in PEM.
-	//
-	// Required.
-	CertificatePEM string `json:"certificate_pem"`
-
-	// ChainPEM intermediate chain in PEM (concatenated). Optional.
-	ChainPEM *string `json:"chain_pem,omitempty"`
-
-	// PrivateKeyPEM private key in PEM. Sensitive — handled the same way as the cert.
-	//
-	// Required.
-	PrivateKeyPEM string `json:"private_key_pem"`
+	Certificate string `json:"certificate"`
 }
 
-// CreateListenerRequest HTTPS listeners require >=1 certificate, named by CRN in
-// `certificates`; the first entry becomes the default (the fallback when
-// SNI doesn't match). No key material is accepted — the agent fetches
-// it from the certificate service against the CRN.
+// CreateListenerRequest target group relationships accept UUID, CRN or exact account-scoped
+// names in this region. HTTPS listeners require >=1 certificate, named
+// by CRN, UUID or exact account-scoped name in `certificates`; the first
+// entry becomes the default (the fallback when SNI doesn't match). No
+// key material is accepted — the agent fetches it from the certificate
+// service against the CRN.
 type CreateListenerRequest struct {
-	Certificates         []*CreateListenerCertificate `json:"certificates,omitempty"`
-	DefaultTargetGroupID *string                      `json:"default_target_group_id,omitempty"`
+	Certificates       []*CreateListenerCertificate `json:"certificates,omitempty"`
+	DefaultTargetGroup *string                      `json:"default_target_group,omitempty"`
 
 	// Exposure Which LB addresses are bound. Defaults to 'both'; pick private_only
 	// when the LB has no FIP yet.
@@ -81,24 +74,31 @@ type CreateListenerRequest struct {
 	Tags     Tags   `json:"tags,omitempty"`
 }
 
+// CreateLoadBalancerRequest relationships accept a UUID, CRN or exact immutable name, classified
+// by syntax. VPC, subnet, security groups and keypairs must belong to
+// the caller account in this region. Subnet names are scoped by vpc.
+// Flavor is a regional catalog reference. floating_ip accepts UUID or
+// CRN only. All references resolve before writes.
 type CreateLoadBalancerRequest struct {
-	// FlavorID compute flavor for each LB instance.
+	// Flavor compute flavor for each LB instance.
 	//
 	// Required.
-	FlavorID string `json:"flavor_id"`
+	Flavor string `json:"flavor"`
 
-	// FloatingIPID Optional FIP attached on create for public exposure.
-	FloatingIPID *string `json:"floating_ip_id,omitempty"`
+	// FloatingIP Optional FIP attached on create for public exposure.
+	FloatingIP *string `json:"floating_ip,omitempty"`
 
-	// KeyNames platform-operator break-glass only. Stamps SSH keypairs onto the
+	// Keypairs platform-operator break-glass only. Stamps SSH keypairs onto the
 	// replica VMs, which run the platform's own envoy and lbaas-agent; a
 	// tenant reaches the load balancer over its VIP, never over SSH.
 	// Accepted only from the platform account and only with
 	// `loadbalancer:StampBreakGlassKeys` — any other account setting it
 	// is rejected with 400 `INVALID_INPUT`.
-	KeyNames []string `json:"key_names,omitempty"`
+	Keypairs []string `json:"keypairs,omitempty"`
 
-	// Name 1..127 chars of [A-Za-z0-9._-]
+	// Name 1..127 chars of [A-Za-z0-9._-] Resource names must not start with
+	// the literal crn: prefix or be UUIDs (canonical, compact, braced, or
+	// urn:uuid: forms, in either case).
 	//
 	// Required.
 	Name string `json:"name"`
@@ -106,7 +106,7 @@ type CreateLoadBalancerRequest struct {
 	// ReplicaCount number of LB compute instances. Defaults to 1; pick >=2 for HA.
 	ReplicaCount *int `json:"replica_count,omitempty"`
 
-	// SecurityGroupIDs security groups attached to every replica NIC (AWS ALB shape). A VPC
+	// SecurityGroups security groups attached to every replica NIC (AWS ALB shape). A VPC
 	// NIC with no security group denies all data traffic, so the listener
 	// port(s) must be opened by a security group listed here. Re-applied
 	// to replacement replicas. The LB's own control-plane path (agent
@@ -114,26 +114,28 @@ type CreateLoadBalancerRequest struct {
 	// needs none.
 	//
 	// Required.
-	SecurityGroupIDs []string `json:"security_group_ids"`
+	SecurityGroups []string `json:"security_groups"`
 
-	// SubnetID subnet the LB instances attach to. The virtual IP is allocated from
+	// Subnet the LB instances attach to. The virtual IP is allocated from
 	// this subnet.
 	//
 	// Required.
-	SubnetID string `json:"subnet_id"`
-	Tags     Tags   `json:"tags,omitempty"`
+	Subnet string `json:"subnet"`
+	Tags   Tags   `json:"tags,omitempty"`
 
 	// One of: "application", "network".
 	//
 	// Required.
 	Type string `json:"type"`
 
-	// VPCID VPC the LB will live in. Must match subnet_id's VPC.
+	// VPC the LB will live in. Must match subnet's VPC.
 	//
 	// Required.
-	VPCID string `json:"vpc_id"`
+	VPC string `json:"vpc"`
 }
 
+// CreateRuleRequest target group relationships accept UUID, CRN or exact account-scoped
+// names in this region.
 type CreateRuleRequest struct {
 	// Required.
 	Conditions []*RuleCondition `json:"conditions"`
@@ -142,17 +144,23 @@ type CreateRuleRequest struct {
 	Priority int `json:"priority"`
 
 	// Required.
-	TargetGroupID string `json:"target_group_id"`
+	TargetGroup string `json:"target_group"`
 }
 
+// CreateTargetGroupRequest instance_pool accepts a UUID, CRN or exact account-scoped name in this
+// region and requires pool target mode.
 type CreateTargetGroupRequest struct {
 	HealthCheck *HealthCheck `json:"health_check,omitempty"`
 
-	// InstancePoolID compute instance pool to draw backends from. Required when
+	// InstancePool compute instance pool to draw backends from. Required when
 	// target_mode=pool and must belong to the calling account; ignored
 	// otherwise.
-	InstancePoolID *string `json:"instance_pool_id,omitempty"`
+	InstancePool *string `json:"instance_pool,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 
@@ -169,7 +177,7 @@ type CreateTargetGroupRequest struct {
 
 	// TargetMode `static` (the default) takes the backends you attach as targets.
 	// `pool` takes them from a compute instance pool and requires
-	// instance_pool_id; the group is forced to target_type=instance, and
+	// instance_pool; the group is forced to target_type=instance, and
 	// attaching targets to it is rejected.
 	//
 	// One of: "static", "pool".
@@ -201,9 +209,13 @@ type Listener struct {
 	// doesn't match any other SNI (or clients that omit SNI). PEM material
 	// is NOT echoed — the listener stores its own copy fetched at attach
 	// time.
-	Certificates         []*ListenerCertificate `json:"certificates,omitempty"`
-	CreatedAt            time.Time              `json:"created_at"`
-	DefaultTargetGroupID string                 `json:"default_target_group_id,omitempty"`
+	Certificates []*ListenerCertificate `json:"certificates,omitempty"`
+	CreatedAt    time.Time              `json:"created_at"`
+
+	// CRN Parent-scoped CRN with immutable load balancer name and child UUID
+	// components.
+	CRN                  string `json:"crn"`
+	DefaultTargetGroupID string `json:"default_target_group_id,omitempty"`
 
 	// Exposure Which LB addresses this listener binds. 'public_only' and 'both'
 	// require the LB to carry a floating IP; if the FIP is detached later,
@@ -252,7 +264,11 @@ type LoadBalancer struct {
 	// FloatingIPID Optional FIP attached for public exposure. NULL ⇒ private-only LB.
 	FloatingIPID string `json:"floating_ip_id,omitempty"`
 	ID           string `json:"id"`
-	Name         string `json:"name"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name"`
 
 	// PublicVipV6 Public IPv6 GUA for the load balancer — the v6 analogue of a
 	// floating IP (IPv6 has no NAT, so this address is itself the public
@@ -327,13 +343,17 @@ type LoadBalancerReplica struct {
 }
 
 type Rule struct {
-	Conditions    []*RuleCondition `json:"conditions"`
-	CreatedAt     time.Time        `json:"created_at"`
-	ID            string           `json:"id"`
-	ListenerID    string           `json:"listener_id"`
-	Priority      int              `json:"priority"`
-	TargetGroupID string           `json:"target_group_id"`
-	UpdatedAt     time.Time        `json:"updated_at"`
+	Conditions []*RuleCondition `json:"conditions"`
+	CreatedAt  time.Time        `json:"created_at"`
+
+	// CRN Parent-scoped CRN with immutable load balancer name and child UUID
+	// components.
+	CRN           string    `json:"crn"`
+	ID            string    `json:"id"`
+	ListenerID    string    `json:"listener_id"`
+	Priority      int       `json:"priority"`
+	TargetGroupID string    `json:"target_group_id"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type RuleCondition struct {
@@ -400,8 +420,12 @@ type TargetGroup struct {
 
 	// InstancePoolID compute instance pool backing the group. Set iff target_mode=pool.
 	InstancePoolID string `json:"instance_pool_id,omitempty"`
-	Name           string `json:"name"`
-	Port           int    `json:"port"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name"`
+	Port int    `json:"port"`
 
 	// One of: "http", "https", "tcp", "udp".
 	Protocol string `json:"protocol"`
@@ -429,18 +453,19 @@ type TargetGroup struct {
 
 // UpdateListenerRequest patch a listener.
 //
-// `certificate_crn` names a certificate ALREADY attached to this
-// listener and re-stamps it, which makes the agent re-fetch material —
-// the on-demand rotation trigger. It does not attach: an unattached CRN
-// is refused, and the attach-certificate endpoint is what adds one. No
-// key material is accepted here.
+// `certificate` accepts a CRN, UUID or exact account-scoped name and
+// names a certificate ALREADY attached to this listener and re-stamps
+// it, which makes the agent re-fetch material — the on-demand rotation
+// trigger. It does not attach: an unattached CRN is refused, and the
+// attach-certificate endpoint is what adds one. No key material is
+// accepted here.
 //
 // Set clear_default_target_group=true to remove the default; otherwise
-// omitting default_target_group_id leaves it unchanged.
+// omitting default_target_group leaves it unchanged.
 type UpdateListenerRequest struct {
-	CertificateCRN          *string `json:"certificate_crn,omitempty"`
+	Certificate             *string `json:"certificate,omitempty"`
 	ClearDefaultTargetGroup *bool   `json:"clear_default_target_group,omitempty"`
-	DefaultTargetGroupID    *string `json:"default_target_group_id,omitempty"`
+	DefaultTargetGroup      *string `json:"default_target_group,omitempty"`
 
 	// Exposure mutate which addresses are bound. Omit to leave unchanged.
 	//
@@ -453,7 +478,7 @@ type UpdateListenerRequest struct {
 // policies. Sending name in an update, including an unchanged, empty or
 // null value, returns a validation error.
 type UpdateLoadBalancerRequest struct {
-	// FlavorID resize each replica to a different compute flavor. Must be a
+	// Flavor resize each replica to a different compute flavor. Must be a
 	// loadbalancer-family flavor.
 	//
 	// A running instance cannot change size in place, so the request
@@ -468,7 +493,7 @@ type UpdateLoadBalancerRequest struct {
 	// Expect it to take several minutes, and poll GET
 	// /v1/load-balancers/{id}/replicas to watch: a replica has been
 	// replaced when its instance_id changes, and the resize is done when
-	// every flavor_id there matches this one.
+	// every flavor there matches this one.
 	//
 	// The one exception is a load balancer already at the maximum of 10
 	// replicas, which has nowhere to grow. There the replicas are replaced
@@ -477,7 +502,7 @@ type UpdateLoadBalancerRequest struct {
 	// Rejected up front if the account does not have the compute quota for
 	// the replacement replica, so a resize cannot half-apply and leave the
 	// load balancer short.
-	FlavorID *string `json:"flavor_id,omitempty"`
+	Flavor *string `json:"flavor,omitempty"`
 
 	// ReplicaCount resize the set of load balancer instances. Scale-out provisions the
 	// new replicas in sequence; scale-in removes the highest-indexed
@@ -486,8 +511,10 @@ type UpdateLoadBalancerRequest struct {
 	Tags         Tags `json:"tags,omitempty"`
 }
 
-// UpdateRuleRequest full replace of the rule — priority, conditions, and target group
-// must all be supplied (same shape as create).
+// UpdateRuleRequest target group relationships accept UUID, CRN or exact account-scoped
+// names in this region. Full replace of the rule — priority,
+// conditions, and target group must all be supplied (same shape as
+// create).
 type UpdateRuleRequest struct {
 	// Required.
 	Conditions []*RuleCondition `json:"conditions"`
@@ -496,7 +523,7 @@ type UpdateRuleRequest struct {
 	Priority int `json:"priority"`
 
 	// Required.
-	TargetGroupID string `json:"target_group_id"`
+	TargetGroup string `json:"target_group"`
 }
 
 // UpdateTargetGroupRequest names are fixed at creation because they form the CRN used by IAM

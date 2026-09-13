@@ -152,16 +152,24 @@ type Group struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
 	// CRN Cloud Resource Name
-	CRN         string    `json:"crn,omitempty"`
-	Description string    `json:"description,omitempty"`
-	ID          string    `json:"id,omitempty"`
-	Name        string    `json:"name,omitempty"`
-	UpdatedAt   time.Time `json:"updated_at,omitempty"`
+	CRN         string `json:"crn,omitempty"`
+	Description string `json:"description,omitempty"`
+	ID          string `json:"id,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name      string    `json:"name,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
 type GroupCreateRequest struct {
 	Description *string `json:"description,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 }
@@ -177,18 +185,28 @@ type GroupServiceAccount struct {
 	Description string `json:"description,omitempty"`
 	ID          string `json:"id,omitempty"`
 
-	// Name of the service account
+	// Name of the service account Resource names must not start with the
+	// literal crn: prefix or be UUIDs (canonical, compact, braced, or
+	// urn:uuid: forms, in either case).
 	Name string `json:"name,omitempty"`
 }
 
 type GroupSummary struct {
-	ID   string `json:"id,omitempty"`
+	ID string `json:"id,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
 	Name string `json:"name,omitempty"`
 }
 
 type GroupUpdateRequest struct {
 	Description *string `json:"description,omitempty"`
-	Name        *string `json:"name,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name *string `json:"name,omitempty"`
 }
 
 // GroupUser a user in a group
@@ -205,11 +223,15 @@ type GroupUser struct {
 }
 
 type InlinePolicy struct {
-	CreatedAt   time.Time       `json:"created_at,omitempty"`
-	Document    *PolicyDocument `json:"document,omitempty"`
-	ID          string          `json:"id,omitempty"`
-	Name        string          `json:"name,omitempty"`
-	PrincipalID string          `json:"principal_id,omitempty"`
+	CreatedAt time.Time       `json:"created_at,omitempty"`
+	Document  *PolicyDocument `json:"document,omitempty"`
+	ID        string          `json:"id,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name        string `json:"name,omitempty"`
+	PrincipalID string `json:"principal_id,omitempty"`
 
 	// One of: "user", "service_account", "role", "group".
 	PrincipalType string    `json:"principal_type,omitempty"`
@@ -489,9 +511,13 @@ type Policy struct {
 
 	// IsSystem whether this is a system-managed policy (cannot be modified or
 	// deleted)
-	IsSystem bool   `json:"is_system,omitempty"`
-	Name     string `json:"name,omitempty"`
-	Tags     Tags   `json:"tags,omitempty"`
+	IsSystem bool `json:"is_system,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
+	Tags Tags   `json:"tags,omitempty"`
 
 	// UpdatedAt last update timestamp (not present for system policies)
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
@@ -535,6 +561,10 @@ type PolicyCreateRequest struct {
 	// Required.
 	Document *PolicyDocument `json:"document"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 	Tags Tags   `json:"tags,omitempty"`
@@ -584,8 +614,12 @@ type PolicyStatement struct {
 type PolicyUpdateRequest struct {
 	Description *string         `json:"description,omitempty"`
 	Document    *PolicyDocument `json:"document,omitempty"`
-	Name        *string         `json:"name,omitempty"`
-	Tags        Tags            `json:"tags,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name *string `json:"name,omitempty"`
+	Tags Tags    `json:"tags,omitempty"`
 }
 
 type PutInlinePolicyRequest struct {
@@ -622,9 +656,13 @@ type Role struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
 	// CRN Cloud Resource Name
-	CRN         string       `json:"crn,omitempty"`
-	Description string       `json:"description,omitempty"`
-	ID          string       `json:"id,omitempty"`
+	CRN         string `json:"crn,omitempty"`
+	Description string `json:"description,omitempty"`
+	ID          string `json:"id,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
 	Name        string       `json:"name,omitempty"`
 	Tags        Tags         `json:"tags,omitempty"`
 	TrustPolicy *TrustPolicy `json:"trust_policy,omitempty"`
@@ -634,6 +672,10 @@ type Role struct {
 type RoleCreateRequest struct {
 	Description *string `json:"description,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name        string       `json:"name"`
 	Tags        Tags         `json:"tags,omitempty"`
@@ -646,7 +688,11 @@ type RolePolicyAttachRequest struct {
 }
 
 type RoleUpdateRequest struct {
-	Description *string      `json:"description,omitempty"`
+	Description *string `json:"description,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
 	Name        *string      `json:"name,omitempty"`
 	Tags        Tags         `json:"tags,omitempty"`
 	TrustPolicy *TrustPolicy `json:"trust_policy,omitempty"`
@@ -694,18 +740,26 @@ type ServiceAccount struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
 	// CRN Cloud Resource Name
-	CRN         string    `json:"crn,omitempty"`
-	Description string    `json:"description,omitempty"`
-	Enabled     bool      `json:"enabled,omitempty"`
-	ID          string    `json:"id,omitempty"`
-	Name        string    `json:"name,omitempty"`
-	Tags        Tags      `json:"tags,omitempty"`
-	UpdatedAt   time.Time `json:"updated_at,omitempty"`
+	CRN         string `json:"crn,omitempty"`
+	Description string `json:"description,omitempty"`
+	Enabled     bool   `json:"enabled,omitempty"`
+	ID          string `json:"id,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name      string    `json:"name,omitempty"`
+	Tags      Tags      `json:"tags,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
 type ServiceAccountCreateRequest struct {
 	Description *string `json:"description,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 	Tags Tags   `json:"tags,omitempty"`

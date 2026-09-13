@@ -17,17 +17,21 @@ type AttachInstanceNICAttachment struct {
 	MAC         string `json:"mac,omitempty"`
 }
 
-// AttachInstanceNICRequest exactly one of subnet_id (provision a fresh NIC) or interface_id
-// (attach an existing standalone interface) must be set.
+// AttachInstanceNICRequest exactly one of subnet (provision a fresh NIC) or interface (attach an
+// existing standalone interface) must be set.
 type AttachInstanceNICRequest struct {
-	// InterfaceID existing standalone interface to attach. It keeps its address, MAC,
-	// and security groups; detach returns it to standalone instead of
-	// destroying it.
-	InterfaceID      *string  `json:"interface_id,omitempty"`
-	IPAddress        *string  `json:"ip_address,omitempty"`
-	MAC              *string  `json:"mac,omitempty"`
-	SecurityGroupIDs []string `json:"security_group_ids,omitempty"`
-	SubnetID         *string  `json:"subnet_id,omitempty"`
+	// Interface existing standalone interface UUID or complete VPC/subnet/interface
+	// CRN. Bare names lack the subnet parent and are rejected. It keeps
+	// its address, MAC, and security groups; detach returns it to
+	// standalone instead of destroying it.
+	Interface      *string  `json:"interface,omitempty"`
+	IPAddress      *string  `json:"ip_address,omitempty"`
+	MAC            *string  `json:"mac,omitempty"`
+	SecurityGroups []string `json:"security_groups,omitempty"`
+
+	// Subnet UUID or complete VPC/subnet CRN; a bare name requires a VPC
+	// parent and is rejected here.
+	Subnet *string `json:"subnet,omitempty"`
 }
 
 type AttachInstanceVolumeAttachment struct {
@@ -52,8 +56,10 @@ type AttachInstanceVolumeRequest struct {
 	// mounts it at this path. Empty attaches the block device only.
 	MountPath *string `json:"mount_path,omitempty"`
 
+	// Volume account-scoped volume reference (UUID, CRN or exact name).
+	//
 	// Required.
-	VolumeID string `json:"volume_id"`
+	Volume string `json:"volume"`
 }
 
 type CreateKeypairKeypair struct {
@@ -63,7 +69,11 @@ type CreateKeypairKeypair struct {
 	CRN         string `json:"crn,omitempty"`
 	Fingerprint string `json:"fingerprint,omitempty"`
 	ID          string `json:"id,omitempty"`
-	Name        string `json:"name,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
 
 	// PrivateKey private key (only returned when keypair is generated)
 	PrivateKey string `json:"private_key,omitempty"`
@@ -89,6 +99,9 @@ const (
 	CurrentStateDeleting  CurrentState = "deleting"
 	CurrentStateDeleted   CurrentState = "deleted"
 	CurrentStateError     CurrentState = "error"
+	CurrentStateCrashed   CurrentState = "crashed"
+	CurrentStatePaused    CurrentState = "paused"
+	CurrentStateSuspended CurrentState = "suspended"
 )
 
 // Flavor a compute size (vCPU + RAM). A flavor carries no disk size — the
@@ -115,7 +128,11 @@ type Flavor struct {
 	// One of: "general", "loadbalancer", "database".
 	Family string `json:"family,omitempty"`
 	ID     string `json:"id,omitempty"`
-	Name   string `json:"name,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
 
 	// RAMMB RAM in MB
 	RAMMB int `json:"ram_mb,omitempty"`
@@ -136,6 +153,7 @@ type FloatingIP struct {
 	CreatedAt             time.Time `json:"created_at"`
 	CRN                   string    `json:"crn"`
 	Description           string    `json:"description,omitempty"`
+	Family                IPFamily  `json:"family"`
 	ID                    string    `json:"id"`
 
 	// InstancePoolID the instance pool this address belongs to, or null for an ordinary
@@ -148,7 +166,9 @@ type FloatingIP struct {
 	// /v1/instance-pools/{pool_id}/floating-ips` and `DELETE
 	// /v1/instance-pools/{pool_id}/floating-ips/{floating_ip_id}`.
 	InstancePoolID string `json:"instance_pool_id,omitempty"`
-	IPAddress      string `json:"ip_address"`
+
+	// IPAddress the public address, in the family it was allocated in.
+	IPAddress string `json:"ip_address"`
 
 	// Members the floating IP's bindings. A floating IP fronts 0 members
 	// (allocated, unattached), 1 member (the everyday case), or N members
@@ -228,6 +248,34 @@ type GetConsoleOutputResult struct {
 	Truncated bool `json:"truncated"`
 }
 
+// IPFamily the address family of a public address. A floating IP is the same
+// resource in either family — allocated, attached to one or more
+// members, advertised from their chassis — and the family is a
+// property of the address rather than a different product. What changes
+// with it:
+//
+//   - **Pool.** A `ipv4` address comes from the region's tenant IPv4 block,
+//     a `ipv6` one from its tenant IPv6 block.
+//   - **Attach.** A `ipv6` address can only be attached to an interface
+//     that has an IPv6 address — one on a dual-stack subnet — and the
+//     subnet needs a `::/0` route to an internet gateway, the way a
+//     `ipv4` one needs `0.0.0.0/0`. An interface holds at most one
+//     floating IP of each family; a v4 and a v6 on the same interface is
+//     fine.
+//   - **Identity.** While a `ipv6` floating IP is attached, it is the
+//     interface's public IPv6 identity: the interface's own address stops
+//     being reachable from the internet and comes back when the floating
+//     IP is detached. That is the same rule a `ipv4` floating IP has
+//     always had, applied to a family whose addresses are public to begin
+//     with.
+type IPFamily string
+
+// Values IPFamily accepts.
+const (
+	IPFamilyIPv4 IPFamily = "ipv4"
+	IPFamilyIPv6 IPFamily = "ipv6"
+)
+
 type Image struct {
 	Architecture string            `json:"architecture"`
 	Attributes   map[string]string `json:"attributes,omitempty"`
@@ -254,9 +302,13 @@ type Image struct {
 
 	// IsCurrent whether this is the version resolve-by-name returns for its (name,
 	// architecture) — i.e. the name's current tag target.
-	IsCurrent bool   `json:"is_current,omitempty"`
-	MinDiskGB int    `json:"min_disk_gb,omitempty"`
-	MinRAMMB  int    `json:"min_ram_mb,omitempty"`
+	IsCurrent bool `json:"is_current,omitempty"`
+	MinDiskGB int  `json:"min_disk_gb,omitempty"`
+	MinRAMMB  int  `json:"min_ram_mb,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
 	Name      string `json:"name"`
 	OS        string `json:"os,omitempty"`
 	OSVersion string `json:"os_version,omitempty"`
@@ -302,7 +354,9 @@ type ImageCreateRequest struct {
 
 	// Name movable tag name (e.g. debian-13); the new image becomes its current
 	// version. Names are shared across a tag's builds — what identifies
-	// one build is `version`.
+	// one build is `version`. Resource names must not start with the
+	// literal crn: prefix or be UUIDs (canonical, compact, braced, or
+	// urn:uuid: forms, in either case).
 	//
 	// Required.
 	Name      string  `json:"name"`
@@ -342,7 +396,6 @@ type ImageUpdateRequest struct {
 	// catalog withdraws platform images on this date — one recorded by
 	// mistake has to be removable.
 	EOLDate *string `json:"eol_date,omitempty"`
-	Name    *string `json:"name,omitempty"`
 	Tags    Tags    `json:"tags,omitempty"`
 
 	// One of: "public", "private".
@@ -361,10 +414,8 @@ type Instance struct {
 	//
 	// desired_state=running with current_state=stopped is an instance that
 	// was asked to start and has not come up yet.
-	//
-	// One of: "pending", "building", "running", "stopping", "stopped", "rebooting", "migrating", "deleting", "deleted", "error".
-	CurrentState string `json:"current_state,omitempty"`
-	Description  string `json:"description,omitempty"`
+	CurrentState CurrentState `json:"current_state,omitempty"`
+	Description  string       `json:"description,omitempty"`
 
 	// DesiredState what was asked for. Only three values, because there are only three
 	// things you can ask an instance to be: Create/Start/Reboot ask for
@@ -392,7 +443,11 @@ type Instance struct {
 	Keypairs   []*Keypair `json:"keypairs,omitempty"`
 	LaunchedAt time.Time  `json:"launched_at,omitempty"`
 	Metadata   Metadata   `json:"metadata,omitempty"`
-	Name       string     `json:"name,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
 
 	// PrimaryIP the primary NIC's IPv4 address, resolved at read time.
 	PrimaryIP string `json:"primary_ip,omitempty"`
@@ -424,30 +479,36 @@ type Instance struct {
 }
 
 type InstanceCreateRequest struct {
-	Description *string `json:"description,omitempty"`
+	// Architecture for bare image names; a CRN pins its architecture.
+	Architecture *string `json:"architecture,omitempty"`
+	Description  *string `json:"description,omitempty"`
 
-	// FlavorID Flavor ID
+	// Flavor regional flavor reference (UUID, CRN or exact name)
 	//
 	// Required.
-	FlavorID string `json:"flavor_id"`
+	Flavor string `json:"flavor"`
 
-	// IAMRoleID attach this IAM role to the instance. The role's trust policy must
-	// permit `crn:compute:*:*:instance/*` (or the specific instance CRN).
-	// The instance's IMDS endpoint (169.254.169.254) mints short-lived STS
-	// credentials for this role from inside the VM.
-	IAMRoleID *string `json:"iam_role_id,omitempty"`
+	// IAMRole attach this organization-scoped IAM role by UUID, CRN or exact name.
+	// The role's trust policy must permit `crn:compute:*:*:instance/*` (or
+	// the specific instance CRN). The instance's IMDS endpoint
+	// (169.254.169.254) mints short-lived STS credentials for this role
+	// from inside the VM.
+	IAMRole *string `json:"iam_role,omitempty"`
 
-	// ImageID image to clone the boot disk from (required if not booting from
-	// volume). Three forms are accepted: an image id; `name:version`,
-	// which pins one build and is how you opt out of the tag moving under
-	// you; or a bare `name`, which follows the tag to whichever build is
-	// current when the instance is created.
-	ImageID *string `json:"image_id,omitempty"`
-
-	// KeyNames SSH keypair names to authorize on the instance
-	KeyNames []string `json:"key_names,omitempty"`
+	// Image to clone the boot disk from (required if not booting from
+	// volume). Four forms are accepted: a complete
+	// image/name/architecture/arch/version/version CRN; an image id;
+	// `name:version`, which pins one build and is how you opt out of the
+	// tag moving under you; or a bare `name`, which follows the tag to
+	// whichever build is current when the instance is created.
+	Image    *string  `json:"image,omitempty"`
+	Keypairs []string `json:"keypairs,omitempty"`
 	Metadata Metadata `json:"metadata,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 
@@ -458,10 +519,7 @@ type InstanceCreateRequest struct {
 	//
 	// Required.
 	Networks []*NetworkConfig `json:"networks"`
-
-	// SecurityGroups security group names or IDs
-	SecurityGroups []string `json:"security_groups,omitempty"`
-	Tags           Tags     `json:"tags,omitempty"`
+	Tags     Tags             `json:"tags,omitempty"`
 
 	// UserData base64-encoded user data (cloud-init)
 	UserData []byte `json:"user_data,omitempty"`
@@ -518,9 +576,13 @@ type InstancePool struct {
 	// reflects, so member_count == desired_count with live_count below it
 	// means the pool has the members it was asked for and some of them are
 	// not up.
-	MemberCount int    `json:"member_count,omitempty"`
-	MinCount    int    `json:"min_count,omitempty"`
-	Name        string `json:"name,omitempty"`
+	MemberCount int `json:"member_count,omitempty"`
+	MinCount    int `json:"min_count,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
 
 	// RefreshInProgress true while a rolling replacement requested through POST
 	// /v1/instance-pools/{pool_id}/refresh is still running. It clears
@@ -568,25 +630,21 @@ type InstancePool struct {
 	Template *InstancePoolTemplate `json:"template,omitempty"`
 }
 
-// InstancePoolCreateRequest two shapes are accepted for the launch config. `template` is the
-// current one — the same fields instance create takes. The flat fields
-// beside it are the shape pools shipped with; they still work, and the
-// response renders both, so nothing written against either has to move.
-// They are alternatives, not layers: sending `template` together with
-// any flat launch field is refused with a 400 rather than resolved by a
-// precedence rule you would have to know to predict what your replicas
-// boot as. The pool's own fields — name, description, tags, sizing —
-// stay at the top level in both shapes, because they describe the pool
-// rather than the instances in it. A flavor and a primary subnet are
-// required either way: as `template.flavor_id` +
-// `template.networks[0].subnet_id`, or as the flat `flavor_id` +
-// `subnet_id`.
+// InstancePoolCreateRequest `template` is the launch config — the same fields instance create
+// takes. The pool's own fields — name, description, tags, sizing —
+// stay at the top level, because they describe the pool rather than the
+// instances in it. A flavor and a primary subnet are required, as
+// `template.flavor` + `template.networks[0].subnet`.
 type InstancePoolCreateRequest struct {
 	Description  *string `json:"description,omitempty"`
 	DesiredCount *int    `json:"desired_count,omitempty"`
 	MaxCount     *int    `json:"max_count,omitempty"`
 	MinCount     *int    `json:"min_count,omitempty"`
 
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 
@@ -594,21 +652,21 @@ type InstancePoolCreateRequest struct {
 	// (`basalt:RequestTag/<key>` here, `basalt:ResourceTag/<key>` on later
 	// operations) and cost attribution. They are not propagated to the
 	// instances the pool launches; `template.tags` is that set. A pool
-	// field, so it may be sent with either launch-config shape — unlike
-	// the deprecated flat fields below, it does not conflict with
-	// `template`. Replica tags are only reachable through `template.tags`.
+	// field, sent beside `template`. Replica tags are only reachable
+	// through `template.tags`.
 	Tags Tags `json:"tags,omitempty"`
 
 	// Required.
-	Template *InstancePoolTemplate `json:"template"`
+	Template *InstancePoolTemplateRequest `json:"template"`
 }
 
 type InstancePoolFloatingIPAttachRequest struct {
-	// FloatingIPID an already-allocated floating IP of yours, currently attached to
-	// nothing. This binds it to the pool; it does not allocate one.
+	// FloatingIP an account-scoped floating IP UUID or CRN (bare names are not
+	// accepted), currently attached to nothing. This binds it to the pool;
+	// it does not allocate one.
 	//
 	// Required.
-	FloatingIPID string `json:"floating_ip_id"`
+	FloatingIP string `json:"floating_ip"`
 }
 
 // InstancePoolTemplate the pool's launch config, in the shape a standalone instance create
@@ -629,24 +687,83 @@ type InstancePoolTemplate struct {
 	// endpoint.
 	IAMRoleID string `json:"iam_role_id,omitempty"`
 
-	// ImageID image to clone each replica's boot disk from. Accepts the same three
-	// forms instance create does: an image id, `name:version`, or a bare
-	// `name`. Unlike instance create, the reference is resolved ONCE, when
-	// the pool is created, and the resulting image id is what every
-	// replica boots — including replacements spawned months later. A tag
-	// re-resolved per replica would let a heal boot a newer build than its
-	// siblings, and a pool whose members are quietly not identical is the
-	// premise of the primitive breaking silently. To move a pool to a new
-	// build, change the template.
-	ImageID string `json:"image_id,omitempty"`
-
-	// KeyNames SSH keypair names to authorize on every replica.
+	// ImageID image to clone each replica's boot disk from. Accepts the same four
+	// forms instance create does: an architecture-qualified CRN, an image
+	// id, `name:version`, or a bare `name`. Unlike instance create, the
+	// reference is resolved ONCE, when the pool is created, and the
+	// resulting image id is what every replica boots — including
+	// replacements spawned months later. A tag re-resolved per replica
+	// would let a heal boot a newer build than its siblings, and a pool
+	// whose members are quietly not identical is the premise of the
+	// primitive breaking silently. To move a pool to a new build, change
+	// the template.
+	ImageID  string   `json:"image_id,omitempty"`
 	KeyNames []string `json:"key_names,omitempty"`
 	Metadata Metadata `json:"metadata,omitempty"`
 
 	// Networks per-replica interfaces. Index 0 is the primary NIC and is required;
 	// the rest are extras.
-	Networks []*NetworkConfig `json:"networks,omitempty"`
+	Networks []*NetworkConfigResponse `json:"networks,omitempty"`
+
+	// Tags stamped on every instance this template launches. These are the
+	// replicas' tags, not the pool's — the pool's own labels are the
+	// top-level `tags`, and the two are independent. Changing them affects
+	// FUTURE launches only. The instances already running keep the tags
+	// they were launched with, so between the change and a refresh the
+	// pool holds members carrying two different tag sets;
+	// `stale_instance_count` is how many are still on the old one. POST
+	// /v1/instance-pools/{pool_id}/refresh rolls them onto the current
+	// template.
+	Tags Tags `json:"tags,omitempty"`
+
+	// UserData base64-encoded user data (cloud-init), stamped on every replica.
+	UserData []byte `json:"user_data,omitempty"`
+
+	// Volumes per-replica disks, the boot disk included — mark it with `boot:
+	// true`. Same shape as instance create.
+	Volumes []*InstanceVolume `json:"volumes,omitempty"`
+}
+
+// InstancePoolTemplateRequest the pool's launch config, in the shape a standalone instance create
+// takes: same field names, same types, same meanings, so a client that
+// can build an instance can build a pool of them without a second,
+// narrower contract to learn. It belongs to the pool. There is no
+// separate launch-template resource to create, version or share between
+// pools. Networking is one ordered `networks` list, index 0 being the
+// primary NIC, replacing the flat `subnet` + `extra_nics` split.
+// `ip_address` and `mac` are part of that shared NIC shape but are
+// refused here: every replica launches from this one template, so a
+// fixed address would have the second replica ask for one the first
+// already holds.
+type InstancePoolTemplateRequest struct {
+	Architecture *string `json:"architecture,omitempty"`
+
+	// Required.
+	Flavor string `json:"flavor"`
+
+	// IAMRole IAM role attached to every replica, reachable from its IMDS
+	// endpoint.
+	IAMRole *string `json:"iam_role,omitempty"`
+
+	// Image to clone each replica's boot disk from. Accepts the same four
+	// forms instance create does: an architecture-qualified CRN, an image
+	// id, `name:version`, or a bare `name`. Unlike instance create, the
+	// reference is resolved ONCE, when the pool is created, and the
+	// resulting image id is what every replica boots — including
+	// replacements spawned months later. A tag re-resolved per replica
+	// would let a heal boot a newer build than its siblings, and a pool
+	// whose members are quietly not identical is the premise of the
+	// primitive breaking silently. To move a pool to a new build, change
+	// the template.
+	Image    *string  `json:"image,omitempty"`
+	Keypairs []string `json:"keypairs,omitempty"`
+	Metadata Metadata `json:"metadata,omitempty"`
+
+	// Networks per-replica interfaces. Index 0 is the primary NIC and is required;
+	// the rest are extras.
+	//
+	// Required.
+	Networks []*NetworkConfig `json:"networks"`
 
 	// Tags stamped on every instance this template launches. These are the
 	// replicas' tags, not the pool's — the pool's own labels are the
@@ -699,7 +816,7 @@ type InstancePoolUpdateRequest struct {
 	// than kept. Replacement rather than a deep merge so a shorter
 	// `networks` or `volumes` cannot be read as a truncation and silently
 	// drop an interface or a disk.
-	Template *InstancePoolTemplate `json:"template,omitempty"`
+	Template *InstancePoolTemplateRequest `json:"template,omitempty"`
 }
 
 type InstanceRebootRequest struct {
@@ -711,8 +828,12 @@ type InstanceRebootRequest struct {
 type InstanceUpdateRequest struct {
 	Description *string  `json:"description,omitempty"`
 	Metadata    Metadata `json:"metadata,omitempty"`
-	Name        *string  `json:"name,omitempty"`
-	Tags        Tags     `json:"tags,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name *string `json:"name,omitempty"`
+	Tags Tags    `json:"tags,omitempty"`
 }
 
 // InstanceVolume one disk created with the instance. `boot: true` marks the one cloned
@@ -743,7 +864,11 @@ type Keypair struct {
 	CRN         string `json:"crn,omitempty"`
 	Fingerprint string `json:"fingerprint,omitempty"`
 	ID          string `json:"id,omitempty"`
-	Name        string `json:"name,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
 
 	// PublicKey SSH public key
 	PublicKey string `json:"public_key,omitempty"`
@@ -751,6 +876,10 @@ type Keypair struct {
 }
 
 type KeypairCreateRequest struct {
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
 	// Required.
 	Name string `json:"name"`
 
@@ -827,6 +956,45 @@ type NetworkConfig struct {
 	// The interface's subnet must already route 0.0.0.0/0 to an internet
 	// gateway. Without that the address would be silently unreachable, so
 	// the launch fails instead.
+	AssignPublicIP *bool `json:"assign_public_ip,omitempty"`
+
+	// IPAddress optional fixed IP. Must be in the subnet's CIDR and not currently
+	// allocated to another interface. An address is picked automatically
+	// when omitted.
+	IPAddress *string `json:"ip_address,omitempty"`
+
+	// MAC Optional MAC address. Must be locally-administered (`X2:`, `X6:`,
+	// `XA:`, `XE:` in the first octet). Generated when omitted.
+	MAC *string `json:"mac,omitempty"`
+
+	// SecurityGroups account-scoped security group references (UUID, CRN or name) to
+	// attach to this NIC. Each must be owned by the same account. Empty
+	// list = no per-NIC ACLs (the platform's default-allow stays in
+	// force).
+	SecurityGroups []string `json:"security_groups,omitempty"`
+
+	// Subnet UUID or complete VPC/subnet CRN. Bare names require a VPC
+	// parent and are rejected here.
+	//
+	// Required.
+	Subnet string `json:"subnet"`
+}
+
+type NetworkConfigResponse struct {
+	// AssignPublicIP allocate a floating IP and attach it to THIS interface once it
+	// exists. Per NIC, so a secondary interface can carry the public
+	// address while the primary stays private, and an instance with
+	// several public interfaces gets one address each.
+	//
+	// Each address is a separate floating-IP allocation: it counts against
+	// the account's floating_ips_v4 quota and is billed like any other. It
+	// is released when the instance is torn down — an address you
+	// allocated yourself and attached to the same NIC is not, and survives
+	// the instance.
+	//
+	// The interface's subnet must already route 0.0.0.0/0 to an internet
+	// gateway. Without that the address would be silently unreachable, so
+	// the launch fails instead.
 	AssignPublicIP bool `json:"assign_public_ip,omitempty"`
 
 	// IPAddress optional fixed IP. Must be in the subnet's CIDR and not currently
@@ -838,12 +1006,14 @@ type NetworkConfig struct {
 	// `XA:`, `XE:` in the first octet). Generated when omitted.
 	MAC string `json:"mac,omitempty"`
 
-	// SecurityGroupIDs security groups to attach to this NIC at provision time. Each must
-	// be owned by the same account. Empty list = no per-NIC ACLs (the
-	// platform's default-allow stays in force).
+	// SecurityGroupIDs account-scoped security group references (UUID, CRN or name) to
+	// attach to this NIC. Each must be owned by the same account. Empty
+	// list = no per-NIC ACLs (the platform's default-allow stays in
+	// force).
 	SecurityGroupIDs []string `json:"security_group_ids,omitempty"`
 
-	// SubnetID subnet to attach the NIC to (required).
+	// SubnetID Subnet UUID or complete VPC/subnet CRN. Bare names require a VPC
+	// parent and are rejected here.
 	SubnetID string `json:"subnet_id"`
 }
 
@@ -858,9 +1028,10 @@ type PoolInstance struct {
 }
 
 type ReinstallInstanceRequest struct {
-	// ImageID replacement image. Omit to reinstall from the instance's current
+	// Image replacement image reference (UUID, architecture-qualified CRN, name
+	// or name:version). Omit to reinstall from the instance's current
 	// image.
-	ImageID *string `json:"image_id,omitempty"`
+	Image *string `json:"image,omitempty"`
 
 	// SizeGB replacement boot disk size; omitted = the image's min_disk_gb. Must
 	// be within the volume size range (1..16384) and at least the image's
@@ -874,10 +1045,10 @@ type ReinstallInstanceRequest struct {
 }
 
 type ResizeInstanceRequest struct {
-	// FlavorID the target flavor to resize to.
+	// Flavor regional flavor reference (UUID, CRN or exact name) to resize to.
 	//
 	// Required.
-	FlavorID string `json:"flavor_id"`
+	Flavor string `json:"flavor"`
 }
 
 // SerialConsoleTicket a one-shot credential for opening a serial console from a browser.

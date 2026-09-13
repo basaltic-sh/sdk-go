@@ -46,11 +46,11 @@
               "doc": "Filter by action (exact match or prefix with wildcard, e.g., \"iam.*\")"
             },
             {
-              "wire": "actor_id",
-              "go_name": "ActorID",
+              "wire": "actor",
+              "go_name": "Actor",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by actor ID (user or service account)"
+              "doc": "Filter by a canonical UUID or an exact historical IAM actor CRN (user, service-account, or role, with empty region and account)"
             },
             {
               "wire": "actor_type",
@@ -88,11 +88,11 @@
               "doc": "Opaque pagination cursor"
             },
             {
-              "wire": "resource_id",
-              "go_name": "ResourceID",
+              "wire": "resource",
+              "go_name": "Resource",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by resource ID"
+              "doc": "Filter by a canonical UUID or an event-time resource CRN, without looking up a live resource"
             },
             {
               "wire": "resource_type",
@@ -350,7 +350,7 @@
       "name": "certificate",
       "package": "certificate",
       "title": "Basaltic Certificate API",
-      "description": "TLS certificates for load balancer listeners and platform endpoints —\nissue, inspect, retrieve material and revoke.",
+      "description": "TLS certificates for load balancer listeners and platform endpoints —\nissue, inspect, retrieve material and revoke. Names are immutable and\nunique within an account. List by exact name or CRN; resource paths use UUIDs.",
       "endpoint_template": "https://certificate.{region}.basaltic.sh",
       "regional": true,
       "operations": [
@@ -505,6 +505,13 @@
           "params_type": "ListCertificatesParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact certificate CRN"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -516,6 +523,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Resume token — the last certificate id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact, case-sensitive certificate name within the caller's account"
             }
           ],
           "result_kind": "page",
@@ -571,12 +585,12 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "interface_id",
-              "go_name": "InterfaceID",
+              "wire": "interface",
+              "go_name": "Interface",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Existing standalone interface to attach"
+              "doc": "Existing standalone interface UUID or complete VPC/subnet/interface CRN"
             },
             {
               "wire": "ip_address",
@@ -593,17 +607,18 @@
               "pointer": true
             },
             {
-              "wire": "security_group_ids",
-              "go_name": "SecurityGroupIDs",
+              "wire": "security_groups",
+              "go_name": "SecurityGroups",
               "go_type": "[]string",
               "flag_kind": "stringSlice"
             },
             {
-              "wire": "subnet_id",
-              "go_name": "SubnetID",
+              "wire": "subnet",
+              "go_name": "Subnet",
               "go_type": "*string",
               "flag_kind": "string",
-              "pointer": true
+              "pointer": true,
+              "doc": "Subnet UUID or complete VPC/subnet CRN; a bare name requires a VPC parent and is rejected here"
             }
           ],
           "result_kind": "value",
@@ -628,12 +643,12 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "floating_ip_id",
-              "go_name": "FloatingIPID",
+              "wire": "floating_ip",
+              "go_name": "FloatingIP",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "An already-allocated floating IP of yours, currently attached to nothing"
+              "doc": "An account-scoped floating IP UUID or CRN (bare names are not accepted), currently attached to nothing"
             }
           ],
           "result_kind": "value",
@@ -687,11 +702,12 @@
               "doc": "When set, the in-guest agent formats the disk (only if blank) and mounts it at this path"
             },
             {
-              "wire": "volume_id",
-              "go_name": "VolumeID",
+              "wire": "volume",
+              "go_name": "Volume",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Account-scoped volume reference (UUID, CRN or exact name)"
             }
           ],
           "result_kind": "value",
@@ -847,6 +863,14 @@
           "body_kind": "json",
           "body_fields": [
             {
+              "wire": "architecture",
+              "go_name": "Architecture",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "Architecture for bare image names; a CRN pins its architecture"
+            },
+            {
               "wire": "description",
               "go_name": "Description",
               "go_type": "*string",
@@ -854,35 +878,34 @@
               "pointer": true
             },
             {
-              "wire": "flavor_id",
-              "go_name": "FlavorID",
+              "wire": "flavor",
+              "go_name": "Flavor",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "Flavor ID"
+              "doc": "Regional flavor reference (UUID, CRN or exact name)"
             },
             {
-              "wire": "iam_role_id",
-              "go_name": "IAMRoleID",
+              "wire": "iam_role",
+              "go_name": "IAMRole",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Attach this IAM role to the instance"
+              "doc": "Attach this organization-scoped IAM role by UUID, CRN or exact name"
             },
             {
-              "wire": "image_id",
-              "go_name": "ImageID",
+              "wire": "image",
+              "go_name": "Image",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
               "doc": "Image to clone the boot disk from (required if not booting from volume)"
             },
             {
-              "wire": "key_names",
-              "go_name": "KeyNames",
+              "wire": "keypairs",
+              "go_name": "Keypairs",
               "go_type": "[]string",
-              "flag_kind": "stringSlice",
-              "doc": "SSH keypair names to authorize on the instance"
+              "flag_kind": "stringSlice"
             },
             {
               "wire": "metadata",
@@ -895,7 +918,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "networks",
@@ -904,13 +928,6 @@
               "flag_kind": "json",
               "required": true,
               "doc": "Interfaces to attach, at least one"
-            },
-            {
-              "wire": "security_groups",
-              "go_name": "SecurityGroups",
-              "go_type": "[]string",
-              "flag_kind": "stringSlice",
-              "doc": "Security group names or IDs"
             },
             {
               "wire": "tags",
@@ -981,7 +998,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -993,7 +1011,7 @@
             {
               "wire": "template",
               "go_name": "Template",
-              "go_type": "*InstancePoolTemplate",
+              "go_type": "*InstancePoolTemplateRequest",
               "flag_kind": "json",
               "pointer": true,
               "required": true
@@ -1019,7 +1037,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "public_key",
@@ -1334,11 +1353,25 @@
           "params_type": "ListFlavorsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource CRN, intersected with all other filters before pagination"
+            },
+            {
               "wire": "family",
               "go_name": "Family",
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Filter by product family"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact, case-sensitive name"
             }
           ],
           "result_kind": "page",
@@ -1370,6 +1403,13 @@
               "flag_kind": "string"
             },
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource CRN, intersected with all other filters before pagination"
+            },
+            {
               "wire": "include_hidden",
               "go_name": "IncludeHidden",
               "go_type": "*bool",
@@ -1396,7 +1436,7 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Substring match on name"
+              "doc": "Exact, case-sensitive name match; an empty value matches no named resource"
             },
             {
               "wire": "os",
@@ -1439,6 +1479,23 @@
               "doc": "Instance ID"
             }
           ],
+          "params_type": "ListInstanceNiCsParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource CRN, intersected with all other filters before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact, case-sensitive name"
+            }
+          ],
           "result_kind": "value",
           "result_type": "[]*ListInstanceNiCsNIC"
         },
@@ -1456,6 +1513,23 @@
               "go_name": "poolID"
             }
           ],
+          "params_type": "ListInstancePoolFloatingIPsParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource CRN, intersected with all other filters before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact, case-sensitive name"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[FloatingIP]",
           "item_type": "FloatingIP"
@@ -1471,6 +1545,13 @@
           "params_type": "ListInstancePoolsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource CRN, intersected with all other filters before pagination"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -1483,6 +1564,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact, case-sensitive name"
             }
           ],
           "result_kind": "page",
@@ -1505,6 +1593,23 @@
               "doc": "Instance ID"
             }
           ],
+          "params_type": "ListInstanceVolumesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource CRN, intersected with all other filters before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact, case-sensitive name"
+            }
+          ],
           "result_kind": "value",
           "result_type": "[]*ListInstanceVolumesAttachment"
         },
@@ -1518,6 +1623,13 @@
           "verb": "list",
           "params_type": "ListInstancesParams",
           "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource CRN, intersected with all other filters before pagination"
+            },
             {
               "wire": "current_state",
               "go_name": "CurrentState",
@@ -1533,23 +1645,26 @@
                 "migrating",
                 "deleting",
                 "deleted",
-                "error"
+                "error",
+                "crashed",
+                "paused",
+                "suspended"
               ],
               "doc": "Filter by where the instances actually are"
             },
             {
-              "wire": "flavor_id",
-              "go_name": "FlavorID",
+              "wire": "flavor",
+              "go_name": "Flavor",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by flavor ID"
+              "doc": "Filter by flavor reference (UUID, CRN or name; images also accept name:version)"
             },
             {
-              "wire": "image_id",
-              "go_name": "ImageID",
+              "wire": "image",
+              "go_name": "Image",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by image ID"
+              "doc": "Filter by image reference (UUID, CRN or name; images also accept name:version)"
             },
             {
               "wire": "limit",
@@ -1570,7 +1685,7 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by name (exact match or prefix with *)"
+              "doc": "Exact, case-sensitive name"
             }
           ],
           "result_kind": "page",
@@ -1589,6 +1704,13 @@
           "params_type": "ListKeypairsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource CRN, intersected with all other filters before pagination"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -1601,6 +1723,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact, case-sensitive name"
             }
           ],
           "result_kind": "page",
@@ -1620,6 +1749,23 @@
             {
               "wire": "pool_id",
               "go_name": "poolID"
+            }
+          ],
+          "params_type": "ListPoolInstancesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource CRN, intersected with all other filters before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact, case-sensitive name"
             }
           ],
           "result_kind": "page",
@@ -1692,12 +1838,12 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "image_id",
-              "go_name": "ImageID",
+              "wire": "image",
+              "go_name": "Image",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Replacement image"
+              "doc": "Replacement image reference (UUID, architecture-qualified CRN, name or name:version)"
             },
             {
               "wire": "size_gb",
@@ -1742,12 +1888,12 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "flavor_id",
-              "go_name": "FlavorID",
+              "wire": "flavor",
+              "go_name": "Flavor",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "The target flavor to resize to"
+              "doc": "Regional flavor reference (UUID, CRN or exact name) to resize to"
             }
           ],
           "result_kind": "none",
@@ -1864,13 +2010,6 @@
               "doc": "Set the release's end-of-life date"
             },
             {
-              "wire": "name",
-              "go_name": "Name",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
-            },
-            {
               "wire": "tags",
               "go_name": "Tags",
               "go_type": "Tags",
@@ -1927,7 +2066,8 @@
               "go_name": "Name",
               "go_type": "*string",
               "flag_kind": "string",
-              "pointer": true
+              "pointer": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -1974,7 +2114,7 @@
             {
               "wire": "template",
               "go_name": "Template",
-              "go_type": "*InstancePoolTemplate",
+              "go_type": "*InstancePoolTemplateRequest",
               "flag_kind": "json",
               "pointer": true,
               "doc": "Replaces the launch config WHOLESALE — the object you send is what the pool launches next, and anything you leave out is cleared rather than kept"
@@ -2044,12 +2184,12 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "vpc_id",
-              "go_name": "VPCID",
+              "wire": "vpc",
+              "go_name": "VPC",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "VPC to associate with this private zone"
+              "doc": "Account-owned VPC UUID or network/vpc CRN to associate with this private zone"
             }
           ],
           "result_kind": "value",
@@ -2205,14 +2345,14 @@
                 "public",
                 "private"
               ],
-              "doc": "private restricts the zone to the VPCs named in vpc_ids and requires at least one; public (the default) rejects vpc_ids outright rather than ignoring them"
+              "doc": "private restricts the zone to the VPCs named in vpcs and requires at least one; public (the default) rejects vpcs outright rather than ignoring them"
             },
             {
-              "wire": "vpc_ids",
-              "go_name": "VPCIDs",
+              "wire": "vpcs",
+              "go_name": "VPCs",
               "go_type": "[]string",
               "flag_kind": "stringSlice",
-              "doc": "VPCs the zone resolves in"
+              "doc": "Account-owned VPC UUIDs or network/vpc CRNs the zone resolves in"
             }
           ],
           "result_kind": "value",
@@ -2448,7 +2588,7 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Substring match on the record name"
+              "doc": "Exact record name, lowercased with an optional trailing dot removed"
             },
             {
               "wire": "type",
@@ -2493,6 +2633,13 @@
           "params_type": "ListZonesParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact dns/zone CRN with empty region and the caller's account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -2504,6 +2651,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Resume token — the last zone id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact zone name, lowercased"
             }
           ],
           "result_kind": "page",
@@ -3054,7 +3208,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             }
           ],
           "result_kind": "value",
@@ -3092,7 +3247,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -3128,7 +3284,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -3171,7 +3328,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -5128,7 +5286,8 @@
               "go_name": "Name",
               "go_type": "*string",
               "flag_kind": "string",
-              "pointer": true
+              "pointer": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             }
           ],
           "result_kind": "value",
@@ -5215,7 +5374,8 @@
               "go_name": "Name",
               "go_type": "*string",
               "flag_kind": "string",
-              "pointer": true
+              "pointer": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -5257,7 +5417,8 @@
               "go_name": "Name",
               "go_type": "*string",
               "flag_kind": "string",
-              "pointer": true
+              "pointer": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -5575,6 +5736,13 @@
           "params_type": "ListKeysParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact KMS key CRN in the authenticated account and current region"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -5592,7 +5760,7 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Optional substring filter on key name"
+              "doc": "Exact, case-sensitive account-scoped key name"
             },
             {
               "wire": "state",
@@ -5771,7 +5939,7 @@
       "name": "loadbalancer",
       "package": "loadbalancer",
       "title": "Basaltic Load Balancer API",
-      "description": "Managed load balancers: listeners, target pools, health checks and the\nTLS certificates a listener terminates.",
+      "description": "Request relationships accept syntax-classified references resolved within the caller account and region.\nFloating IP references accept UUID or CRN only; IP targets stay literal.\nManaged load balancers: listeners, target pools, health checks and the\nTLS certificates a listener terminates.",
       "endpoint_template": "https://loadbalancer.{region}.basaltic.sh",
       "regional": true,
       "operations": [
@@ -5797,12 +5965,12 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "certificate_crn",
-              "go_name": "CertificateCRN",
+              "wire": "certificate",
+              "go_name": "Certificate",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "The certificate to serve, by CRN"
+              "doc": "The certificate to serve, by CRN, UUID or exact account-scoped name"
             },
             {
               "wire": "is_default",
@@ -5828,7 +5996,8 @@
           "path_params": [
             {
               "wire": "id",
-              "go_name": "id"
+              "go_name": "id",
+              "doc": "UUID, CRN or exact account-scoped name"
             }
           ],
           "body_type": "*AttachTargetRequest",
@@ -5842,12 +6011,12 @@
               "pointer": true
             },
             {
-              "wire": "target_ref",
-              "go_name": "TargetRef",
+              "wire": "target",
+              "go_name": "Target",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "Must match the group's target_type: an IP address for ip, a compute instance id for instance"
+              "doc": "Must match the group's target_type: an IP address for ip, a compute instance UUID, CRN or exact account-scoped name for instance"
             }
           ],
           "result_kind": "value",
@@ -5878,8 +6047,8 @@
               "flag_kind": "json"
             },
             {
-              "wire": "default_target_group_id",
-              "go_name": "DefaultTargetGroupID",
+              "wire": "default_target_group",
+              "go_name": "DefaultTargetGroup",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
@@ -5940,24 +6109,24 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "flavor_id",
-              "go_name": "FlavorID",
+              "wire": "flavor",
+              "go_name": "Flavor",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
               "doc": "Compute flavor for each LB instance"
             },
             {
-              "wire": "floating_ip_id",
-              "go_name": "FloatingIPID",
+              "wire": "floating_ip",
+              "go_name": "FloatingIP",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
               "doc": "Optional FIP attached on create for public exposure"
             },
             {
-              "wire": "key_names",
-              "go_name": "KeyNames",
+              "wire": "keypairs",
+              "go_name": "Keypairs",
               "go_type": "[]string",
               "flag_kind": "stringSlice",
               "doc": "Platform-operator break-glass only"
@@ -5968,7 +6137,7 @@
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "1..127 chars of [A-Za-z0-9._-]"
+              "doc": "1..127 chars of [A-Za-z0-9._-] Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "replica_count",
@@ -5979,16 +6148,16 @@
               "doc": "Number of LB compute instances"
             },
             {
-              "wire": "security_group_ids",
-              "go_name": "SecurityGroupIDs",
+              "wire": "security_groups",
+              "go_name": "SecurityGroups",
               "go_type": "[]string",
               "flag_kind": "stringSlice",
               "required": true,
               "doc": "Security groups attached to every replica NIC (AWS ALB shape)"
             },
             {
-              "wire": "subnet_id",
-              "go_name": "SubnetID",
+              "wire": "subnet",
+              "go_name": "Subnet",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
@@ -6012,8 +6181,8 @@
               ]
             },
             {
-              "wire": "vpc_id",
-              "go_name": "VPCID",
+              "wire": "vpc",
+              "go_name": "VPC",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
@@ -6060,8 +6229,8 @@
               "required": true
             },
             {
-              "wire": "target_group_id",
-              "go_name": "TargetGroupID",
+              "wire": "target_group",
+              "go_name": "TargetGroup",
               "go_type": "string",
               "flag_kind": "string",
               "required": true
@@ -6090,8 +6259,8 @@
               "pointer": true
             },
             {
-              "wire": "instance_pool_id",
-              "go_name": "InstancePoolID",
+              "wire": "instance_pool",
+              "go_name": "InstancePool",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
@@ -6102,7 +6271,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "port",
@@ -6244,7 +6414,8 @@
           "path_params": [
             {
               "wire": "id",
-              "go_name": "id"
+              "go_name": "id",
+              "doc": "UUID, CRN or exact account-scoped name"
             }
           ],
           "result_kind": "none"
@@ -6253,7 +6424,7 @@
           "id": "detachListenerCertificate",
           "go_name": "DetachListenerCertificate",
           "method": "DELETE",
-          "path": "/v1/load-balancers/{id}/listeners/{listener_id}/certificates/{certificate_crn}",
+          "path": "/v1/load-balancers/{id}/listeners/{listener_id}/certificates/{certificate_id}",
           "summary": "Detach a certificate from an HTTPS listener",
           "resource": "listener",
           "verb": "detach-certificate",
@@ -6267,9 +6438,9 @@
               "go_name": "listenerID"
             },
             {
-              "wire": "certificate_crn",
-              "go_name": "certificateCRN",
-              "doc": "CRN of the attached certificate"
+              "wire": "certificate_id",
+              "go_name": "certificateID",
+              "doc": "UUID of the listener certificate attachment (certificates[].id)"
             }
           ],
           "result_kind": "none"
@@ -6285,11 +6456,13 @@
           "path_params": [
             {
               "wire": "id",
-              "go_name": "id"
+              "go_name": "id",
+              "doc": "UUID, CRN or exact account-scoped name"
             },
             {
               "wire": "target_id",
-              "go_name": "targetID"
+              "go_name": "targetID",
+              "doc": "UUID or parent-scoped CRN"
             }
           ],
           "result_kind": "none"
@@ -6368,11 +6541,13 @@
           "path_params": [
             {
               "wire": "id",
-              "go_name": "id"
+              "go_name": "id",
+              "doc": "UUID, CRN or exact account-scoped name"
             },
             {
               "wire": "target_id",
-              "go_name": "targetID"
+              "go_name": "targetID",
+              "doc": "UUID or parent-scoped CRN"
             }
           ],
           "result_kind": "value",
@@ -6389,7 +6564,8 @@
           "path_params": [
             {
               "wire": "id",
-              "go_name": "id"
+              "go_name": "id",
+              "doc": "UUID, CRN or exact account-scoped name"
             }
           ],
           "result_kind": "value",
@@ -6407,6 +6583,23 @@
             {
               "wire": "id",
               "go_name": "id"
+            }
+          ],
+          "params_type": "ListListenersParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact scoped CRN"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact immutable name"
             }
           ],
           "result_kind": "page",
@@ -6427,6 +6620,23 @@
               "go_name": "id"
             }
           ],
+          "params_type": "ListLoadBalancerReplicasParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact scoped CRN"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact immutable name"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[LoadBalancerReplica]",
           "item_type": "LoadBalancerReplica"
@@ -6442,6 +6652,13 @@
           "params_type": "ListLoadBalancersParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact scoped CRN"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -6454,6 +6671,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact immutable name"
             },
             {
               "wire": "status",
@@ -6486,6 +6710,23 @@
               "go_name": "listenerID"
             }
           ],
+          "params_type": "ListRulesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact scoped CRN"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact immutable name"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[Rule]",
           "item_type": "Rule"
@@ -6501,6 +6742,13 @@
           "params_type": "ListTargetGroupsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact scoped CRN"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -6513,6 +6761,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact immutable name"
             },
             {
               "wire": "protocol",
@@ -6538,7 +6793,25 @@
           "path_params": [
             {
               "wire": "id",
-              "go_name": "id"
+              "go_name": "id",
+              "doc": "UUID, CRN or exact account-scoped name"
+            }
+          ],
+          "params_type": "ListTargetsParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact scoped CRN"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact immutable name"
             }
           ],
           "result_kind": "page",
@@ -6567,8 +6840,8 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "certificate_crn",
-              "go_name": "CertificateCRN",
+              "wire": "certificate",
+              "go_name": "Certificate",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
@@ -6581,8 +6854,8 @@
               "pointer": true
             },
             {
-              "wire": "default_target_group_id",
-              "go_name": "DefaultTargetGroupID",
+              "wire": "default_target_group",
+              "go_name": "DefaultTargetGroup",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
@@ -6615,7 +6888,7 @@
           "go_name": "UpdateLoadBalancer",
           "method": "PATCH",
           "path": "/v1/load-balancers/{id}",
-          "summary": "Rename, scale, or resize a load balancer",
+          "summary": "Scale or resize a load balancer",
           "resource": "load-balancer",
           "verb": "update",
           "path_params": [
@@ -6628,8 +6901,8 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "flavor_id",
-              "go_name": "FlavorID",
+              "wire": "flavor",
+              "go_name": "Flavor",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
@@ -6693,8 +6966,8 @@
               "required": true
             },
             {
-              "wire": "target_group_id",
-              "go_name": "TargetGroupID",
+              "wire": "target_group",
+              "go_name": "TargetGroup",
               "go_type": "string",
               "flag_kind": "string",
               "required": true
@@ -6714,7 +6987,8 @@
           "path_params": [
             {
               "wire": "id",
-              "go_name": "id"
+              "go_name": "id",
+              "doc": "UUID, CRN or exact account-scoped name"
             }
           ],
           "body_type": "*UpdateTargetGroupRequest",
@@ -6759,7 +7033,7 @@
       "name": "network",
       "package": "network",
       "title": "Basaltic Network API",
-      "description": "The VPC surface — networks and subnets, interfaces, route tables,\nsecurity groups, internet, NAT and egress-only gateways, and floating\nIPs.",
+      "description": "The VPC surface — networks and subnets, interfaces, route tables,\nsecurity groups, internet, NAT and egress-only gateways, and floating\nIPs.\n\nRelationship inputs use one reference field: UUID, CRN, or an exact name\nwhen the request supplies its required parent scope. Subnets and route\ntables are VPC-scoped; interfaces are subnet-scoped. Nested CRNs use\nvpc/\u003cvpc\u003e/subnet/\u003csubnet\u003e, vpc/\u003cvpc\u003e/route-table/\u003ctable\u003e, and\nvpc/\u003cvpc\u003e/subnet/\u003csubnet\u003e/interface/\u003cinterface\u003e. Names are immutable.\nUnknown request fields and list parameters are rejected.\nSupplied empty references are invalid and failed lookups never fall back\nto another reference kind. Every list accepts exact name and crn filters.",
       "endpoint_template": "https://network.{region}.basaltic.sh",
       "regional": true,
       "operations": [
@@ -6782,11 +7056,12 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "interface_id",
-              "go_name": "InterfaceID",
+              "wire": "interface",
+              "go_name": "Interface",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Interface UUID or nested CRN"
             }
           ],
           "result_kind": "value",
@@ -6812,12 +7087,12 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "vpc_id",
-              "go_name": "VPCID",
+              "wire": "vpc",
+              "go_name": "VPC",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "VPC to attach this IGW to"
+              "doc": "VPC UUID, CRN or exact name in the caller account"
             }
           ],
           "result_kind": "value",
@@ -6847,7 +7122,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -6856,12 +7132,12 @@
               "flag_kind": "json"
             },
             {
-              "wire": "vpc_id",
-              "go_name": "VPCID",
+              "wire": "vpc",
+              "go_name": "VPC",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "The VPC must have an IPv6 CIDR (an egress-only gateway only routes v6)"
+              "doc": "VPC UUID, CRN or exact name in the caller account"
             }
           ],
           "result_kind": "value",
@@ -6885,6 +7161,18 @@
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
+            },
+            {
+              "wire": "family",
+              "go_name": "Family",
+              "go_type": "*IPFamily",
+              "flag_kind": "string",
+              "pointer": true,
+              "enum": [
+                "ipv4",
+                "ipv6"
+              ],
+              "doc": "Which family to allocate in"
             },
             {
               "wire": "tags",
@@ -6936,14 +7224,16 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
-              "wire": "subnet_id",
-              "go_name": "SubnetID",
+              "wire": "subnet",
+              "go_name": "Subnet",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Subnet UUID or nested CRN (vpc/\u003cvpc\u003e/subnet/\u003csubnet\u003e)"
             },
             {
               "wire": "tags",
@@ -6979,7 +7269,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -7015,15 +7306,16 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
-              "wire": "subnet_id",
-              "go_name": "SubnetID",
+              "wire": "subnet",
+              "go_name": "Subnet",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "Subnet the NAT GW lives in"
+              "doc": "Subnet UUID or nested CRN (vpc/\u003cvpc\u003e/subnet/\u003csubnet\u003e)"
             },
             {
               "wire": "tags",
@@ -7075,19 +7367,20 @@
               "flag_kind": "json"
             },
             {
-              "wire": "target_egress_only_gateway_id",
-              "go_name": "TargetEgressOnlyGatewayID",
+              "wire": "target_egress_only_gateway",
+              "go_name": "TargetEgressOnlyGateway",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "IPv6-only"
+              "doc": "Gateway UUID, CRN or exact account-scoped name"
             },
             {
-              "wire": "target_internet_gateway_id",
-              "go_name": "TargetInternetGatewayID",
+              "wire": "target_internet_gateway",
+              "go_name": "TargetInternetGateway",
               "go_type": "*string",
               "flag_kind": "string",
-              "pointer": true
+              "pointer": true,
+              "doc": "Gateway UUID, CRN or exact account-scoped name"
             },
             {
               "wire": "target_ip",
@@ -7098,11 +7391,12 @@
               "doc": "Unicast next hop inside this VPC's CIDR (same IP family as destination)"
             },
             {
-              "wire": "target_nat_gateway_id",
-              "go_name": "TargetNATGatewayID",
+              "wire": "target_nat_gateway",
+              "go_name": "TargetNATGateway",
               "go_type": "*string",
               "flag_kind": "string",
-              "pointer": true
+              "pointer": true,
+              "doc": "Gateway UUID, CRN or exact account-scoped name"
             }
           ],
           "result_kind": "value",
@@ -7142,12 +7436,12 @@
               "flag_kind": "json"
             },
             {
-              "wire": "vpc_id",
-              "go_name": "VPCID",
+              "wire": "vpc",
+              "go_name": "VPC",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "VPC this table belongs to"
+              "doc": "VPC UUID, CRN or exact name in the caller account"
             }
           ],
           "result_kind": "value",
@@ -7177,7 +7471,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -7272,11 +7567,12 @@
               "pointer": true
             },
             {
-              "wire": "source_security_group_id",
-              "go_name": "SourceSecurityGroupID",
+              "wire": "source_security_group",
+              "go_name": "SourceSecurityGroup",
               "go_type": "*string",
               "flag_kind": "string",
-              "pointer": true
+              "pointer": true,
+              "doc": "Security-group UUID, CRN or exact account-scoped name"
             }
           ],
           "result_kind": "value",
@@ -7294,6 +7590,14 @@
           "body_type": "*SubnetCreateRequest",
           "body_kind": "json",
           "body_fields": [
+            {
+              "wire": "assign_ipv6_cidr",
+              "go_name": "AssignIPv6CIDR",
+              "go_type": "*bool",
+              "flag_kind": "bool",
+              "pointer": true,
+              "doc": "Allocate the lowest free IPv6 /64 inside the VPC's IPv6 CIDR"
+            },
             {
               "wire": "cidr",
               "go_name": "CIDR",
@@ -7329,15 +7633,16 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
-              "wire": "route_table_id",
-              "go_name": "RouteTableID",
+              "wire": "route_table",
+              "go_name": "RouteTable",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Defaults to the VPC's main route table"
+              "doc": "Route-table UUID, nested CRN or exact name within the subnet VPC"
             },
             {
               "wire": "tags",
@@ -7346,11 +7651,12 @@
               "flag_kind": "json"
             },
             {
-              "wire": "vpc_id",
-              "go_name": "VPCID",
+              "wire": "vpc",
+              "go_name": "VPC",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "VPC UUID, CRN or exact name in the caller account"
             }
           ],
           "result_kind": "value",
@@ -7396,7 +7702,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -7625,12 +7932,12 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "interface_id",
-              "go_name": "InterfaceID",
+              "wire": "interface",
+              "go_name": "Interface",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "The member to remove"
+              "doc": "Interface UUID or nested CRN; bare names, null and empty references are rejected"
             }
           ],
           "result_kind": "value",
@@ -7875,6 +8182,13 @@
           "params_type": "ListEgressOnlyGatewaysParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -7886,6 +8200,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Resume token — the last id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name"
             }
           ],
           "result_kind": "page",
@@ -7904,6 +8225,13 @@
           "params_type": "ListFloatingIPsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -7915,6 +8243,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Resume token — the last id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name"
             }
           ],
           "result_kind": "page",
@@ -7937,6 +8272,23 @@
               "doc": "Interface ID"
             }
           ],
+          "params_type": "ListInterfaceSecurityGroupsParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[string]",
           "item_type": "string"
@@ -7952,6 +8304,13 @@
           "params_type": "ListInterfacesParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -7965,16 +8324,25 @@
               "doc": "Resume token — the last id from the previous page"
             },
             {
-              "wire": "subnet_id",
-              "go_name": "SubnetID",
+              "wire": "name",
+              "go_name": "Name",
               "go_type": "string",
-              "flag_kind": "string"
+              "flag_kind": "string",
+              "doc": "Exact resource name"
             },
             {
-              "wire": "vpc_id",
-              "go_name": "VPCID",
+              "wire": "subnet",
+              "go_name": "Subnet",
               "go_type": "string",
-              "flag_kind": "string"
+              "flag_kind": "string",
+              "doc": "Subnet UUID or nested CRN; an exact bare name requires the vpc filter"
+            },
+            {
+              "wire": "vpc",
+              "go_name": "VPC",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "VPC UUID, CRN or exact account-scoped name"
             }
           ],
           "result_kind": "page",
@@ -7993,6 +8361,13 @@
           "params_type": "ListInternetGatewaysParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -8004,6 +8379,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Resume token — the last id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name"
             }
           ],
           "result_kind": "page",
@@ -8022,6 +8404,13 @@
           "params_type": "ListNATGatewaysParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -8035,16 +8424,25 @@
               "doc": "Resume token — the last id from the previous page"
             },
             {
-              "wire": "subnet_id",
-              "go_name": "SubnetID",
+              "wire": "name",
+              "go_name": "Name",
               "go_type": "string",
-              "flag_kind": "string"
+              "flag_kind": "string",
+              "doc": "Exact resource name"
             },
             {
-              "wire": "vpc_id",
-              "go_name": "VPCID",
+              "wire": "subnet",
+              "go_name": "Subnet",
               "go_type": "string",
-              "flag_kind": "string"
+              "flag_kind": "string",
+              "doc": "Subnet UUID or nested CRN; an exact bare name requires the vpc filter"
+            },
+            {
+              "wire": "vpc",
+              "go_name": "VPC",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "VPC UUID, CRN or exact account-scoped name"
             }
           ],
           "result_kind": "page",
@@ -8063,6 +8461,13 @@
           "params_type": "ListRouteTablesParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -8076,11 +8481,18 @@
               "doc": "Resume token — the last id from the previous page"
             },
             {
-              "wire": "vpc_id",
-              "go_name": "VPCID",
+              "wire": "name",
+              "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by VPC ID"
+              "doc": "Exact resource name"
+            },
+            {
+              "wire": "vpc",
+              "go_name": "VPC",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "VPC UUID, CRN or exact name in the caller account"
             }
           ],
           "result_kind": "page",
@@ -8106,6 +8518,13 @@
           "params_type": "ListRoutesParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -8117,6 +8536,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Resume token — the last id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name"
             }
           ],
           "result_kind": "page",
@@ -8142,6 +8568,13 @@
           "params_type": "ListSecurityGroupRulesParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -8153,6 +8586,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Resume token — the last id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name"
             }
           ],
           "result_kind": "page",
@@ -8171,6 +8611,13 @@
           "params_type": "ListSecurityGroupsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -8182,6 +8629,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Resume token — the last id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name"
             }
           ],
           "result_kind": "page",
@@ -8200,6 +8654,13 @@
           "params_type": "ListSubnetsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -8213,11 +8674,18 @@
               "doc": "Resume token — the last id from the previous page"
             },
             {
-              "wire": "vpc_id",
-              "go_name": "VPCID",
+              "wire": "name",
+              "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by VPC ID"
+              "doc": "Exact resource name"
+            },
+            {
+              "wire": "vpc",
+              "go_name": "VPC",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "VPC UUID, CRN or exact name in the caller account"
             }
           ],
           "result_kind": "page",
@@ -8236,6 +8704,13 @@
           "params_type": "ListVPCsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -8247,6 +8722,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Resume token — the last id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name"
             }
           ],
           "result_kind": "page",
@@ -8273,11 +8755,12 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "security_group_ids",
-              "go_name": "SecurityGroupIDs",
+              "wire": "security_groups",
+              "go_name": "SecurityGroups",
               "go_type": "[]string",
               "flag_kind": "stringSlice",
-              "required": true
+              "required": true,
+              "doc": "Security-group UUIDs, CRNs or account-scoped names"
             }
           ],
           "result_kind": "page",
@@ -8595,12 +9078,12 @@
               "pointer": true
             },
             {
-              "wire": "route_table_id",
-              "go_name": "RouteTableID",
+              "wire": "route_table",
+              "go_name": "RouteTable",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Re-associate the subnet with a different route table"
+              "doc": "Route-table UUID, nested CRN or exact name within the subnet VPC"
             },
             {
               "wire": "tags",
@@ -8685,7 +9168,7 @@
       "name": "secrets",
       "package": "secrets",
       "title": "Basaltic Secrets API",
-      "description": "Versioned application secrets with KMS-backed envelope encryption.\n\nSecrets are regional. The value of every version is encrypted at\nrest under a KMS key — only opaque ciphertext is persisted. By\ndefault a secret uses the platform-managed key; pass kms_key_id on\nCreateSecret to bind it to one of your own KMS keys instead (the key\nis fixed for the secret's life, and every version is encrypted under\nit). Each PutSecretValue allocates a new monotonically-increasing\nversion number and flips is_current on the previous row; older\nversions remain readable by explicit version query.\n\nSoft delete: DeleteSecret moves the secret into a recovery window\n(default 7 days, configurable 1-30). RestoreSecret exits the\nwindow. The hard-purge sweeper removes the row + every version\nonce now() \u003e= scheduled_purge_at.\n\nValues move on the wire as base64 to survive arbitrary binary\npayloads (max 64 KiB to mirror AWS Secrets Manager).",
+      "description": "KMS bindings use `kms_key`: a UUID, account-scoped name, or complete\n`crn:kms:\u003cregion\u003e:\u003caccount\u003e:key/\u003cname\u003e` in the authenticated account and current region. The key must be enabled,\nsymmetric, and usable for encryption. Bindings retain the key's immutable\nidentity; responses render its CRN. Invalid or foreign-scope CRNs are\nrejected with HTTP 400; missing keys return HTTP 404 on binding or\ncryptographic use. Metadata reads remain available for deleted bindings,\nwith kms_key_unavailable true and no kms_key_crn.\nVersioned application secrets with KMS-backed envelope encryption.\n\nSecrets are regional. The value of every version is encrypted at\nrest under a KMS key — only opaque ciphertext is persisted. By\ndefault a secret uses the platform-managed key; pass kms_key on\nCreateSecret to bind it to one of your own KMS keys instead (the key\nis fixed for the secret's life, and every version is encrypted under\nit). Each PutSecretValue allocates a new monotonically-increasing\nversion number and flips is_current on the previous row; older\nversions remain readable by explicit version query.\n\nSoft delete: DeleteSecret moves the secret into a recovery window\n(default 7 days, configurable 1-30). RestoreSecret exits the\nwindow. The hard-purge sweeper removes the row + every version\nonce now() \u003e= scheduled_purge_at.\n\nValues move on the wire as base64 to survive arbitrary binary\npayloads (max 64 KiB to mirror AWS Secrets Manager).",
       "endpoint_template": "https://secrets.{region}.basaltic.sh",
       "regional": true,
       "operations": [
@@ -8708,12 +9191,12 @@
               "pointer": true
             },
             {
-              "wire": "kms_key_id",
-              "go_name": "KMSKeyID",
+              "wire": "kms_key",
+              "go_name": "KMSKey",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Customer-managed KMS key to encrypt this secret under"
+              "doc": "UUID, CRN or account-scoped name of a customer-managed KMS key to encrypt this secret under"
             },
             {
               "wire": "name",
@@ -8729,14 +9212,6 @@
               "go_type": "*int",
               "flag_kind": "int",
               "pointer": true
-            },
-            {
-              "wire": "recovery_window_seconds",
-              "go_name": "RecoveryWindowSeconds",
-              "go_type": "*int",
-              "flag_kind": "int",
-              "pointer": true,
-              "doc": "Legacy alias: 86400–2592000 in multiples of 86400; zero keeps the legacy default"
             },
             {
               "wire": "tags",
@@ -8781,14 +9256,6 @@
               "flag_kind": "int",
               "pointer": true,
               "doc": "Override the secret's stored window"
-            },
-            {
-              "wire": "recovery_window_seconds",
-              "go_name": "RecoveryWindowSeconds",
-              "go_type": "*int",
-              "flag_kind": "int",
-              "pointer": true,
-              "doc": "Legacy alias: 86400–2592000 in multiples of 86400; zero keeps the stored window"
             }
           ],
           "result_kind": "value",
@@ -8849,6 +9316,13 @@
           "params_type": "ListSecretsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact secret CRN in the calling account and current region"
+            },
+            {
               "wire": "include_deleted",
               "go_name": "IncludeDeleted",
               "go_type": "*bool",
@@ -8868,6 +9342,13 @@
               "go_name": "Marker",
               "go_type": "string",
               "flag_kind": "string"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact, case-sensitive secret name in the calling account"
             }
           ],
           "result_kind": "page",
@@ -9072,7 +9553,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "object_lock_enabled",
@@ -9110,7 +9592,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -9233,7 +9716,8 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "size_gb",
@@ -9294,7 +9778,8 @@
               "go_name": "bucket"
             }
           ],
-          "result_kind": "none"
+          "result_kind": "value",
+          "result_type": "time.Time"
         },
         {
           "id": "deleteBucketCORS",
@@ -10166,12 +10651,12 @@
               "doc": "When true, DeleteBucket schedules deletion instead of removing immediately"
             },
             {
-              "wire": "recovery_days",
-              "go_name": "RecoveryDays",
+              "wire": "recovery_window_days",
+              "go_name": "RecoveryWindowDays",
               "go_type": "*int",
               "flag_kind": "int",
               "pointer": true,
-              "doc": "Recovery window when enabling protection"
+              "doc": "Whole days; omitted defaults to 7"
             }
           ],
           "result_kind": "none"
@@ -10552,7 +11037,7 @@
       "name": "telemetry",
       "package": "telemetry",
       "title": "Basaltic Telemetry API",
-      "description": "Regional telemetry API — log groups + log ingest/search, ClickHouse\nmetrics (remote_write + structured query with Prometheus-compatible\nJSON envelopes), span ingest, and trace search/detail + per-account\ntrace settings.",
+      "description": "Regional telemetry API — log groups + log ingest/search, ClickHouse\nmetrics (remote_write + structured query with Prometheus-compatible\nJSON envelopes), span ingest, and trace search/detail + per-account\ntrace settings.\n\nLog-group request references accept UUIDs, CRNs or exact account-scoped\nnames, classified by syntax without lookup fallback. CRNs must match the\nauthenticated account handle and serving region. HTTP and gRPC OTLP logs\nuse basaltic.log_group, falling back to service.name, with the same\nreference contract. Trace/span identifiers, metric labels and region\nsearch dimensions are protocol values, independent of resource resolution.",
       "endpoint_template": "https://telemetry.{region}.basaltic.sh",
       "regional": true,
       "operations": [
@@ -10575,18 +11060,20 @@
               "pointer": true
             },
             {
-              "wire": "kms_key_crn",
-              "go_name": "KMSKeyCRN",
+              "wire": "kms_key",
+              "go_name": "KMSKey",
               "go_type": "*string",
               "flag_kind": "string",
-              "pointer": true
+              "pointer": true,
+              "doc": "KMS key UUID, CRN or exact name in the authenticated account and serving region"
             },
             {
               "wire": "name",
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "retention_days",
@@ -10761,6 +11248,13 @@
           "params_type": "ListLogGroupsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact telemetry/log-group CRN filter in the authenticated account and serving region"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -10779,7 +11273,7 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Exact-match name lookup (single-result shortcut)"
+              "doc": "Exact name filter, intersected with crn and pagination"
             }
           ],
           "result_kind": "page",
@@ -10896,12 +11390,12 @@
               "doc": "When true, sets retention to never-expire (ignores retention_days)"
             },
             {
-              "wire": "kms_key_crn",
-              "go_name": "KMSKeyCRN",
+              "wire": "kms_key",
+              "go_name": "KMSKey",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Pass an empty string to disassociate"
+              "doc": "KMS key UUID, CRN or exact name in the authenticated account and serving region"
             },
             {
               "wire": "retention_days",
@@ -11091,7 +11585,7 @@
               "go_name": "LogGroup",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by parent log group name"
+              "doc": "Filter by log-group UUID, CRN or exact name in the authenticated account"
             },
             {
               "wire": "log_stream",
@@ -11256,12 +11750,12 @@
               "pointer": true
             },
             {
-              "wire": "kms_key_crn",
-              "go_name": "KMSKeyCRN",
+              "wire": "kms_key",
+              "go_name": "KMSKey",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Pass an empty string to disassociate"
+              "doc": "KMS key UUID, CRN or exact name in the authenticated account and serving region"
             },
             {
               "wire": "retention_days",

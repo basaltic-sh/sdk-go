@@ -29,7 +29,7 @@ type ListRecordsParams struct {
 	// Marker resume token — the last record id from the previous page.
 	Marker string
 
-	// Name substring match on the record name.
+	// Name exact record name, lowercased with an optional trailing dot removed.
 	Name string
 
 	// Type exact record type to filter by (e.g. `A`, `MX`).
@@ -75,10 +75,18 @@ func (p *ListRecordsParams) withMarker(marker string) *ListRecordsParams {
 // ListZonesParams are the optional filters and pagination controls for
 // [Client.ListZones]. A nil *ListZonesParams sends none of them.
 type ListZonesParams struct {
+	// CRN exact dns/zone CRN with empty region and the caller's account.
+	// Malformed CRNs return 400; valid foreign or mismatched CRNs return
+	// an empty page.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last zone id from the previous page.
 	Marker string
+
+	// Name exact zone name, lowercased. Combined conjunctively with crn before
+	// pagination.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -88,11 +96,17 @@ func (p *ListZonesParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -110,7 +124,9 @@ func (p *ListZonesParams) withMarker(marker string) *ListZonesParams {
 
 // AssociateZoneVPC associates a VPC with a private zone.
 //
-// Refused on public zones.
+// Refused on public zones. Accepts an account-owned VPC UUID or CRN in
+// the configured DNS region; bare names return 400 and missing or
+// foreign VPCs return 404.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -159,9 +175,9 @@ func (c *Client) CreateRecord(ctx context.Context, zoneID string, body *RecordCr
 // queryable immediately on success.
 //
 // Defaults to a public zone. Pass `visibility: private` plus at least
-// one `vpc_ids` entry for a zone that resolves only inside those VPCs
-// — a private zone with no VPC, or a public zone carrying `vpc_ids`,
-// is rejected with 400 rather than silently coerced.
+// one `vpcs` entry for a zone that resolves only inside those VPCs — a
+// private zone with no VPC, or a public zone carrying `vpcs`, is
+// rejected with 400 rather than silently coerced.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -422,7 +438,7 @@ func (c *Client) ImportZoneFile(ctx context.Context, zoneID string, body *ZoneIm
 // ListRecords lists records.
 //
 // List records in a DNS zone, newest-RRset-first. Supports filtering by
-// `type` and a substring match on `name`. Keyset- paginated by record id
+// `type` and an exact match on `name`. Keyset- paginated by record id
 // (UUIDv7) — pass the last id from the previous page as `marker`.
 //
 // **Returns your records only.** The rows the platform stamps for itself
@@ -510,7 +526,7 @@ func (c *Client) ListZoneVPCAssociations(ctx context.Context, zoneID string, opt
 
 // ListZones lists zones.
 //
-// List DNS zones owned by the current organization, newest first.
+// List DNS zones owned by the current account, newest first.
 // Keyset-paginated by zone id (UUIDv7 sorts by creation time) — pass
 // the last id from the previous page as `marker` to fetch the next.
 //

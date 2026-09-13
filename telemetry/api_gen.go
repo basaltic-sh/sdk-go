@@ -20,6 +20,11 @@ import (
 // ListLogGroupsParams are the optional filters and pagination controls for
 // [Client.ListLogGroups]. A nil *ListLogGroupsParams sends none of them.
 type ListLogGroupsParams struct {
+	// CRN exact telemetry/log-group CRN filter in the authenticated account
+	// and serving region. Malformed, foreign or mismatched CRNs return an
+	// empty page. Intersected with name and pagination.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -32,7 +37,7 @@ type ListLogGroupsParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
-	// Name exact-match name lookup (single-result shortcut)
+	// Name exact name filter, intersected with crn and pagination.
 	Name string
 }
 
@@ -42,6 +47,9 @@ func (p *ListLogGroupsParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -228,7 +236,9 @@ type SearchLogsParams struct {
 	// until a page looks short.
 	Limit int
 
-	// LogGroup filter by parent log group name
+	// LogGroup filter by log-group UUID, CRN or exact name in the authenticated
+	// account. CRNs must match the serving region and account handle;
+	// invalid references never fall back to names.
 	LogGroup string
 
 	// LogStream filter by stream name within the group
@@ -723,12 +733,13 @@ func (c *Client) ListMetricSeriesPost(ctx context.Context, body io.Reader, opts 
 
 // PutTraceSettings updates the caller account's trace settings.
 //
-// Upserts the trace retention + KMS key. PUT semantics — the body is
-// the full intent, fields not supplied default to unchanged-from-empty
-// (i.e. retention_days=null means never-expire, kms_key_crn omitted
-// means plaintext at-rest). Set `clear_retention=true` to switch to
-// never-expire when the row already has a bounded value. Requires
-// `telemetry:PutTraceSettings`.
+// Replaces the account's trace retention and encryption settings.
+// Omitted retention or `clear_retention=true` selects the default 30
+// days; spans always expire. `kms_key` accepts a UUID, CRN or exact name
+// in the authenticated account and serving region. Omission or an empty
+// string selects plaintext for future spans. Existing ciphertext retains
+// its original key UUID even when that key is deleted and its name
+// reused. Requires `telemetry:PutTraceSettings`.
 func (c *Client) PutTraceSettings(ctx context.Context, body *UpdateTraceSettingsRequest, opts ...basaltic.RequestOption) (*TraceSettings, error) {
 	op := &basaltic.Operation{
 		ID:     "putTraceSettings",

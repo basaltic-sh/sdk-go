@@ -18,10 +18,17 @@ import (
 // ListEgressOnlyGatewaysParams are the optional filters and pagination controls for
 // [Client.ListEgressOnlyGateways]. A nil *ListEgressOnlyGatewaysParams sends none of them.
 type ListEgressOnlyGatewaysParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last id from the previous page.
 	Marker string
+
+	// Name exact resource name.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -31,11 +38,17 @@ func (p *ListEgressOnlyGatewaysParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -54,10 +67,18 @@ func (p *ListEgressOnlyGatewaysParams) withMarker(marker string) *ListEgressOnly
 // ListFloatingIPsParams are the optional filters and pagination controls for
 // [Client.ListFloatingIPs]. A nil *ListFloatingIPsParams sends none of them.
 type ListFloatingIPsParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last id from the previous page.
 	Marker string
+
+	// Name exact resource name. This resource has no name, so a supplied name
+	// returns an empty result.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -67,11 +88,17 @@ func (p *ListFloatingIPsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -87,15 +114,55 @@ func (p *ListFloatingIPsParams) withMarker(marker string) *ListFloatingIPsParams
 	return &out
 }
 
+// ListInterfaceSecurityGroupsParams are the optional filters and pagination controls for
+// [Client.ListInterfaceSecurityGroups]. A nil *ListInterfaceSecurityGroupsParams sends none of them.
+type ListInterfaceSecurityGroupsParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN string
+
+	// Name exact resource name.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListInterfaceSecurityGroupsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
 // ListInterfacesParams are the optional filters and pagination controls for
 // [Client.ListInterfaces]. A nil *ListInterfacesParams sends none of them.
 type ListInterfacesParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last id from the previous page.
-	Marker   string
-	SubnetID string
-	VPCID    string
+	Marker string
+
+	// Name exact resource name. Requires the subnet filter.
+	Name string
+
+	// Subnet UUID or nested CRN; an exact bare name requires the vpc
+	// filter.
+	Subnet string
+
+	// VPC UUID, CRN or exact account-scoped name. Resolved before subnet.
+	VPC string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -105,17 +172,23 @@ func (p *ListInterfacesParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
 	}
-	if p.SubnetID != "" {
-		q.Set("subnet_id", p.SubnetID)
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
-	if p.VPCID != "" {
-		q.Set("vpc_id", p.VPCID)
+	if p.Subnet != "" {
+		q.Set("subnet", p.Subnet)
+	}
+	if p.VPC != "" {
+		q.Set("vpc", p.VPC)
 	}
 	return q
 }
@@ -134,10 +207,17 @@ func (p *ListInterfacesParams) withMarker(marker string) *ListInterfacesParams {
 // ListInternetGatewaysParams are the optional filters and pagination controls for
 // [Client.ListInternetGateways]. A nil *ListInternetGatewaysParams sends none of them.
 type ListInternetGatewaysParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last id from the previous page.
 	Marker string
+
+	// Name exact resource name.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -147,11 +227,17 @@ func (p *ListInternetGatewaysParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -170,12 +256,24 @@ func (p *ListInternetGatewaysParams) withMarker(marker string) *ListInternetGate
 // ListNATGatewaysParams are the optional filters and pagination controls for
 // [Client.ListNATGateways]. A nil *ListNATGatewaysParams sends none of them.
 type ListNATGatewaysParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last id from the previous page.
-	Marker   string
-	SubnetID string
-	VPCID    string
+	Marker string
+
+	// Name exact resource name.
+	Name string
+
+	// Subnet UUID or nested CRN; an exact bare name requires the vpc
+	// filter.
+	Subnet string
+
+	// VPC UUID, CRN or exact account-scoped name. Resolved before subnet.
+	VPC string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -185,17 +283,23 @@ func (p *ListNATGatewaysParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
 	}
-	if p.SubnetID != "" {
-		q.Set("subnet_id", p.SubnetID)
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
-	if p.VPCID != "" {
-		q.Set("vpc_id", p.VPCID)
+	if p.Subnet != "" {
+		q.Set("subnet", p.Subnet)
+	}
+	if p.VPC != "" {
+		q.Set("vpc", p.VPC)
 	}
 	return q
 }
@@ -214,13 +318,20 @@ func (p *ListNATGatewaysParams) withMarker(marker string) *ListNATGatewaysParams
 // ListRouteTablesParams are the optional filters and pagination controls for
 // [Client.ListRouteTables]. A nil *ListRouteTablesParams sends none of them.
 type ListRouteTablesParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last id from the previous page.
 	Marker string
 
-	// VPCID filter by VPC ID
-	VPCID string
+	// Name exact resource name. Requires the vpc filter.
+	Name string
+
+	// VPC UUID, CRN or exact name in the caller account.
+	VPC string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -230,14 +341,20 @@ func (p *ListRouteTablesParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
 	}
-	if p.VPCID != "" {
-		q.Set("vpc_id", p.VPCID)
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	if p.VPC != "" {
+		q.Set("vpc", p.VPC)
 	}
 	return q
 }
@@ -256,10 +373,18 @@ func (p *ListRouteTablesParams) withMarker(marker string) *ListRouteTablesParams
 // ListRoutesParams are the optional filters and pagination controls for
 // [Client.ListRoutes]. A nil *ListRoutesParams sends none of them.
 type ListRoutesParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last id from the previous page.
 	Marker string
+
+	// Name exact resource name. This resource has no name, so a supplied name
+	// returns an empty result.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -269,11 +394,17 @@ func (p *ListRoutesParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -292,10 +423,18 @@ func (p *ListRoutesParams) withMarker(marker string) *ListRoutesParams {
 // ListSecurityGroupRulesParams are the optional filters and pagination controls for
 // [Client.ListSecurityGroupRules]. A nil *ListSecurityGroupRulesParams sends none of them.
 type ListSecurityGroupRulesParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last id from the previous page.
 	Marker string
+
+	// Name exact resource name. This resource has no name, so a supplied name
+	// returns an empty result.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -305,11 +444,17 @@ func (p *ListSecurityGroupRulesParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -328,10 +473,17 @@ func (p *ListSecurityGroupRulesParams) withMarker(marker string) *ListSecurityGr
 // ListSecurityGroupsParams are the optional filters and pagination controls for
 // [Client.ListSecurityGroups]. A nil *ListSecurityGroupsParams sends none of them.
 type ListSecurityGroupsParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last id from the previous page.
 	Marker string
+
+	// Name exact resource name.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -341,11 +493,17 @@ func (p *ListSecurityGroupsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -364,13 +522,20 @@ func (p *ListSecurityGroupsParams) withMarker(marker string) *ListSecurityGroups
 // ListSubnetsParams are the optional filters and pagination controls for
 // [Client.ListSubnets]. A nil *ListSubnetsParams sends none of them.
 type ListSubnetsParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last id from the previous page.
 	Marker string
 
-	// VPCID filter by VPC ID
-	VPCID string
+	// Name exact resource name. Requires the vpc filter.
+	Name string
+
+	// VPC UUID, CRN or exact name in the caller account.
+	VPC string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -380,14 +545,20 @@ func (p *ListSubnetsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
 	}
-	if p.VPCID != "" {
-		q.Set("vpc_id", p.VPCID)
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	if p.VPC != "" {
+		q.Set("vpc", p.VPC)
 	}
 	return q
 }
@@ -406,10 +577,17 @@ func (p *ListSubnetsParams) withMarker(marker string) *ListSubnetsParams {
 // ListVPCsParams are the optional filters and pagination controls for
 // [Client.ListVPCs]. A nil *ListVPCsParams sends none of them.
 type ListVPCsParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last id from the previous page.
 	Marker string
+
+	// Name exact resource name.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -419,11 +597,17 @@ func (p *ListVPCsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -541,9 +725,10 @@ func (c *Client) CreateEgressOnlyGateway(ctx context.Context, body *EgressOnlyGa
 
 // CreateFloatingIP allocates floating IP.
 //
-// Allocate the next free public IPv4 from the region's configured pool.
-// The IP is reserved against the caller's account but not yet bound to
-// anything.
+// Allocate the next free public address from the region's tenant pool of
+// the requested family — `ipv4` unless the body says `ipv6`. The
+// address is reserved against the caller's account but not yet bound to
+// anything, and its family is fixed from here on.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -1299,13 +1484,14 @@ func (c *Client) ListFloatingIPsAll(ctx context.Context, params *ListFloatingIPs
 }
 
 // ListInterfaceSecurityGroups lists interface security-group membership.
-func (c *Client) ListInterfaceSecurityGroups(ctx context.Context, interfaceID string, opts ...basaltic.RequestOption) (*basaltic.Page[string], error) {
+func (c *Client) ListInterfaceSecurityGroups(ctx context.Context, interfaceID string, params *ListInterfaceSecurityGroupsParams, opts ...basaltic.RequestOption) (*basaltic.Page[string], error) {
 	op := &basaltic.Operation{
 		ID:       "listInterfaceSecurityGroups",
 		Method:   "GET",
 		Path:     "/v1/interfaces/{interface_id}/security-groups",
 		PathArgs: []string{interfaceID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []string `json:"security_group_ids"`
 	}
@@ -1318,9 +1504,9 @@ func (c *Client) ListInterfaceSecurityGroups(ctx context.Context, interfaceID st
 
 // ListInterfaces lists interfaces.
 //
-// List interfaces owned by the caller's account. Filter by `subnet_id`
-// to narrow to one subnet, or by `vpc_id` to span every subnet in one
-// VPC. subnet_id wins if both are supplied.
+// List interfaces owned by the caller's account. Filter by `subnet` to
+// narrow to one subnet, or by `vpc` to span every subnet in one VPC.
+// Both filters apply; the subnet must belong to the VPC.
 //
 // Returns one page. Use ListInterfacesAll to walk every page.
 func (c *Client) ListInterfaces(ctx context.Context, params *ListInterfacesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Interface], error) {
@@ -1428,9 +1614,9 @@ func (c *Client) ListInternetGatewaysAll(ctx context.Context, params *ListIntern
 
 // ListNATGateways lists NAT gateways.
 //
-// List NAT gateways owned by the caller's account. Filter by `subnet_id`
-// to narrow to the gateway living in one subnet, or by `vpc_id` to span
-// the VPC. subnet_id wins if both are supplied.
+// List NAT gateways owned by the caller's account. Filter by `subnet` to
+// narrow to the gateway living in one subnet, or by `vpc` to span the
+// VPC. Both filters apply; the subnet must belong to the VPC.
 //
 // Returns one page. Use ListNATGatewaysAll to walk every page.
 func (c *Client) ListNATGateways(ctx context.Context, params *ListNATGatewaysParams, opts ...basaltic.RequestOption) (*basaltic.Page[NATGateway], error) {
@@ -1485,7 +1671,7 @@ func (c *Client) ListNATGatewaysAll(ctx context.Context, params *ListNATGateways
 
 // ListRouteTables lists route tables.
 //
-// List route tables owned by the caller's account. Filter by vpc_id to
+// List route tables owned by the caller's account. Filter by vpc to
 // narrow to one VPC.
 //
 // Returns one page. Use ListRouteTablesAll to walk every page.
@@ -1704,8 +1890,8 @@ func (c *Client) ListSecurityGroupsAll(ctx context.Context, params *ListSecurity
 
 // ListSubnets lists subnets.
 //
-// List subnets owned by the caller's account. Filter by vpc_id to narrow
-// to one VPC.
+// List subnets owned by the caller's account. Filter by vpc to narrow to
+// one VPC.
 //
 // Returns one page. Use ListSubnetsAll to walk every page.
 func (c *Client) ListSubnets(ctx context.Context, params *ListSubnetsParams, opts ...basaltic.RequestOption) (*basaltic.Page[Subnet], error) {

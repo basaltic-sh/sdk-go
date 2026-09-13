@@ -18,10 +18,17 @@ import (
 // ListCertificatesParams are the optional filters and pagination controls for
 // [Client.ListCertificates]. A nil *ListCertificatesParams sends none of them.
 type ListCertificatesParams struct {
+	// CRN exact certificate CRN. Foreign accounts or mismatched service, type
+	// or region return an empty page; malformed syntax returns 400.
+	// Combined conjunctively with name before pagination.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last certificate id from the previous page.
 	Marker string
+
+	// Name exact, case-sensitive certificate name within the caller's account.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -31,11 +38,17 @@ func (p *ListCertificatesParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }

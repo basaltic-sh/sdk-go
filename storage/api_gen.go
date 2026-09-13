@@ -12,6 +12,7 @@ import (
 	"iter"
 	"net/url"
 	"strconv"
+	"time"
 
 	basaltic "github.com/basaltic-sh/sdk-go"
 )
@@ -433,19 +434,25 @@ func (c *Client) CreateVolume(ctx context.Context, body *VolumeCreateRequest, op
 
 // DeleteBucket deletes bucket.
 //
-// Delete an empty bucket. Returns 409 if any objects or in-flight
-// multipart uploads remain.
-func (c *Client) DeleteBucket(ctx context.Context, bucket string, opts ...basaltic.RequestOption) error {
+// Deletion protection is off by default for S3 parity: delete an empty
+// bucket immediately (204), or return 409 if objects or uploads remain.
+// With protection on, schedule a recoverable deletion (200). Repeated
+// deletes preserve the original purge deadline. Restore before it
+// expires.
+func (c *Client) DeleteBucket(ctx context.Context, bucket string, opts ...basaltic.RequestOption) (time.Time, error) {
 	op := &basaltic.Operation{
 		ID:       "deleteBucket",
 		Method:   "DELETE",
 		Path:     "/v1/buckets/{bucket}",
 		PathArgs: []string{bucket},
 	}
-	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
-		return err
+	var out struct {
+		ScheduledPurgeAt time.Time `json:"scheduled_purge_at"`
 	}
-	return nil
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return time.Time{}, err
+	}
+	return out.ScheduledPurgeAt, nil
 }
 
 // DeleteBucketCORS deletes bucket CORS configuration.
@@ -536,8 +543,9 @@ func (c *Client) DeleteBucketTagging(ctx context.Context, bucket string, opts ..
 //
 // Delete an object (or a specific `?versionId`). Per-object subresources
 // ride as query parameters on this method — `?tagging` deletes the
-// object's tag set. `X-Amz-Bypass- Governance-Retention: true` overrides
-// a GOVERNANCE lock and also requires
+// object's tag set and requires `storage:PutObject` instead of
+// `storage:DeleteObject`. `X-Amz-Bypass- Governance-Retention: true`
+// overrides a GOVERNANCE lock and also requires
 // `storage:BypassGovernanceRetention` on the object.
 func (c *Client) DeleteObject(ctx context.Context, bucket string, key string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
@@ -1236,9 +1244,10 @@ func (c *Client) PutBucketCORS(ctx context.Context, bucket string, body *PutBuck
 
 // PutBucketDeletionProtection sets bucket deletion protection.
 //
-// Toggle deletion protection. When enabling, `recovery_days` sets the
-// scheduled-deletion window (clamped to [1,30]; 0 uses the service
-// default).
+// Toggle deletion protection (off by default). `recovery_window_days`
+// sets the whole-day window, from 1 through 30; omission defaults to 7.
+// Out-of-range values return 400 instead of being clamped, even when
+// disabling.
 func (c *Client) PutBucketDeletionProtection(ctx context.Context, bucket string, body *PutBucketDeletionProtectionRequest, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "putBucketDeletionProtection",

@@ -15,9 +15,69 @@ import (
 	basaltic "github.com/basaltic-sh/sdk-go"
 )
 
+// ListListenersParams are the optional filters and pagination controls for
+// [Client.ListListeners]. A nil *ListListenersParams sends none of them.
+type ListListenersParams struct {
+	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
+	// malformed CRNs return 400. Empty selects no rows.
+	CRN string
+
+	// Name exact immutable name. An empty value or a resource without a name
+	// selects no rows.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListListenersParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListLoadBalancerReplicasParams are the optional filters and pagination controls for
+// [Client.ListLoadBalancerReplicas]. A nil *ListLoadBalancerReplicasParams sends none of them.
+type ListLoadBalancerReplicasParams struct {
+	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
+	// malformed CRNs return 400. Empty selects no rows.
+	CRN string
+
+	// Name exact immutable name. An empty value or a resource without a name
+	// selects no rows.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListLoadBalancerReplicasParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
 // ListLoadBalancersParams are the optional filters and pagination controls for
 // [Client.ListLoadBalancers]. A nil *ListLoadBalancersParams sends none of them.
 type ListLoadBalancersParams struct {
+	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
+	// malformed CRNs return 400. Empty selects no rows.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -30,6 +90,10 @@ type ListLoadBalancersParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
+	// Name exact immutable name. An empty value or a resource without a name
+	// selects no rows.
+	Name string
+
 	// Status one of: "provisioning", "active", "error", "deleting".
 	Status string
 }
@@ -41,11 +105,17 @@ func (p *ListLoadBalancersParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	if p.Status != "" {
 		q.Set("status", p.Status)
@@ -64,9 +134,41 @@ func (p *ListLoadBalancersParams) withMarker(marker string) *ListLoadBalancersPa
 	return &out
 }
 
+// ListRulesParams are the optional filters and pagination controls for
+// [Client.ListRules]. A nil *ListRulesParams sends none of them.
+type ListRulesParams struct {
+	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
+	// malformed CRNs return 400. Empty selects no rows.
+	CRN string
+
+	// Name exact immutable name. An empty value or a resource without a name
+	// selects no rows.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListRulesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
 // ListTargetGroupsParams are the optional filters and pagination controls for
 // [Client.ListTargetGroups]. A nil *ListTargetGroupsParams sends none of them.
 type ListTargetGroupsParams struct {
+	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
+	// malformed CRNs return 400. Empty selects no rows.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -79,6 +181,10 @@ type ListTargetGroupsParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
+	// Name exact immutable name. An empty value or a resource without a name
+	// selects no rows.
+	Name string
+
 	// Protocol one of: "http", "https", "tcp", "udp".
 	Protocol string
 }
@@ -90,11 +196,17 @@ func (p *ListTargetGroupsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	if p.Protocol != "" {
 		q.Set("protocol", p.Protocol)
@@ -111,6 +223,34 @@ func (p *ListTargetGroupsParams) withMarker(marker string) *ListTargetGroupsPara
 	}
 	out.Marker = marker
 	return &out
+}
+
+// ListTargetsParams are the optional filters and pagination controls for
+// [Client.ListTargets]. A nil *ListTargetsParams sends none of them.
+type ListTargetsParams struct {
+	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
+	// malformed CRNs return 400. Empty selects no rows.
+	CRN string
+
+	// Name exact immutable name. An empty value or a resource without a name
+	// selects no rows.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListTargetsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
 }
 
 // AttachListenerCertificate attaches an additional certificate to an HTTPS listener.
@@ -142,9 +282,9 @@ func (c *Client) AttachListenerCertificate(ctx context.Context, id string, liste
 
 // AttachTarget attaches a target to this group.
 //
-// `target_ref` must match the group's `target_type`: an IP address for
-// `ip`, a compute instance id for `instance`. A `function` group takes
-// no targets yet, and a `pool`-mode group takes its backends from the
+// `target` must match the group's `target_type`: an IP address for `ip`,
+// a compute instance id for `instance`. A `function` group takes no
+// targets yet, and a `pool`-mode group takes its backends from the
 // instance pool — attaching to either is an error rather than a row
 // nothing will ever route to.
 //
@@ -322,15 +462,15 @@ func (c *Client) DeleteTargetGroup(ctx context.Context, id string, opts ...basal
 // currently-default cert while siblings still exist — promote a
 // replacement first via PATCH listener.
 //
-// A certificate CRN ends in `certificate/<name>`, so the slash has to be
-// percent-encoded (`%2F`) to keep the CRN inside one path segment —
-// sending it raw addresses a different, non-existent route.
-func (c *Client) DetachListenerCertificate(ctx context.Context, id string, listenerID string, certificateCRN string, opts ...basaltic.RequestOption) error {
+// Use the attachment UUID returned as certificates[].id on the listener,
+// distinct from the source certificate UUID. Detachment also works after
+// the source certificate has been deleted.
+func (c *Client) DetachListenerCertificate(ctx context.Context, id string, listenerID string, certificateID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "detachListenerCertificate",
 		Method:   "DELETE",
-		Path:     "/v1/load-balancers/{id}/listeners/{listener_id}/certificates/{certificate_crn}",
-		PathArgs: []string{id, listenerID, certificateCRN},
+		Path:     "/v1/load-balancers/{id}/listeners/{listener_id}/certificates/{certificate_id}",
+		PathArgs: []string{id, listenerID, certificateID},
 	}
 	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
 		return err
@@ -438,13 +578,14 @@ func (c *Client) GetTargetGroup(ctx context.Context, id string, opts ...basaltic
 }
 
 // ListListeners lists this load balancer's listeners.
-func (c *Client) ListListeners(ctx context.Context, id string, opts ...basaltic.RequestOption) (*basaltic.Page[Listener], error) {
+func (c *Client) ListListeners(ctx context.Context, id string, params *ListListenersParams, opts ...basaltic.RequestOption) (*basaltic.Page[Listener], error) {
 	op := &basaltic.Operation{
 		ID:       "listListeners",
 		Method:   "GET",
 		Path:     "/v1/load-balancers/{id}/listeners",
 		PathArgs: []string{id},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []Listener `json:"listeners"`
 	}
@@ -461,13 +602,14 @@ func (c *Client) ListListeners(ctx context.Context, id string, opts ...basaltic.
 // `proxy_ok` + `last_seen` overlay is refreshed on every replica health
 // report (typically every 15s) and is absent when a replica hasn't yet
 // reported (boot still in flight).
-func (c *Client) ListLoadBalancerReplicas(ctx context.Context, id string, opts ...basaltic.RequestOption) (*basaltic.Page[LoadBalancerReplica], error) {
+func (c *Client) ListLoadBalancerReplicas(ctx context.Context, id string, params *ListLoadBalancerReplicasParams, opts ...basaltic.RequestOption) (*basaltic.Page[LoadBalancerReplica], error) {
 	op := &basaltic.Operation{
 		ID:       "listLoadBalancerReplicas",
 		Method:   "GET",
 		Path:     "/v1/load-balancers/{id}/replicas",
 		PathArgs: []string{id},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []LoadBalancerReplica `json:"replicas"`
 	}
@@ -532,13 +674,14 @@ func (c *Client) ListLoadBalancersAll(ctx context.Context, params *ListLoadBalan
 }
 
 // ListRules lists this listener's rules.
-func (c *Client) ListRules(ctx context.Context, id string, listenerID string, opts ...basaltic.RequestOption) (*basaltic.Page[Rule], error) {
+func (c *Client) ListRules(ctx context.Context, id string, listenerID string, params *ListRulesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Rule], error) {
 	op := &basaltic.Operation{
 		ID:       "listRules",
 		Method:   "GET",
 		Path:     "/v1/load-balancers/{id}/listeners/{listener_id}/rules",
 		PathArgs: []string{id, listenerID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []Rule `json:"rules"`
 	}
@@ -603,13 +746,14 @@ func (c *Client) ListTargetGroupsAll(ctx context.Context, params *ListTargetGrou
 }
 
 // ListTargets lists targets in this group.
-func (c *Client) ListTargets(ctx context.Context, id string, opts ...basaltic.RequestOption) (*basaltic.Page[Target], error) {
+func (c *Client) ListTargets(ctx context.Context, id string, params *ListTargetsParams, opts ...basaltic.RequestOption) (*basaltic.Page[Target], error) {
 	op := &basaltic.Operation{
 		ID:       "listTargets",
 		Method:   "GET",
 		Path:     "/v1/target-groups/{id}/targets",
 		PathArgs: []string{id},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []Target `json:"targets"`
 	}
@@ -638,7 +782,7 @@ func (c *Client) UpdateListener(ctx context.Context, id string, listenerID strin
 	return out.Listener, nil
 }
 
-// UpdateLoadBalancer renames, scale, or resize a load balancer.
+// UpdateLoadBalancer scales or resize a load balancer.
 func (c *Client) UpdateLoadBalancer(ctx context.Context, id string, body *UpdateLoadBalancerRequest, opts ...basaltic.RequestOption) (*LoadBalancer, error) {
 	op := &basaltic.Operation{
 		ID:       "updateLoadBalancer",

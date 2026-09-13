@@ -7,7 +7,9 @@
 // Package certificate is the Certificate API.
 //
 // TLS certificates for load balancer listeners and platform endpoints
-// — issue, inspect, retrieve material and revoke.
+// — issue, inspect, retrieve material and revoke. Names are immutable
+// and unique within an account. List by exact name or CRN; resource
+// paths use UUIDs.
 //
 // Build a client from a shared [basaltic.Config]:
 //

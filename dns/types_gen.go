@@ -141,10 +141,15 @@ type VPCAssociationAccepted struct {
 }
 
 type VPCAssociationRequest struct {
-	// VPCID VPC to associate with this private zone.
+	// VPC Account-owned VPC UUID or network/vpc CRN to associate with this
+	// private zone. Bare names return 400 with "VPC references on DNS
+	// zones must be a UUID or a CRN, which carries the region". Lookup is
+	// limited to the configured DNS region; missing, foreign-account or
+	// other-region VPCs return 404. The response contains the canonical
+	// VPC UUID.
 	//
 	// Required.
-	VPCID string `json:"vpc_id"`
+	VPC string `json:"vpc"`
 }
 
 type Zone struct {
@@ -157,7 +162,9 @@ type Zone struct {
 	DNSSEC      *ZoneDNSSEC `json:"dnssec,omitempty"`
 	ID          string      `json:"id,omitempty"`
 
-	// Name Zone FQDN.
+	// Name Zone FQDN. Resource names must not start with the literal crn:
+	// prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms,
+	// in either case).
 	Name string `json:"name,omitempty"`
 
 	// Nameservers authoritative nameservers for the zone — the apex NS set. Copy
@@ -228,23 +235,29 @@ type ZoneCreateRequest struct {
 	// zone's nameservers — are never imported.
 	ImportExistingRecords *bool `json:"import_existing_records,omitempty"`
 
-	// Name Zone FQDN.
+	// Name Zone FQDN. Resource names must not start with the literal crn:
+	// prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms,
+	// in either case).
 	//
 	// Required.
 	Name string `json:"name"`
 	Tags Tags   `json:"tags,omitempty"`
 
-	// Visibility `private` restricts the zone to the VPCs named in `vpc_ids` and
-	// requires at least one; `public` (the default) rejects `vpc_ids`
+	// Visibility `private` restricts the zone to the VPCs named in `vpcs` and
+	// requires at least one; `public` (the default) rejects `vpcs`
 	// outright rather than ignoring them. Cannot be changed afterwards.
 	//
 	// One of: "public", "private".
 	Visibility *string `json:"visibility,omitempty"`
 
-	// VPCIDs VPCs the zone resolves in. Required when visibility=private,
-	// rejected when visibility=public. More can be associated later via
-	// POST /v1/zones/{zone_id}/vpc-associations.
-	VPCIDs []string `json:"vpc_ids,omitempty"`
+	// VPCs Account-owned VPC UUIDs or network/vpc CRNs the zone resolves in.
+	// Bare names are rejected with 400 because the request fixes no
+	// region. Lookup is limited to the configured DNS region; missing,
+	// foreign-account or other-region VPCs return 404. References are
+	// deduplicated by UUID. Required when visibility=private, rejected
+	// when visibility=public. More can be associated later via POST
+	// /v1/zones/{zone_id}/vpc-associations.
+	VPCs []string `json:"vpcs,omitempty"`
 }
 
 // ZoneDNSSEC DNSSEC signing state. Present once the signer has bootstrapped the
