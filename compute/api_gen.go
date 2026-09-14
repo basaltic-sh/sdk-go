@@ -54,9 +54,9 @@ type ListFlavorsParams struct {
 	Family string
 
 	// Name exact, case-sensitive name. Empty values match no named resources.
-	// Interface names require a subnet parent; use a complete CRN on
-	// instance NIC lists. Floating IPs have no name identity and return an
-	// empty list for this filter.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
 	Name string
 }
 
@@ -182,9 +182,9 @@ type ListInstanceNiCsParams struct {
 	CRN string
 
 	// Name exact, case-sensitive name. Empty values match no named resources.
-	// Interface names require a subnet parent; use a complete CRN on
-	// instance NIC lists. Floating IPs have no name identity and return an
-	// empty list for this filter.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
 	Name string
 }
 
@@ -214,9 +214,9 @@ type ListInstancePoolFloatingIPsParams struct {
 	CRN string
 
 	// Name exact, case-sensitive name. Empty values match no named resources.
-	// Interface names require a subnet parent; use a complete CRN on
-	// instance NIC lists. Floating IPs have no name identity and return an
-	// empty list for this filter.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
 	Name string
 }
 
@@ -258,9 +258,9 @@ type ListInstancePoolsParams struct {
 	Marker string
 
 	// Name exact, case-sensitive name. Empty values match no named resources.
-	// Interface names require a subnet parent; use a complete CRN on
-	// instance NIC lists. Floating IPs have no name identity and return an
-	// empty list for this filter.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
 	Name string
 }
 
@@ -307,9 +307,9 @@ type ListInstanceVolumesParams struct {
 	CRN string
 
 	// Name exact, case-sensitive name. Empty values match no named resources.
-	// Interface names require a subnet parent; use a complete CRN on
-	// instance NIC lists. Floating IPs have no name identity and return an
-	// empty list for this filter.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
 	Name string
 }
 
@@ -341,8 +341,7 @@ type ListInstancesParams struct {
 	// CurrentState filter by where the instances actually are.
 	CurrentState CurrentState
 
-	// Flavor filter by flavor reference (UUID, CRN or name; images also accept
-	// name:version).
+	// Flavor filter by regional flavor reference (UUID, CRN or exact name).
 	Flavor string
 
 	// Image filter by image reference (UUID, CRN or name; images also accept
@@ -362,9 +361,9 @@ type ListInstancesParams struct {
 	Marker string
 
 	// Name exact, case-sensitive name. Empty values match no named resources.
-	// Interface names require a subnet parent; use a complete CRN on
-	// instance NIC lists. Floating IPs have no name identity and return an
-	// empty list for this filter.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
 	Name string
 }
 
@@ -432,9 +431,9 @@ type ListKeypairsParams struct {
 	Marker string
 
 	// Name exact, case-sensitive name. Empty values match no named resources.
-	// Interface names require a subnet parent; use a complete CRN on
-	// instance NIC lists. Floating IPs have no name identity and return an
-	// empty list for this filter.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
 	Name string
 }
 
@@ -481,9 +480,9 @@ type ListPoolInstancesParams struct {
 	CRN string
 
 	// Name exact, case-sensitive name. Empty values match no named resources.
-	// Interface names require a subnet parent; use a complete CRN on
-	// instance NIC lists. Floating IPs have no name identity and return an
-	// empty list for this filter.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
 	Name string
 }
 
@@ -1286,7 +1285,9 @@ func (c *Client) ListInstanceVolumes(ctx context.Context, instanceID string, par
 
 // ListInstances lists instances.
 //
-// List all instances in the current organization.
+// List instances in the authenticated account. Exact name and CRN
+// predicates intersect with flavor, image and other filters before
+// pagination.
 //
 // Returns one page. Use ListInstancesAll to walk every page.
 func (c *Client) ListInstances(ctx context.Context, params *ListInstancesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Instance], error) {
@@ -1629,7 +1630,7 @@ func (c *Client) UpdateImage(ctx context.Context, imageID string, body *ImageUpd
 
 // UpdateInstance updates instance.
 //
-// Update an instance's name, description, or metadata.
+// Update an instance's description or metadata. Its name is immutable.
 func (c *Client) UpdateInstance(ctx context.Context, instanceID string, body *InstanceUpdateRequest, opts ...basaltic.RequestOption) (*Instance, error) {
 	op := &basaltic.Operation{
 		ID:       "updateInstance",

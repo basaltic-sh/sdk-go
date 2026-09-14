@@ -19,7 +19,7 @@ import (
 // [Client.ListListeners]. A nil *ListListenersParams sends none of them.
 type ListListenersParams struct {
 	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
-	// malformed CRNs return 400. Empty selects no rows.
+	// malformed or empty CRNs return 400.
 	CRN string
 
 	// Name exact immutable name. An empty value or a resource without a name
@@ -47,7 +47,7 @@ func (p *ListListenersParams) query() url.Values {
 // [Client.ListLoadBalancerReplicas]. A nil *ListLoadBalancerReplicasParams sends none of them.
 type ListLoadBalancerReplicasParams struct {
 	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
-	// malformed CRNs return 400. Empty selects no rows.
+	// malformed or empty CRNs return 400.
 	CRN string
 
 	// Name exact immutable name. An empty value or a resource without a name
@@ -75,7 +75,7 @@ func (p *ListLoadBalancerReplicasParams) query() url.Values {
 // [Client.ListLoadBalancers]. A nil *ListLoadBalancersParams sends none of them.
 type ListLoadBalancersParams struct {
 	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
-	// malformed CRNs return 400. Empty selects no rows.
+	// malformed or empty CRNs return 400.
 	CRN string
 
 	// Limit maximum number of items to return. A value above the maximum is
@@ -138,7 +138,7 @@ func (p *ListLoadBalancersParams) withMarker(marker string) *ListLoadBalancersPa
 // [Client.ListRules]. A nil *ListRulesParams sends none of them.
 type ListRulesParams struct {
 	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
-	// malformed CRNs return 400. Empty selects no rows.
+	// malformed or empty CRNs return 400.
 	CRN string
 
 	// Name exact immutable name. An empty value or a resource without a name
@@ -166,7 +166,7 @@ func (p *ListRulesParams) query() url.Values {
 // [Client.ListTargetGroups]. A nil *ListTargetGroupsParams sends none of them.
 type ListTargetGroupsParams struct {
 	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
-	// malformed CRNs return 400. Empty selects no rows.
+	// malformed or empty CRNs return 400.
 	CRN string
 
 	// Limit maximum number of items to return. A value above the maximum is
@@ -229,7 +229,7 @@ func (p *ListTargetGroupsParams) withMarker(marker string) *ListTargetGroupsPara
 // [Client.ListTargets]. A nil *ListTargetsParams sends none of them.
 type ListTargetsParams struct {
 	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
-	// malformed CRNs return 400. Empty selects no rows.
+	// malformed or empty CRNs return 400.
 	CRN string
 
 	// Name exact immutable name. An empty value or a resource without a name
@@ -818,8 +818,7 @@ func (c *Client) UpdateRule(ctx context.Context, id string, listenerID string, r
 	return out.Rule, nil
 }
 
-// UpdateTargetGroup renames a target group or retune its health check, framing, or
-// stickiness.
+// UpdateTargetGroup updates target group health checks, framing, or stickiness.
 func (c *Client) UpdateTargetGroup(ctx context.Context, id string, body *UpdateTargetGroupRequest, opts ...basaltic.RequestOption) (*TargetGroup, error) {
 	op := &basaltic.Operation{
 		ID:       "updateTargetGroup",

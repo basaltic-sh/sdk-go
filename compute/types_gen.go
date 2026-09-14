@@ -352,10 +352,11 @@ type ImageCreateRequest struct {
 	MinDiskGB *int   `json:"min_disk_gb,omitempty"`
 	MinRAMMB  *int   `json:"min_ram_mb,omitempty"`
 
-	// Name movable tag name (e.g. debian-13); the new image becomes its current
-	// version. Names are shared across a tag's builds — what identifies
-	// one build is `version`. Resource names must not start with the
-	// literal crn: prefix or be UUIDs (canonical, compact, braced, or
+	// Name immutable image name (e.g. debian-13) whose current-version pointer
+	// can move; the new image becomes its current version. Names are
+	// shared across a tag's builds — one build is identified by owner,
+	// name, architecture and version. Resource names must not start with
+	// the literal crn: prefix or be UUIDs (canonical, compact, braced, or
 	// urn:uuid: forms, in either case).
 	//
 	// Required.
@@ -479,7 +480,8 @@ type Instance struct {
 }
 
 type InstanceCreateRequest struct {
-	// Architecture for bare image names; a CRN pins its architecture.
+	// Architecture for image names and name:version tags (default amd64);
+	// a CRN pins its own architecture and version.
 	Architecture *string `json:"architecture,omitempty"`
 	Description  *string `json:"description,omitempty"`
 
@@ -500,7 +502,11 @@ type InstanceCreateRequest struct {
 	// image/name/architecture/arch/version/version CRN; an image id;
 	// `name:version`, which pins one build and is how you opt out of the
 	// tag moving under you; or a bare `name`, which follows the tag to
-	// whichever build is current when the instance is created.
+	// whichever build is current when the instance is created. Names
+	// prefer a usable caller-owned build over a public platform build for
+	// the requested architecture (default amd64). A CRN pins owner, name,
+	// architecture and version. Resolution never retries another reference
+	// kind; responses and stored templates retain the resolved image UUID.
 	Image    *string  `json:"image,omitempty"`
 	Keypairs []string `json:"keypairs,omitempty"`
 	Metadata Metadata `json:"metadata,omitempty"`
@@ -631,8 +637,8 @@ type InstancePool struct {
 }
 
 // InstancePoolCreateRequest `template` is the launch config — the same fields instance create
-// takes. The pool's own fields — name, description, tags, sizing —
-// stay at the top level, because they describe the pool rather than the
+// takes. The pool's own fields — description, tags, sizing — stay at
+// the top level, because they describe the pool rather than the
 // instances in it. A flavor and a primary subnet are required, as
 // `template.flavor` + `template.networks[0].subnet`.
 type InstancePoolCreateRequest struct {
@@ -669,17 +675,11 @@ type InstancePoolFloatingIPAttachRequest struct {
 	FloatingIP string `json:"floating_ip"`
 }
 
-// InstancePoolTemplate the pool's launch config, in the shape a standalone instance create
-// takes: same field names, same types, same meanings, so a client that
-// can build an instance can build a pool of them without a second,
-// narrower contract to learn. It belongs to the pool. There is no
-// separate launch-template resource to create, version or share between
-// pools. Networking is one ordered `networks` list, index 0 being the
-// primary NIC, replacing the flat `subnet_id` + `extra_nics` split.
-// `ip_address` and `mac` are part of that shared NIC shape but are
-// refused here: every replica launches from this one template, so a
-// fixed address would have the second replica ask for one the first
-// already holds.
+// InstancePoolTemplate stored launch configuration with canonical UUID relationship
+// identities. Convert these identities to the request fields in
+// InstancePoolTemplateRequest when replacing the template. The image and
+// keypair identities are pinned; later name reuse or a new current image
+// version does not change them.
 type InstancePoolTemplate struct {
 	FlavorID string `json:"flavor_id,omitempty"`
 
@@ -687,16 +687,8 @@ type InstancePoolTemplate struct {
 	// endpoint.
 	IAMRoleID string `json:"iam_role_id,omitempty"`
 
-	// ImageID image to clone each replica's boot disk from. Accepts the same four
-	// forms instance create does: an architecture-qualified CRN, an image
-	// id, `name:version`, or a bare `name`. Unlike instance create, the
-	// reference is resolved ONCE, when the pool is created, and the
-	// resulting image id is what every replica boots — including
-	// replacements spawned months later. A tag re-resolved per replica
-	// would let a heal boot a newer build than its siblings, and a pool
-	// whose members are quietly not identical is the premise of the
-	// primitive breaking silently. To move a pool to a new build, change
-	// the template.
+	// ImageID resolved image UUID pinned for every replica until template
+	// replacement.
 	ImageID  string   `json:"image_id,omitempty"`
 	KeyNames []string `json:"key_names,omitempty"`
 	Metadata Metadata `json:"metadata,omitempty"`
@@ -730,19 +722,20 @@ type InstancePoolTemplate struct {
 // narrower contract to learn. It belongs to the pool. There is no
 // separate launch-template resource to create, version or share between
 // pools. Networking is one ordered `networks` list, index 0 being the
-// primary NIC, replacing the flat `subnet` + `extra_nics` split.
-// `ip_address` and `mac` are part of that shared NIC shape but are
-// refused here: every replica launches from this one template, so a
-// fixed address would have the second replica ask for one the first
+// primary NIC. `ip_address` and `mac` are part of that shared NIC shape
+// but are refused here: every replica launches from this one template,
+// so a fixed address would have the second replica ask for one the first
 // already holds.
 type InstancePoolTemplateRequest struct {
 	Architecture *string `json:"architecture,omitempty"`
 
+	// Flavor regional flavor reference (UUID, CRN or exact name).
+	//
 	// Required.
 	Flavor string `json:"flavor"`
 
-	// IAMRole IAM role attached to every replica, reachable from its IMDS
-	// endpoint.
+	// IAMRole Organization-scoped IAM role reference (UUID, CRN or exact name).
+	// PassRole and instance trust authorization apply.
 	IAMRole *string `json:"iam_role,omitempty"`
 
 	// Image to clone each replica's boot disk from. Accepts the same four
@@ -828,12 +821,7 @@ type InstanceRebootRequest struct {
 type InstanceUpdateRequest struct {
 	Description *string  `json:"description,omitempty"`
 	Metadata    Metadata `json:"metadata,omitempty"`
-
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	Name *string `json:"name,omitempty"`
-	Tags Tags    `json:"tags,omitempty"`
+	Tags        Tags     `json:"tags,omitempty"`
 }
 
 // InstanceVolume one disk created with the instance. `boot: true` marks the one cloned

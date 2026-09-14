@@ -6,9 +6,12 @@
 
 // Package storage is the Storage API.
 //
-// Block volumes with their snapshots and snapshot policies, plus bucket
-// management for object storage. The S3 wire protocol itself is served
-// separately at `objects.{region}.basaltic.cloud`.
+// Storage references accept UUIDs, CRNs, or scoped names in one field.
+// Snapshot names require a fixed volume; source_snapshot accepts UUID or
+// nested CRN only. Block volumes with their snapshots and snapshot
+// policies, plus bucket management for object storage. The S3 wire
+// protocol itself is served separately at
+// `objects.{region}.basaltic.cloud`.
 //
 // Build a client from a shared [basaltic.Config]:
 //

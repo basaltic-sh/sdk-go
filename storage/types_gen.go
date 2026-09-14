@@ -126,6 +126,8 @@ type EncryptionRule struct {
 }
 
 type EncryptionRuleDefault struct {
+	// KMSMasterKeyID accepted but unused S3 placeholder. Only AES256 is supported; this
+	// is not a KMS resource reference.
 	KMSMasterKeyID string `json:"kms_master_key_id,omitempty"`
 	SseAlgorithm   string `json:"sse_algorithm"`
 }
@@ -402,8 +404,10 @@ type SnapshotCreateRequest struct {
 	Name string `json:"name"`
 	Tags Tags   `json:"tags,omitempty"`
 
+	// Volume account-owned volume UUID, CRN, or exact name.
+	//
 	// Required.
-	VolumeID string `json:"volume_id"`
+	Volume string `json:"volume"`
 }
 
 // SnapshotIntervalMinutes minutes between snapshots — a minimum gap, not an exact cadence. A
@@ -495,8 +499,10 @@ type SnapshotPolicyCreateRequest struct {
 	RetentionDays  *SnapshotRetentionDays `json:"retention_days,omitempty"`
 	Tags           Tags                   `json:"tags,omitempty"`
 
+	// Volume account-owned volume UUID, CRN, or exact name.
+	//
 	// Required.
-	VolumeID string `json:"volume_id"`
+	Volume string `json:"volume"`
 }
 
 // SnapshotPolicyUpdateRequest names are fixed at creation because they form the CRN used by IAM
@@ -592,8 +598,11 @@ type Volume struct {
 }
 
 type VolumeCreateRequest struct {
-	Bootable    *bool   `json:"bootable,omitempty"`
-	Description *string `json:"description,omitempty"`
+	// Architecture used for source_image name resolution. A full image CRN
+	// pins its own architecture.
+	Architecture *string `json:"architecture,omitempty"`
+	Bootable     *bool   `json:"bootable,omitempty"`
+	Description  *string `json:"description,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -605,16 +614,20 @@ type VolumeCreateRequest struct {
 	// Required.
 	SizeGB int `json:"size_gb"`
 
-	// SourceImageID reserved: when supplied, the volume will be provisioned as a clone
-	// of the referenced image's base snapshot. Currently recorded on the
-	// row but not yet wired to the clone path.
-	SourceImageID *string `json:"source_image_id,omitempty"`
+	// SourceImage Image UUID, name, name:version, or full CRN
+	// image/<name>/architecture/<arch>/version/<version>. Names resolve in
+	// the caller account first, then public platform images, using
+	// architecture (default amd64). Mutually exclusive with
+	// source_snapshot. Image tags are not accepted.
+	SourceImage *string `json:"source_image,omitempty"`
 
-	// SourceSnapshotID clone the new volume from an existing snapshot (restore). Mutually
-	// exclusive with source_image_id; size_gb must be at least the
+	// SourceSnapshot clone from an available account-owned snapshot UUID or nested CRN
+	// volume/<volume-name>/snapshot/<snapshot-name>. Bare snapshot names
+	// are rejected because this request has no fixed source volume.
+	// Mutually exclusive with source_image; size_gb must be at least the
 	// snapshot's frozen size.
-	SourceSnapshotID *string `json:"source_snapshot_id,omitempty"`
-	Tags             Tags    `json:"tags,omitempty"`
+	SourceSnapshot *string `json:"source_snapshot,omitempty"`
+	Tags           Tags    `json:"tags,omitempty"`
 
 	// Required.
 	VolumeType CreatableVolumeTypeName `json:"volume_type"`
@@ -640,6 +653,8 @@ const (
 )
 
 type VolumeType struct {
+	// CRN regional platform catalog identity, using the immutable type token.
+	CRN         string `json:"crn,omitempty"`
 	Description string `json:"description,omitempty"`
 
 	// ID the type token (matches `volume_type` on a Volume).

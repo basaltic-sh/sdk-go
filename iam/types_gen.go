@@ -29,13 +29,19 @@ type Account struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
+// AccountReference Account UUID, unique handle (not display name), or
+// crn:iam::<handle>:account/<handle>. Region must be empty and both
+// handle components must match. The selected account establishes
+// organization scope for federation.
+type AccountReference = string
+
 type AssumeRoleRequest struct {
 	// DurationSeconds credential validity duration (15 min to 12 hours)
 	DurationSeconds *int                   `json:"duration_seconds,omitempty"`
 	Policy          *SessionPolicyDocument `json:"policy,omitempty"`
 
 	// Required.
-	RoleID string `json:"role_id"`
+	Role RoleReference `json:"role"`
 }
 
 // AssumeRoleResponse a role session's credentials, in both forms it can be presented.
@@ -77,25 +83,15 @@ type AssumeRoleResponse struct {
 // token is the credential — so every field is read from the body and
 // nothing is inferred from the request context.
 type AssumeRoleWithWebIdentityRequest struct {
-	// AccountID the account the resulting credentials act in — the ownership scope
-	// stamped on the session, the same scope a signed request selects with
-	// `X-Account-Id`. Mind the difference in form: the header carries the
-	// account handle, this field carries the account's id. Naming an
-	// account does not widen the session; the role's own policies remain
-	// the ceiling.
-	//
 	// Required.
-	AccountID string `json:"account_id"`
+	Account AccountReference `json:"account"`
 
 	// DurationSeconds credential validity duration (15 min to 12 hours). A value above the
 	// role's own `max_session_duration` is rejected rather than clamped.
 	DurationSeconds *int `json:"duration_seconds,omitempty"`
 
-	// RoleID the role to assume. Its trust policy has to admit this token — see
-	// the operation description.
-	//
 	// Required.
-	RoleID string `json:"role_id"`
+	Role RoleReference `json:"role"`
 
 	// SessionName a label recorded on the session and in the audit trail. Defaults to
 	// the token's `sub` claim, so an unnamed session still records which
@@ -174,6 +170,11 @@ type GroupCreateRequest struct {
 	Name string `json:"name"`
 }
 
+// GroupReference Group UUID, immutable name, or crn:iam:::group/<name>, resolved only
+// in the caller organization. Region and account components must be
+// empty.
+type GroupReference = string
+
 // GroupServiceAccount a service account in a group
 type GroupServiceAccount struct {
 	AddedAt time.Time `json:"added_at,omitempty"`
@@ -200,13 +201,9 @@ type GroupSummary struct {
 	Name string `json:"name,omitempty"`
 }
 
+// GroupUpdateRequest the resource name is immutable.
 type GroupUpdateRequest struct {
 	Description *string `json:"description,omitempty"`
-
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	Name *string `json:"name,omitempty"`
 }
 
 // GroupUser a user in a group
@@ -223,9 +220,13 @@ type GroupUser struct {
 }
 
 type InlinePolicy struct {
-	CreatedAt time.Time       `json:"created_at,omitempty"`
-	Document  *PolicyDocument `json:"document,omitempty"`
-	ID        string          `json:"id,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+
+	// CRN canonical principal-scoped inline policy identity; named principals
+	// use their immutable name, users use UUID.
+	CRN      string          `json:"crn"`
+	Document *PolicyDocument `json:"document,omitempty"`
+	ID       string          `json:"id,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -289,11 +290,8 @@ type OAuthAuthorizeRequest struct {
 	// Required.
 	CodeChallengeMethod string `json:"code_challenge_method"`
 
-	// OrganizationID which organization the resulting session is scoped to. The user must
-	// be a member of it.
-	//
 	// Required.
-	OrganizationID string `json:"organization_id"`
+	Organization OrganizationReference `json:"organization"`
 
 	// RedirectURI for the CLI this must be `urn:ietf:wg:oauth:2.0:oob` — the
 	// out-of-band pseudo-redirect, meaning the code is DISPLAYED rather
@@ -450,6 +448,11 @@ type Organization struct {
 	UpdatedAt        time.Time `json:"updated_at,omitempty"`
 }
 
+// OrganizationReference Organization UUID or crn:iam:::organization/<uuid>. Display names are
+// not accepted. Region and account must be empty. The signed-in user
+// must be a member.
+type OrganizationReference = string
+
 type OrganizationUpdateRequest struct {
 	// CaptchaToken google reCAPTCHA token for bot protection
 	//
@@ -503,7 +506,8 @@ type Policy struct {
 	// CreatedAt creation timestamp (not present for system policies)
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
-	// CRN Cloud Resource Name
+	// CRN managed policy CRN; absent on inline policy projections in
+	// effective-policy lists.
 	CRN         string          `json:"crn,omitempty"`
 	Description string          `json:"description,omitempty"`
 	Document    *PolicyDocument `json:"document,omitempty"`
@@ -525,7 +529,7 @@ type Policy struct {
 
 type PolicyAttachRequest struct {
 	// Required.
-	PolicyID string `json:"policy_id"`
+	Policy PolicyReference `json:"policy"`
 }
 
 // PolicyCondition a condition that must be satisfied for the statement to apply
@@ -578,6 +582,14 @@ type PolicyDocument struct {
 	Version string `json:"version"`
 }
 
+// PolicyReference Policy UUID, organization policy name, or CRN. Bare names and
+// crn:iam:::policy/<name> resolve first in the caller organization, then
+// in the platform namespace. An explicit crn:iam:::policy/<name> selects
+// only the caller organization; crn:iam::platform:policy/<name> selects
+// only the platform namespace. Region must be empty. CRNs select exactly
+// one namespace without fallback.
+type PolicyReference = string
+
 // PolicyStatement a single statement. The action set is named either positively
 // (`actions`) or by exclusion (`not_actions`), and the resource set
 // likewise (`resources` / `not_resources`) — exactly one of each pair.
@@ -611,15 +623,11 @@ type PolicyStatement struct {
 	Sid string `json:"sid,omitempty"`
 }
 
+// PolicyUpdateRequest the resource name is immutable.
 type PolicyUpdateRequest struct {
 	Description *string         `json:"description,omitempty"`
 	Document    *PolicyDocument `json:"document,omitempty"`
-
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	Name *string `json:"name,omitempty"`
-	Tags Tags    `json:"tags,omitempty"`
+	Tags        Tags            `json:"tags,omitempty"`
 }
 
 type PutInlinePolicyRequest struct {
@@ -639,6 +647,10 @@ type Region struct {
 
 	// CountryCode ISO 3166-1 alpha-2 country code (used to display flag in UI)
 	CountryCode string `json:"country_code"`
+
+	// CRN platform-owned global region identity, using the immutable region
+	// code.
+	CRN string `json:"crn"`
 
 	// Location geographic location of the region
 	Location string `json:"location"`
@@ -684,16 +696,17 @@ type RoleCreateRequest struct {
 
 type RolePolicyAttachRequest struct {
 	// Required.
-	PolicyID string `json:"policy_id"`
+	Policy PolicyReference `json:"policy"`
 }
 
-type RoleUpdateRequest struct {
-	Description *string `json:"description,omitempty"`
+// RoleReference Role UUID, immutable name, or crn:iam:::role/<name>, resolved only in
+// the selected organization. Region and account components must be
+// empty.
+type RoleReference = string
 
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	Name        *string      `json:"name,omitempty"`
+// RoleUpdateRequest the resource name is immutable.
+type RoleUpdateRequest struct {
+	Description *string      `json:"description,omitempty"`
 	Tags        Tags         `json:"tags,omitempty"`
 	TrustPolicy *TrustPolicy `json:"trust_policy,omitempty"`
 }
@@ -767,7 +780,7 @@ type ServiceAccountCreateRequest struct {
 
 type ServiceAccountGroupAddRequest struct {
 	// Required.
-	GroupID string `json:"group_id"`
+	Group GroupReference `json:"group"`
 }
 
 type ServiceAccountUpdateRequest struct {
@@ -823,7 +836,7 @@ type SessionPolicyStatement struct {
 
 type SetBoundaryRequest struct {
 	// Required.
-	PolicyID string `json:"policy_id"`
+	Policy PolicyReference `json:"policy"`
 }
 
 type Tags = map[string]string
@@ -834,11 +847,16 @@ type TrustPolicy struct {
 	Conditions []*PolicyCondition `json:"conditions,omitempty"`
 
 	// Principals CRN patterns that identify who can assume this role. Supports
-	// wildcards (*) for matching multiple resources.
+	// wildcards (*) for matching multiple resources. IAM role, user, group
+	// and service-account CRN patterns match only principals in the
+	// organization that owns this role. A role presents
+	// `crn:iam:::role/<name>`; the same name in another organization never
+	// matches. There is no principal-organization condition key for
+	// granting a foreign organization access by these CRNs.
 	//
 	// These match the caller's own CRN: an instance presents
 	// `crn:compute:<region>:<account>:instance/<id>` to AssumeRole via
-	// IMDS, a service account presents `crn:iam:::service-account/<id>`.
+	// IMDS, a service account presents `crn:iam:::service-account/<name>`.
 	//
 	// A federated caller is the exception. It has no CRN of its own, so a
 	// role that accepts one names the **provider** instead, as
@@ -871,9 +889,11 @@ type UserAddRequest struct {
 	// Required.
 	Email string `json:"email"`
 
-	// GroupIDs IDs of groups to add the user to
-	GroupIDs []string `json:"group_ids,omitempty"`
-	Tags     Tags     `json:"tags,omitempty"`
+	// Groups to assign when the invitation is accepted. Each reference is
+	// validated in the caller organization before the invitation is
+	// created.
+	Groups []GroupReference `json:"groups,omitempty"`
+	Tags   Tags             `json:"tags,omitempty"`
 }
 
 type UserAddResponse struct {
@@ -889,5 +909,5 @@ type UserAddResponse struct {
 
 type UserGroupAddRequest struct {
 	// Required.
-	GroupID string `json:"group_id"`
+	Group GroupReference `json:"group"`
 }

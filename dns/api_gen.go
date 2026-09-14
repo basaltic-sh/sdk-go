@@ -19,6 +19,10 @@ import (
 // ListRecordsParams are the optional filters and pagination controls for
 // [Client.ListRecords]. A nil *ListRecordsParams sends none of them.
 type ListRecordsParams struct {
+	// CRN exact nested record CRN. Foreign or mismatched CRNs return an empty
+	// page; combined with name before pagination.
+	CRN string
+
 	// IncludeManaged include the platform-stamped rows (SOA, apex NS, and the DNSSEC set)
 	// alongside your own. Off by default — they cannot be edited or
 	// deleted, and on a signed zone there are more of them than there are
@@ -42,6 +46,9 @@ func (p *ListRecordsParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.IncludeManaged != nil {
 		q.Set("include_managed", strconv.FormatBool(*p.IncludeManaged))
@@ -70,6 +77,33 @@ func (p *ListRecordsParams) withMarker(marker string) *ListRecordsParams {
 	}
 	out.Marker = marker
 	return &out
+}
+
+// ListZoneVPCAssociationsParams are the optional filters and pagination controls for
+// [Client.ListZoneVPCAssociations]. A nil *ListZoneVPCAssociationsParams sends none of them.
+type ListZoneVPCAssociationsParams struct {
+	// CRN exact associated VPC CRN in the configured DNS region. Foreign or
+	// mismatched CRNs return an empty collection.
+	CRN string
+
+	// Name exact name of an associated VPC. An empty value matches nothing.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListZoneVPCAssociationsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
 }
 
 // ListZonesParams are the optional filters and pagination controls for
@@ -507,13 +541,14 @@ func (c *Client) ListRecordsAll(ctx context.Context, zoneID string, params *List
 //
 // Returns VPC ids attached to a private zone. Empty for public zones or
 // unattached private zones.
-func (c *Client) ListZoneVPCAssociations(ctx context.Context, zoneID string, opts ...basaltic.RequestOption) (*basaltic.Page[string], error) {
+func (c *Client) ListZoneVPCAssociations(ctx context.Context, zoneID string, params *ListZoneVPCAssociationsParams, opts ...basaltic.RequestOption) (*basaltic.Page[string], error) {
 	op := &basaltic.Operation{
 		ID:       "listZoneVPCAssociations",
 		Method:   "GET",
 		Path:     "/v1/zones/{zone_id}/vpc-associations",
 		PathArgs: []string{zoneID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []string `json:"vpc_ids"`
 	}

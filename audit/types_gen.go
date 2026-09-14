@@ -28,6 +28,9 @@ type AuditLog struct {
 	// One of: "user", "service_account", "system".
 	ActorType string `json:"actor_type,omitempty"`
 
+	// CRN canonical event identity, scoped to the authenticated organization.
+	CRN string `json:"crn,omitempty"`
+
 	// Details additional action-specific details
 	Details map[string]any `json:"details,omitempty"`
 

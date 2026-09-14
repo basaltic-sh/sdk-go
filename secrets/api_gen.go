@@ -38,11 +38,12 @@ func (p *GetSecretValueParams) query() url.Values {
 // ListSecretsParams are the optional filters and pagination controls for
 // [Client.ListSecrets]. A nil *ListSecretsParams sends none of them.
 type ListSecretsParams struct {
-	// CRN exact secret CRN in the calling account and current region. Invalid,
-	// foreign-account, foreign-region or wrong-type CRNs return an empty
-	// page. Combined filters intersect; conflicting name and CRN filters
-	// return an empty page. With include_deleted, a reused name can match
-	// both deleted and active secrets.
+	// CRN exact secret CRN in the calling account and current region.
+	// Malformed or empty CRNs return 400; valid foreign-account,
+	// foreign-region or wrong-type CRNs return an empty page. Combined
+	// filters intersect; conflicting name and CRN filters return an empty
+	// page. With include_deleted, a reused name can match both deleted and
+	// active secrets.
 	CRN string
 
 	// IncludeDeleted include secrets in the recovery window.
@@ -97,6 +98,10 @@ func (p *ListSecretsParams) withMarker(marker string) *ListSecretsParams {
 // ListVersionsParams are the optional filters and pagination controls for
 // [Client.ListVersions]. A nil *ListVersionsParams sends none of them.
 type ListVersionsParams struct {
+	// CRN exact secret/name/version/number CRN; foreign or mismatched
+	// identities return an empty page.
+	CRN string
+
 	// Limit maximum items to return. A larger value is clamped to the maximum
 	// rather than rejected, so page until `meta.has_more` is false.
 	Limit  int
@@ -109,6 +114,9 @@ func (p *ListVersionsParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))

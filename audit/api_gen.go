@@ -36,6 +36,11 @@ type ListAuditLogsParams struct {
 	// One of: "user", "service_account", "system".
 	ActorType string
 
+	// CRN exact audit event CRN (crn:audit:::log/UUID). Foreign or mismatched
+	// identities yield an empty page. This selects the event itself,
+	// independently of resource and actor snapshots.
+	CRN string
+
 	// From filter logs from this timestamp (inclusive)
 	From time.Time
 
@@ -93,6 +98,9 @@ func (p *ListAuditLogsParams) query() url.Values {
 	}
 	if p.ActorType != "" {
 		q.Set("actor_type", p.ActorType)
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if !p.From.IsZero() {
 		q.Set("from", p.From.UTC().Format(time.RFC3339))

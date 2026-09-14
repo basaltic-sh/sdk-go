@@ -20,6 +20,10 @@ import (
 // ListCreditsParams are the optional filters and pagination controls for
 // [Client.ListCredits]. A nil *ListCreditsParams sends none of them.
 type ListCreditsParams struct {
+	// CRN exact organization-scoped credit CRN. Foreign or mismatched
+	// identities return an empty page.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -39,6 +43,9 @@ func (p *ListCreditsParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -63,6 +70,10 @@ func (p *ListCreditsParams) withMarker(marker string) *ListCreditsParams {
 // ListInvoicesParams are the optional filters and pagination controls for
 // [Client.ListInvoices]. A nil *ListInvoicesParams sends none of them.
 type ListInvoicesParams struct {
+	// CRN exact organization-scoped invoice CRN. Foreign or mismatched
+	// identities return an empty page.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -82,6 +93,9 @@ func (p *ListInvoicesParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -106,6 +120,10 @@ func (p *ListInvoicesParams) withMarker(marker string) *ListInvoicesParams {
 // ListPaymentsParams are the optional filters and pagination controls for
 // [Client.ListPayments]. A nil *ListPaymentsParams sends none of them.
 type ListPaymentsParams struct {
+	// CRN exact organization-scoped payment CRN. Foreign or mismatched
+	// identities return an empty page.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -125,6 +143,9 @@ func (p *ListPaymentsParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -193,6 +214,10 @@ func (p *ListPricesParams) query() url.Values {
 // ListTransactionsParams are the optional filters and pagination controls for
 // [Client.ListTransactions]. A nil *ListTransactionsParams sends none of them.
 type ListTransactionsParams struct {
+	// CRN exact organization-scoped transaction CRN. Foreign or mismatched
+	// identities return an empty page.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -212,6 +237,9 @@ func (p *ListTransactionsParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))

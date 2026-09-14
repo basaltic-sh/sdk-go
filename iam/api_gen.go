@@ -18,6 +18,12 @@ import (
 // ListAccountsParams are the optional filters and pagination controls for
 // [Client.ListAccounts]. A nil *ListAccountsParams sends none of them.
 type ListAccountsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -29,6 +35,10 @@ type ListAccountsParams struct {
 	// The token's internal form varies by endpoint (a resource ID, a
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -38,11 +48,17 @@ func (p *ListAccountsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -58,9 +74,75 @@ func (p *ListAccountsParams) withMarker(marker string) *ListAccountsParams {
 	return &out
 }
 
+// ListGroupInlinePoliciesParams are the optional filters and pagination controls for
+// [Client.ListGroupInlinePolicies]. A nil *ListGroupInlinePoliciesParams sends none of them.
+type ListGroupInlinePoliciesParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListGroupInlinePoliciesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListGroupPoliciesParams are the optional filters and pagination controls for
+// [Client.ListGroupPolicies]. A nil *ListGroupPoliciesParams sends none of them.
+type ListGroupPoliciesParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListGroupPoliciesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
 // ListGroupServiceAccountsParams are the optional filters and pagination controls for
 // [Client.ListGroupServiceAccounts]. A nil *ListGroupServiceAccountsParams sends none of them.
 type ListGroupServiceAccountsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -72,6 +154,10 @@ type ListGroupServiceAccountsParams struct {
 	// The token's internal form varies by endpoint (a resource ID, a
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -81,11 +167,17 @@ func (p *ListGroupServiceAccountsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -104,6 +196,12 @@ func (p *ListGroupServiceAccountsParams) withMarker(marker string) *ListGroupSer
 // ListGroupUsersParams are the optional filters and pagination controls for
 // [Client.ListGroupUsers]. A nil *ListGroupUsersParams sends none of them.
 type ListGroupUsersParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -115,6 +213,10 @@ type ListGroupUsersParams struct {
 	// The token's internal form varies by endpoint (a resource ID, a
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -124,11 +226,17 @@ func (p *ListGroupUsersParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -147,6 +255,12 @@ func (p *ListGroupUsersParams) withMarker(marker string) *ListGroupUsersParams {
 // ListGroupsParams are the optional filters and pagination controls for
 // [Client.ListGroups]. A nil *ListGroupsParams sends none of them.
 type ListGroupsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -159,7 +273,8 @@ type ListGroupsParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
-	// Name filter by name (exact match or prefix with *)
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
 	Name string
 }
 
@@ -169,6 +284,9 @@ func (p *ListGroupsParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -196,6 +314,12 @@ func (p *ListGroupsParams) withMarker(marker string) *ListGroupsParams {
 // ListInvitationsParams are the optional filters and pagination controls for
 // [Client.ListInvitations]. A nil *ListInvitationsParams sends none of them.
 type ListInvitationsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -207,6 +331,10 @@ type ListInvitationsParams struct {
 	// The token's internal form varies by endpoint (a resource ID, a
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -216,11 +344,17 @@ func (p *ListInvitationsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -239,6 +373,12 @@ func (p *ListInvitationsParams) withMarker(marker string) *ListInvitationsParams
 // ListOrganizationsParams are the optional filters and pagination controls for
 // [Client.ListOrganizations]. A nil *ListOrganizationsParams sends none of them.
 type ListOrganizationsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -250,6 +390,10 @@ type ListOrganizationsParams struct {
 	// The token's internal form varies by endpoint (a resource ID, a
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -259,11 +403,17 @@ func (p *ListOrganizationsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -282,6 +432,12 @@ func (p *ListOrganizationsParams) withMarker(marker string) *ListOrganizationsPa
 // ListPoliciesParams are the optional filters and pagination controls for
 // [Client.ListPolicies]. A nil *ListPoliciesParams sends none of them.
 type ListPoliciesParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -294,7 +450,8 @@ type ListPoliciesParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
-	// Name filter by name (exact match or prefix with *)
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
 	Name string
 }
 
@@ -304,6 +461,9 @@ func (p *ListPoliciesParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -331,6 +491,12 @@ func (p *ListPoliciesParams) withMarker(marker string) *ListPoliciesParams {
 // ListPolicyGroupsParams are the optional filters and pagination controls for
 // [Client.ListPolicyGroups]. A nil *ListPolicyGroupsParams sends none of them.
 type ListPolicyGroupsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -342,6 +508,10 @@ type ListPolicyGroupsParams struct {
 	// The token's internal form varies by endpoint (a resource ID, a
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -351,11 +521,17 @@ func (p *ListPolicyGroupsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -374,6 +550,12 @@ func (p *ListPolicyGroupsParams) withMarker(marker string) *ListPolicyGroupsPara
 // ListPolicyRolesParams are the optional filters and pagination controls for
 // [Client.ListPolicyRoles]. A nil *ListPolicyRolesParams sends none of them.
 type ListPolicyRolesParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -385,6 +567,10 @@ type ListPolicyRolesParams struct {
 	// The token's internal form varies by endpoint (a resource ID, a
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -394,11 +580,17 @@ func (p *ListPolicyRolesParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -417,6 +609,12 @@ func (p *ListPolicyRolesParams) withMarker(marker string) *ListPolicyRolesParams
 // ListPolicyServiceAccountsParams are the optional filters and pagination controls for
 // [Client.ListPolicyServiceAccounts]. A nil *ListPolicyServiceAccountsParams sends none of them.
 type ListPolicyServiceAccountsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -428,6 +626,10 @@ type ListPolicyServiceAccountsParams struct {
 	// The token's internal form varies by endpoint (a resource ID, a
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -437,11 +639,17 @@ func (p *ListPolicyServiceAccountsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -460,6 +668,12 @@ func (p *ListPolicyServiceAccountsParams) withMarker(marker string) *ListPolicyS
 // ListPolicyUsersParams are the optional filters and pagination controls for
 // [Client.ListPolicyUsers]. A nil *ListPolicyUsersParams sends none of them.
 type ListPolicyUsersParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -471,6 +685,10 @@ type ListPolicyUsersParams struct {
 	// The token's internal form varies by endpoint (a resource ID, a
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -480,11 +698,17 @@ func (p *ListPolicyUsersParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -500,9 +724,105 @@ func (p *ListPolicyUsersParams) withMarker(marker string) *ListPolicyUsersParams
 	return &out
 }
 
+// ListRegionsParams are the optional filters and pagination controls for
+// [Client.ListRegions]. A nil *ListRegionsParams sends none of them.
+type ListRegionsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListRegionsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListRoleInlinePoliciesParams are the optional filters and pagination controls for
+// [Client.ListRoleInlinePolicies]. A nil *ListRoleInlinePoliciesParams sends none of them.
+type ListRoleInlinePoliciesParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListRoleInlinePoliciesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListRolePoliciesParams are the optional filters and pagination controls for
+// [Client.ListRolePolicies]. A nil *ListRolePoliciesParams sends none of them.
+type ListRolePoliciesParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListRolePoliciesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
 // ListRolesParams are the optional filters and pagination controls for
 // [Client.ListRoles]. A nil *ListRolesParams sends none of them.
 type ListRolesParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -515,7 +835,8 @@ type ListRolesParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
-	// Name filter by name (exact match or prefix with *)
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
 	Name string
 }
 
@@ -525,6 +846,9 @@ func (p *ListRolesParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -555,6 +879,12 @@ type ListSTSSessionsParams struct {
 	// ActiveOnly only show active (non-expired, non-revoked) sessions
 	ActiveOnly *bool
 
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -567,19 +897,25 @@ type ListSTSSessionsParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
-	// PrincipalID filter by principal ID (user or service account)
-	PrincipalID string
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+
+	// Principal reference; principal_type is required. Users and
+	// assumed-role sessions accept UUID or CRN; roles and service accounts
+	// also accept unique organization names.
+	Principal string
 
 	// PrincipalType filter by principal type. `assumed_role` selects the sessions role
 	// chaining produces, where an existing assumed-role session assumed
 	// another role.
 	//
 	//
-	// One of: "user", "service_account", "assumed_role".
+	// One of: "user", "service_account", "role", "assumed_role".
 	PrincipalType string
 
-	// RoleID filter by role ID
-	RoleID string
+	// Role UUID, immutable name, or organization-scoped role CRN.
+	Role string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -592,20 +928,26 @@ func (p *ListSTSSessionsParams) query() url.Values {
 	if p.ActiveOnly != nil {
 		q.Set("active_only", strconv.FormatBool(*p.ActiveOnly))
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
 	}
-	if p.PrincipalID != "" {
-		q.Set("principal_id", p.PrincipalID)
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	if p.Principal != "" {
+		q.Set("principal", p.Principal)
 	}
 	if p.PrincipalType != "" {
 		q.Set("principal_type", p.PrincipalType)
 	}
-	if p.RoleID != "" {
-		q.Set("role_id", p.RoleID)
+	if p.Role != "" {
+		q.Set("role", p.Role)
 	}
 	return q
 }
@@ -621,9 +963,135 @@ func (p *ListSTSSessionsParams) withMarker(marker string) *ListSTSSessionsParams
 	return &out
 }
 
+// ListServiceAccountCredentialsParams are the optional filters and pagination controls for
+// [Client.ListServiceAccountCredentials]. A nil *ListServiceAccountCredentialsParams sends none of them.
+type ListServiceAccountCredentialsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListServiceAccountCredentialsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListServiceAccountGroupsParams are the optional filters and pagination controls for
+// [Client.ListServiceAccountGroups]. A nil *ListServiceAccountGroupsParams sends none of them.
+type ListServiceAccountGroupsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListServiceAccountGroupsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListServiceAccountInlinePoliciesParams are the optional filters and pagination controls for
+// [Client.ListServiceAccountInlinePolicies]. A nil *ListServiceAccountInlinePoliciesParams sends none of them.
+type ListServiceAccountInlinePoliciesParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListServiceAccountInlinePoliciesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListServiceAccountPoliciesParams are the optional filters and pagination controls for
+// [Client.ListServiceAccountPolicies]. A nil *ListServiceAccountPoliciesParams sends none of them.
+type ListServiceAccountPoliciesParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListServiceAccountPoliciesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
 // ListServiceAccountsParams are the optional filters and pagination controls for
 // [Client.ListServiceAccounts]. A nil *ListServiceAccountsParams sends none of them.
 type ListServiceAccountsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -636,7 +1104,8 @@ type ListServiceAccountsParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
-	// Name filter by name (exact match or prefix with *)
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
 	Name string
 }
 
@@ -646,6 +1115,9 @@ func (p *ListServiceAccountsParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -670,9 +1142,105 @@ func (p *ListServiceAccountsParams) withMarker(marker string) *ListServiceAccoun
 	return &out
 }
 
+// ListUserGroupsParams are the optional filters and pagination controls for
+// [Client.ListUserGroups]. A nil *ListUserGroupsParams sends none of them.
+type ListUserGroupsParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListUserGroupsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListUserInlinePoliciesParams are the optional filters and pagination controls for
+// [Client.ListUserInlinePolicies]. A nil *ListUserInlinePoliciesParams sends none of them.
+type ListUserInlinePoliciesParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListUserInlinePoliciesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListUserPoliciesParams are the optional filters and pagination controls for
+// [Client.ListUserPolicies]. A nil *ListUserPoliciesParams sends none of them.
+type ListUserPoliciesParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListUserPoliciesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
 // ListUsersParams are the optional filters and pagination controls for
 // [Client.ListUsers]. A nil *ListUsersParams sends none of them.
 type ListUsersParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -685,7 +1253,8 @@ type ListUsersParams struct {
 	// timestamp, …) and is not guaranteed stable across releases.
 	Marker string
 
-	// Name filter by name (exact match or prefix with *)
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
 	Name string
 }
 
@@ -695,6 +1264,9 @@ func (p *ListUsersParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -819,8 +1391,7 @@ func (c *Client) AssumeRole(ctx context.Context, body *AssumeRoleRequest, opts .
 // Basaltic credential yet — that is what the exchange is for — so
 // the token in the body *is* the credential being presented. A signature
 // sent anyway is ignored, and nothing is taken from the request context:
-// `role_id` and `account_id` are read from the body like every other
-// field.
+// `role` and `account` are read from the body like every other field.
 //
 // That does not leave the endpoint open. Two independent gates have to
 // pass, and they fail differently.
@@ -834,9 +1405,9 @@ func (c *Client) AssumeRole(ctx context.Context, body *AssumeRoleRequest, opts .
 // failed.
 //
 // **The role has to agree.** Verifying the token establishes who is
-// calling; it grants nothing. The role named in `role_id` is assumable
-// only if its own trust policy admits this identity. Its `principals`
-// must name the federation provider, written
+// calling; it grants nothing. The role named in `role` is assumable only
+// if its own trust policy admits this identity. Its `principals` must
+// name the federation provider, written
 // `crn:iam:::oidc-provider/<provider>` — the one case where a trust
 // policy principal is not the caller's own CRN, because a federated
 // identity has no CRN and what is trusted is the source that vouched for
@@ -851,8 +1422,8 @@ func (c *Client) AssumeRole(ctx context.Context, body *AssumeRoleRequest, opts .
 // between the two failures: `401` means the token is not trustworthy,
 // `403` means it is and the role still will not have it.
 //
-// The credentials come back scoped to `account_id`, carrying the role's
-// own permissions. There is no `policy` field here — unlike `POST
+// The credentials come back scoped to `account`, carrying the role's own
+// permissions. There is no `policy` field here — unlike `POST
 // /v1/assume-role`, a federated session cannot be scoped down at
 // exchange time, so the role's attached policies are the whole grant.
 // Size the role accordingly.
@@ -978,8 +1549,8 @@ func (c *Client) AttachUserPolicy(ctx context.Context, userID string, body *Poli
 // It is the half of the authorization-code flow that establishes WHO is
 // approving. The user must already be signed in — including any second
 // factor — and must be a member of the organization named in
-// `organization_id`. The organization is explicit rather than inferred:
-// a person in several has no single obvious answer, and choosing one for
+// `organization`. The organization is explicit rather than inferred: a
+// person in several has no single obvious answer, and choosing one for
 // them would scope the resulting token to something they did not pick.
 //
 // Unlike the token endpoint, this answers in the usual API envelope. It
@@ -1802,13 +2373,14 @@ func (c *Client) ListAccountsAll(ctx context.Context, params *ListAccountsParams
 }
 
 // ListGroupInlinePolicies lists a group's inline policies.
-func (c *Client) ListGroupInlinePolicies(ctx context.Context, groupID string, opts ...basaltic.RequestOption) (*basaltic.Page[InlinePolicy], error) {
+func (c *Client) ListGroupInlinePolicies(ctx context.Context, groupID string, params *ListGroupInlinePoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[InlinePolicy], error) {
 	op := &basaltic.Operation{
 		ID:       "listGroupInlinePolicies",
 		Method:   "GET",
 		Path:     "/v1/groups/{group_id}/inline-policies",
 		PathArgs: []string{groupID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []InlinePolicy `json:"inline_policies"`
 	}
@@ -1822,13 +2394,14 @@ func (c *Client) ListGroupInlinePolicies(ctx context.Context, groupID string, op
 // ListGroupPolicies lists group policies.
 //
 // List all policies attached to a group.
-func (c *Client) ListGroupPolicies(ctx context.Context, groupID string, opts ...basaltic.RequestOption) (*basaltic.Page[Policy], error) {
+func (c *Client) ListGroupPolicies(ctx context.Context, groupID string, params *ListGroupPoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Policy], error) {
 	op := &basaltic.Operation{
 		ID:       "listGroupPolicies",
 		Method:   "GET",
 		Path:     "/v1/groups/{group_id}/policies",
 		PathArgs: []string{groupID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []Policy `json:"policies"`
 	}
@@ -2408,13 +2981,14 @@ func (c *Client) ListPolicyUsersAll(ctx context.Context, policyID string, params
 //
 // Sends no bearer token: the credentials in the request are the
 // authentication.
-func (c *Client) ListRegions(ctx context.Context, opts ...basaltic.RequestOption) (*ListRegionsResult, error) {
+func (c *Client) ListRegions(ctx context.Context, params *ListRegionsParams, opts ...basaltic.RequestOption) (*ListRegionsResult, error) {
 	op := &basaltic.Operation{
 		ID:              "listRegions",
 		Method:          "GET",
 		Path:            "/v1/regions",
 		Unauthenticated: true,
 	}
+	op.Query = params.query()
 	var out ListRegionsResult
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
@@ -2423,13 +2997,14 @@ func (c *Client) ListRegions(ctx context.Context, opts ...basaltic.RequestOption
 }
 
 // ListRoleInlinePolicies lists a role's inline policies.
-func (c *Client) ListRoleInlinePolicies(ctx context.Context, roleID string, opts ...basaltic.RequestOption) (*basaltic.Page[InlinePolicy], error) {
+func (c *Client) ListRoleInlinePolicies(ctx context.Context, roleID string, params *ListRoleInlinePoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[InlinePolicy], error) {
 	op := &basaltic.Operation{
 		ID:       "listRoleInlinePolicies",
 		Method:   "GET",
 		Path:     "/v1/roles/{role_id}/inline-policies",
 		PathArgs: []string{roleID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []InlinePolicy `json:"inline_policies"`
 	}
@@ -2443,13 +3018,14 @@ func (c *Client) ListRoleInlinePolicies(ctx context.Context, roleID string, opts
 // ListRolePolicies lists role policies.
 //
 // List all policies attached to a role.
-func (c *Client) ListRolePolicies(ctx context.Context, roleID string, opts ...basaltic.RequestOption) (*basaltic.Page[Policy], error) {
+func (c *Client) ListRolePolicies(ctx context.Context, roleID string, params *ListRolePoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Policy], error) {
 	op := &basaltic.Operation{
 		ID:       "listRolePolicies",
 		Method:   "GET",
 		Path:     "/v1/roles/{role_id}/policies",
 		PathArgs: []string{roleID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []Policy `json:"policies"`
 	}
@@ -2574,13 +3150,14 @@ func (c *Client) ListSTSSessionsAll(ctx context.Context, params *ListSTSSessions
 // ListServiceAccountCredentials lists credentials.
 //
 // List all credentials for a service account.
-func (c *Client) ListServiceAccountCredentials(ctx context.Context, serviceAccountID string, opts ...basaltic.RequestOption) (*basaltic.Page[Credential], error) {
+func (c *Client) ListServiceAccountCredentials(ctx context.Context, serviceAccountID string, params *ListServiceAccountCredentialsParams, opts ...basaltic.RequestOption) (*basaltic.Page[Credential], error) {
 	op := &basaltic.Operation{
 		ID:       "listServiceAccountCredentials",
 		Method:   "GET",
 		Path:     "/v1/service-accounts/{service_account_id}/credentials",
 		PathArgs: []string{serviceAccountID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []Credential `json:"credentials"`
 	}
@@ -2594,13 +3171,14 @@ func (c *Client) ListServiceAccountCredentials(ctx context.Context, serviceAccou
 // ListServiceAccountGroups lists service account groups.
 //
 // List all groups the service account belongs to.
-func (c *Client) ListServiceAccountGroups(ctx context.Context, serviceAccountID string, opts ...basaltic.RequestOption) (*basaltic.Page[Group], error) {
+func (c *Client) ListServiceAccountGroups(ctx context.Context, serviceAccountID string, params *ListServiceAccountGroupsParams, opts ...basaltic.RequestOption) (*basaltic.Page[Group], error) {
 	op := &basaltic.Operation{
 		ID:       "listServiceAccountGroups",
 		Method:   "GET",
 		Path:     "/v1/service-accounts/{service_account_id}/groups",
 		PathArgs: []string{serviceAccountID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []Group `json:"groups"`
 		Meta  *struct {
@@ -2624,13 +3202,14 @@ func (c *Client) ListServiceAccountGroups(ctx context.Context, serviceAccountID 
 }
 
 // ListServiceAccountInlinePolicies lists a service account's inline policies.
-func (c *Client) ListServiceAccountInlinePolicies(ctx context.Context, serviceAccountID string, opts ...basaltic.RequestOption) (*basaltic.Page[InlinePolicy], error) {
+func (c *Client) ListServiceAccountInlinePolicies(ctx context.Context, serviceAccountID string, params *ListServiceAccountInlinePoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[InlinePolicy], error) {
 	op := &basaltic.Operation{
 		ID:       "listServiceAccountInlinePolicies",
 		Method:   "GET",
 		Path:     "/v1/service-accounts/{service_account_id}/inline-policies",
 		PathArgs: []string{serviceAccountID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []InlinePolicy `json:"inline_policies"`
 	}
@@ -2644,13 +3223,14 @@ func (c *Client) ListServiceAccountInlinePolicies(ctx context.Context, serviceAc
 // ListServiceAccountPolicies lists service account policies.
 //
 // List all policies attached to a service account.
-func (c *Client) ListServiceAccountPolicies(ctx context.Context, serviceAccountID string, opts ...basaltic.RequestOption) (*basaltic.Page[Policy], error) {
+func (c *Client) ListServiceAccountPolicies(ctx context.Context, serviceAccountID string, params *ListServiceAccountPoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Policy], error) {
 	op := &basaltic.Operation{
 		ID:       "listServiceAccountPolicies",
 		Method:   "GET",
 		Path:     "/v1/service-accounts/{service_account_id}/policies",
 		PathArgs: []string{serviceAccountID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []Policy `json:"policies"`
 	}
@@ -2720,13 +3300,14 @@ func (c *Client) ListServiceAccountsAll(ctx context.Context, params *ListService
 // ListUserGroups lists user groups.
 //
 // List all groups the user belongs to.
-func (c *Client) ListUserGroups(ctx context.Context, userID string, opts ...basaltic.RequestOption) (*basaltic.Page[Group], error) {
+func (c *Client) ListUserGroups(ctx context.Context, userID string, params *ListUserGroupsParams, opts ...basaltic.RequestOption) (*basaltic.Page[Group], error) {
 	op := &basaltic.Operation{
 		ID:       "listUserGroups",
 		Method:   "GET",
 		Path:     "/v1/users/{user_id}/groups",
 		PathArgs: []string{userID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []Group `json:"groups"`
 		Meta  *struct {
@@ -2750,13 +3331,14 @@ func (c *Client) ListUserGroups(ctx context.Context, userID string, opts ...basa
 }
 
 // ListUserInlinePolicies lists a user's inline policies.
-func (c *Client) ListUserInlinePolicies(ctx context.Context, userID string, opts ...basaltic.RequestOption) (*basaltic.Page[InlinePolicy], error) {
+func (c *Client) ListUserInlinePolicies(ctx context.Context, userID string, params *ListUserInlinePoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[InlinePolicy], error) {
 	op := &basaltic.Operation{
 		ID:       "listUserInlinePolicies",
 		Method:   "GET",
 		Path:     "/v1/users/{user_id}/inline-policies",
 		PathArgs: []string{userID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []InlinePolicy `json:"inline_policies"`
 	}
@@ -2770,13 +3352,14 @@ func (c *Client) ListUserInlinePolicies(ctx context.Context, userID string, opts
 // ListUserPolicies lists user policies.
 //
 // List all policies attached to a user.
-func (c *Client) ListUserPolicies(ctx context.Context, userID string, opts ...basaltic.RequestOption) (*basaltic.Page[Policy], error) {
+func (c *Client) ListUserPolicies(ctx context.Context, userID string, params *ListUserPoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Policy], error) {
 	op := &basaltic.Operation{
 		ID:       "listUserPolicies",
 		Method:   "GET",
 		Path:     "/v1/users/{user_id}/policies",
 		PathArgs: []string{userID},
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []Policy `json:"policies"`
 	}

@@ -11,8 +11,11 @@ import (
 )
 
 type Credit struct {
-	Amount      string    `json:"amount"`
-	CreatedAt   time.Time `json:"created_at"`
+	Amount    string    `json:"amount"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// CRN global organization-scoped credit identity.
+	CRN         string    `json:"crn"`
 	Description string    `json:"description"`
 	ExpiresAt   time.Time `json:"expires_at,omitempty"`
 	ID          string    `json:"id"`
@@ -34,11 +37,14 @@ type CurrentUsage struct {
 type Invoice struct {
 	CreatedAt      time.Time `json:"created_at"`
 	CreditsApplied string    `json:"credits_applied"`
-	Currency       string    `json:"currency"`
-	DueAt          time.Time `json:"due_at,omitempty"`
-	ID             string    `json:"id"`
-	InvoiceNumber  string    `json:"invoice_number"`
-	IssuedAt       time.Time `json:"issued_at,omitempty"`
+
+	// CRN global organization-scoped invoice identity.
+	CRN           string    `json:"crn"`
+	Currency      string    `json:"currency"`
+	DueAt         time.Time `json:"due_at,omitempty"`
+	ID            string    `json:"id"`
+	InvoiceNumber string    `json:"invoice_number"`
+	IssuedAt      time.Time `json:"issued_at,omitempty"`
 
 	// Items line items; present only on the detail endpoint.
 	Items  []*InvoiceItem `json:"items,omitempty"`
@@ -81,8 +87,11 @@ type Payment struct {
 	Attempt     int32     `json:"attempt"`
 	CompletedAt time.Time `json:"completed_at,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
-	ID          string    `json:"id"`
-	InvoiceID   string    `json:"invoice_id,omitempty"`
+
+	// CRN global organization-scoped payment identity.
+	CRN       string `json:"crn"`
+	ID        string `json:"id"`
+	InvoiceID string `json:"invoice_id,omitempty"`
 
 	// One of: "pending", "processing", "succeeded", "failed", "refunded".
 	Status string `json:"status"`
@@ -136,11 +145,14 @@ type PriceListResponse struct {
 
 type Transaction struct {
 	// Amount always positive; the direction lives in the type.
-	Amount        string    `json:"amount"`
-	CreatedAt     time.Time `json:"created_at"`
-	Description   string    `json:"description,omitempty"`
-	ID            string    `json:"id"`
-	ReferenceType string    `json:"reference_type,omitempty"`
+	Amount    string    `json:"amount"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// CRN global organization-scoped transaction identity.
+	CRN           string `json:"crn"`
+	Description   string `json:"description,omitempty"`
+	ID            string `json:"id"`
+	ReferenceType string `json:"reference_type,omitempty"`
 
 	// Type ledger entry type.
 	//

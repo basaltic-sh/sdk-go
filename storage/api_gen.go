@@ -20,10 +20,17 @@ import (
 // ListBucketsParams are the optional filters and pagination controls for
 // [Client.ListBuckets]. A nil *ListBucketsParams sends none of them.
 type ListBucketsParams struct {
+	// CRN Exact CRN filter. Malformed CRNs return 400; foreign accounts,
+	// regions or resource types return an empty page. Intersects all other
+	// filters.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last bucket name from the previous page.
 	Marker string
+
+	// Name exact account-scoped bucket name; an empty value matches nothing.
+	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -33,11 +40,17 @@ func (p *ListBucketsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
 	}
 	return q
 }
@@ -141,6 +154,11 @@ func (p *ListObjectsParams) query() url.Values {
 // ListSnapshotPoliciesParams are the optional filters and pagination controls for
 // [Client.ListSnapshotPolicies]. A nil *ListSnapshotPoliciesParams sends none of them.
 type ListSnapshotPoliciesParams struct {
+	// CRN Exact CRN filter. Malformed CRNs return 400; foreign accounts,
+	// regions or resource types return an empty page. Intersects all other
+	// filters.
+	CRN string
+
 	// Enabled narrow to enabled (or paused) policies.
 	Enabled *bool
 	Limit   int
@@ -148,11 +166,12 @@ type ListSnapshotPoliciesParams struct {
 	// Marker resume token — the last policy id from the previous page.
 	Marker string
 
-	// Name case-insensitive substring match on the policy name.
+	// Name exact account-scoped name match; an empty value matches nothing.
 	Name string
 
-	// VolumeID narrow the listing to the policy attached to one volume.
-	VolumeID string
+	// Volume account-owned volume UUID, CRN, or exact name. Narrows to the policy
+	// attached to that volume.
+	Volume string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -161,6 +180,9 @@ func (p *ListSnapshotPoliciesParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Enabled != nil {
 		q.Set("enabled", strconv.FormatBool(*p.Enabled))
@@ -174,8 +196,8 @@ func (p *ListSnapshotPoliciesParams) query() url.Values {
 	if p.Name != "" {
 		q.Set("name", p.Name)
 	}
-	if p.VolumeID != "" {
-		q.Set("volume_id", p.VolumeID)
+	if p.Volume != "" {
+		q.Set("volume", p.Volume)
 	}
 	return q
 }
@@ -194,17 +216,25 @@ func (p *ListSnapshotPoliciesParams) withMarker(marker string) *ListSnapshotPoli
 // ListSnapshotsParams are the optional filters and pagination controls for
 // [Client.ListSnapshots]. A nil *ListSnapshotsParams sends none of them.
 type ListSnapshotsParams struct {
+	// CRN Exact CRN filter. Malformed CRNs return 400; foreign accounts,
+	// regions or resource types return an empty page. Intersects all other
+	// filters.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last snapshot id from the previous page.
 	Marker string
 
-	// Name case-insensitive substring match on the snapshot name.
-	Name   string
-	Status SnapshotStatus
+	// Name exact snapshot name within an explicitly supplied volume filter;
+	// missing volume returns 400.
+	Name string
 
-	// VolumeID narrow the listing to snapshots of one volume.
-	VolumeID string
+	// SnapshotPolicy account-owned snapshot policy UUID, CRN, or exact name.
+	SnapshotPolicy string
+	Status         SnapshotStatus
+
+	// Volume account-owned volume UUID, CRN, or exact name.
+	Volume string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -213,6 +243,9 @@ func (p *ListSnapshotsParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -223,11 +256,14 @@ func (p *ListSnapshotsParams) query() url.Values {
 	if p.Name != "" {
 		q.Set("name", p.Name)
 	}
+	if p.SnapshotPolicy != "" {
+		q.Set("snapshot_policy", p.SnapshotPolicy)
+	}
 	if p.Status != "" {
 		q.Set("status", string(p.Status))
 	}
-	if p.VolumeID != "" {
-		q.Set("volume_id", p.VolumeID)
+	if p.Volume != "" {
+		q.Set("volume", p.Volume)
 	}
 	return q
 }
@@ -243,15 +279,46 @@ func (p *ListSnapshotsParams) withMarker(marker string) *ListSnapshotsParams {
 	return &out
 }
 
+// ListVolumeTypesParams are the optional filters and pagination controls for
+// [Client.ListVolumeTypes]. A nil *ListVolumeTypesParams sends none of them.
+type ListVolumeTypesParams struct {
+	// CRN exact regional platform volume-type CRN. Foreign or mismatched
+	// identities return an empty list.
+	CRN string
+
+	// Name exact display name, case-sensitive; an empty value matches nothing.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListVolumeTypesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
 // ListVolumesParams are the optional filters and pagination controls for
 // [Client.ListVolumes]. A nil *ListVolumesParams sends none of them.
 type ListVolumesParams struct {
+	// CRN Exact CRN filter. Malformed CRNs return 400; foreign accounts,
+	// regions or resource types return an empty page. Intersects all other
+	// filters.
+	CRN   string
 	Limit int
 
 	// Marker resume token — the last volume id from the previous page.
 	Marker string
 
-	// Name case-insensitive substring match on the volume name.
+	// Name exact account-scoped name match; an empty value matches nothing.
 	Name   string
 	Status VolumeStatus
 }
@@ -262,6 +329,9 @@ func (p *ListVolumesParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -1041,8 +1111,8 @@ func (c *Client) ListParts(ctx context.Context, bucket string, uploadID string, 
 
 // ListSnapshotPolicies lists snapshot policies.
 //
-// List snapshot policies owned by the requesting organization in the
-// target region, newest-first. Keyset-paginated by policy id (UUIDv7).
+// List snapshot policies owned by the requesting account in the target
+// region, newest-first. Keyset-paginated by policy id (UUIDv7).
 //
 // Returns one page. Use ListSnapshotPoliciesAll to walk every page.
 func (c *Client) ListSnapshotPolicies(ctx context.Context, params *ListSnapshotPoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[SnapshotPolicy], error) {
@@ -1097,9 +1167,9 @@ func (c *Client) ListSnapshotPoliciesAll(ctx context.Context, params *ListSnapsh
 
 // ListSnapshots lists snapshots.
 //
-// List snapshots owned by the requesting organization in the target
-// region, newest-first. Optional `volume_id` narrows to one volume's
-// snapshots. Keyset-paginated by snapshot id (UUIDv7).
+// List snapshots owned by the requesting account in the target region,
+// newest-first. Optional `volume` narrows to one volume's snapshots.
+// Keyset-paginated by snapshot id (UUIDv7).
 //
 // Returns one page. Use ListSnapshotsAll to walk every page.
 func (c *Client) ListSnapshots(ctx context.Context, params *ListSnapshotsParams, opts ...basaltic.RequestOption) (*basaltic.Page[Snapshot], error) {
@@ -1153,12 +1223,13 @@ func (c *Client) ListSnapshotsAll(ctx context.Context, params *ListSnapshotsPara
 }
 
 // ListVolumeTypes lists volume types.
-func (c *Client) ListVolumeTypes(ctx context.Context, opts ...basaltic.RequestOption) (*basaltic.Page[VolumeType], error) {
+func (c *Client) ListVolumeTypes(ctx context.Context, params *ListVolumeTypesParams, opts ...basaltic.RequestOption) (*basaltic.Page[VolumeType], error) {
 	op := &basaltic.Operation{
 		ID:     "listVolumeTypes",
 		Method: "GET",
 		Path:   "/v1/volume-types",
 	}
+	op.Query = params.query()
 	var out struct {
 		Items []VolumeType `json:"volume_types"`
 	}
@@ -1171,10 +1242,10 @@ func (c *Client) ListVolumeTypes(ctx context.Context, opts ...basaltic.RequestOp
 
 // ListVolumes lists volumes.
 //
-// List volumes owned by the requesting organization in the target
-// region, newest-first. Keyset-paginated by volume id (UUIDv7 sorts by
-// creation time) — pass the last id from the previous page as `marker`
-// to fetch the next.
+// List volumes owned by the requesting account in the target region,
+// newest-first. Keyset-paginated by volume id (UUIDv7 sorts by creation
+// time) — pass the last id from the previous page as `marker` to fetch
+// the next.
 //
 // Returns one page. Use ListVolumesAll to walk every page.
 func (c *Client) ListVolumes(ctx context.Context, params *ListVolumesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Volume], error) {
@@ -1409,7 +1480,7 @@ func (c *Client) RestoreBucket(ctx context.Context, bucket string, opts ...basal
 
 // UpdateSnapshot updates snapshot metadata.
 //
-// Update the snapshot's name or description.
+// Update the snapshot's description. Its name is immutable.
 func (c *Client) UpdateSnapshot(ctx context.Context, snapshotID string, body *SnapshotUpdateRequest, opts ...basaltic.RequestOption) (*Snapshot, error) {
 	op := &basaltic.Operation{
 		ID:       "updateSnapshot",
@@ -1450,7 +1521,7 @@ func (c *Client) UpdateSnapshotPolicy(ctx context.Context, policyID string, body
 
 // UpdateVolume updates volume metadata.
 //
-// Update the volume's name or description.
+// Update the volume's description. Its name is immutable.
 func (c *Client) UpdateVolume(ctx context.Context, volumeID string, body *VolumeUpdateRequest, opts ...basaltic.RequestOption) (*Volume, error) {
 	op := &basaltic.Operation{
 		ID:       "updateVolume",

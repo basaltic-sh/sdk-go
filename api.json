@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "services": [
     {
       "name": "audit",
@@ -58,6 +58,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Filter by actor type One of: \"user\", \"service_account\", \"system\""
+            },
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact audit event CRN (crn:audit:::log/UUID)"
             },
             {
               "wire": "from",
@@ -187,6 +194,13 @@
           "params_type": "ListCreditsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact organization-scoped credit CRN"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -217,6 +231,13 @@
           "params_type": "ListInvoicesParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact organization-scoped invoice CRN"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -246,6 +267,13 @@
           "verb": "list",
           "params_type": "ListPaymentsParams",
           "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact organization-scoped payment CRN"
+            },
             {
               "wire": "limit",
               "go_name": "Limit",
@@ -324,6 +352,13 @@
           "verb": "list",
           "params_type": "ListTransactionsParams",
           "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact organization-scoped transaction CRN"
+            },
             {
               "wire": "limit",
               "go_name": "Limit",
@@ -797,7 +832,7 @@
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
-              "doc": "Movable tag name (e.g"
+              "doc": "Immutable image name (e.g"
             },
             {
               "wire": "os",
@@ -868,7 +903,7 @@
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Architecture for bare image names; a CRN pins its architecture"
+              "doc": "Architecture for image names and name:version tags (default amd64); a CRN pins its own architecture and version"
             },
             {
               "wire": "description",
@@ -1657,7 +1692,7 @@
               "go_name": "Flavor",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by flavor reference (UUID, CRN or name; images also accept name:version)"
+              "doc": "Filter by regional flavor reference (UUID, CRN or exact name)"
             },
             {
               "wire": "image",
@@ -2060,14 +2095,6 @@
               "go_name": "Metadata",
               "go_type": "Metadata",
               "flag_kind": "json"
-            },
-            {
-              "wire": "name",
-              "go_name": "Name",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -2563,6 +2590,13 @@
           "params_type": "ListRecordsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact nested record CRN"
+            },
+            {
               "wire": "include_managed",
               "go_name": "IncludeManaged",
               "go_type": "*bool",
@@ -2616,6 +2650,23 @@
               "wire": "zone_id",
               "go_name": "zoneID",
               "doc": "DNS Zone ID"
+            }
+          ],
+          "params_type": "ListZoneVPCAssociationsParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact associated VPC CRN in the configured DNS region"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact name of an associated VPC"
             }
           ],
           "result_kind": "page",
@@ -2758,7 +2809,7 @@
       "name": "iam",
       "package": "iam",
       "title": "Basaltic IAM API",
-      "description": "Identity for the platform: organizations, accounts, users, groups,\nservice accounts, roles and policies, together with the sign-in flows and\nthe temporary STS credentials every other Basaltic API authenticates\nagainst.",
+      "description": "Identity for the platform: organizations, accounts, users, groups,\nservice accounts, roles and policies, together with the sign-in flows and\nthe temporary STS credentials every other Basaltic API authenticates\nagainst.\n\nRelationship inputs are classified once as CRN, UUID or name. A lookup\nnever falls back to another syntax. Policy, role and group names are\nimmutable. Their organization CRNs use empty region and account slots;\nsystem policies use crn:iam::platform:policy/\u003cname\u003e. Bare policy names\nselect only organization policies. UUID path and response identity fields\nretain their existing meaning.\n\nEvery resource list accepts exact name and crn filters, combined with AND\nbefore pagination. A mismatched or foreign CRN returns an empty page.\nOrganization-scoped CRNs resolve only in the authenticated organization.",
       "endpoint_template": "https://iam.basaltic.sh",
       "regional": false,
       "operations": [
@@ -2781,9 +2832,9 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "group_id",
-              "go_name": "GroupID",
-              "go_type": "string",
+              "wire": "group",
+              "go_name": "Group",
+              "go_type": "GroupReference",
               "flag_kind": "string",
               "required": true
             }
@@ -2811,11 +2862,11 @@
               "doc": "Email of the user to add"
             },
             {
-              "wire": "group_ids",
-              "go_name": "GroupIDs",
-              "go_type": "[]string",
-              "flag_kind": "stringSlice",
-              "doc": "IDs of groups to add the user to"
+              "wire": "groups",
+              "go_name": "Groups",
+              "go_type": "[]GroupReference",
+              "flag_kind": "json",
+              "doc": "Groups to assign when the invitation is accepted"
             },
             {
               "wire": "tags",
@@ -2847,9 +2898,9 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "group_id",
-              "go_name": "GroupID",
-              "go_type": "string",
+              "wire": "group",
+              "go_name": "Group",
+              "go_type": "GroupReference",
               "flag_kind": "string",
               "required": true
             }
@@ -2884,9 +2935,9 @@
               "pointer": true
             },
             {
-              "wire": "role_id",
-              "go_name": "RoleID",
-              "go_type": "string",
+              "wire": "role",
+              "go_name": "Role",
+              "go_type": "RoleReference",
               "flag_kind": "string",
               "required": true
             }
@@ -2906,12 +2957,11 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "account_id",
-              "go_name": "AccountID",
-              "go_type": "string",
+              "wire": "account",
+              "go_name": "Account",
+              "go_type": "AccountReference",
               "flag_kind": "string",
-              "required": true,
-              "doc": "The account the resulting credentials act in — the ownership scope stamped on the session, the same scope a signed request selects with X-Account-Id"
+              "required": true
             },
             {
               "wire": "duration_seconds",
@@ -2922,12 +2972,11 @@
               "doc": "Credential validity duration (15 min to 12 hours)"
             },
             {
-              "wire": "role_id",
-              "go_name": "RoleID",
-              "go_type": "string",
+              "wire": "role",
+              "go_name": "Role",
+              "go_type": "RoleReference",
               "flag_kind": "string",
-              "required": true,
-              "doc": "The role to assume"
+              "required": true
             },
             {
               "wire": "session_name",
@@ -2968,9 +3017,9 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "policy_id",
-              "go_name": "PolicyID",
-              "go_type": "string",
+              "wire": "policy",
+              "go_name": "Policy",
+              "go_type": "PolicyReference",
               "flag_kind": "string",
               "required": true
             }
@@ -2997,9 +3046,9 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "policy_id",
-              "go_name": "PolicyID",
-              "go_type": "string",
+              "wire": "policy",
+              "go_name": "Policy",
+              "go_type": "PolicyReference",
               "flag_kind": "string",
               "required": true
             }
@@ -3026,9 +3075,9 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "policy_id",
-              "go_name": "PolicyID",
-              "go_type": "string",
+              "wire": "policy",
+              "go_name": "Policy",
+              "go_type": "PolicyReference",
               "flag_kind": "string",
               "required": true
             }
@@ -3055,9 +3104,9 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "policy_id",
-              "go_name": "PolicyID",
-              "go_type": "string",
+              "wire": "policy",
+              "go_name": "Policy",
+              "go_type": "PolicyReference",
               "flag_kind": "string",
               "required": true
             }
@@ -3104,12 +3153,11 @@
               "doc": "S256 only"
             },
             {
-              "wire": "organization_id",
-              "go_name": "OrganizationID",
-              "go_type": "string",
+              "wire": "organization",
+              "go_name": "Organization",
+              "go_type": "OrganizationReference",
               "flag_kind": "string",
-              "required": true,
-              "doc": "Which organization the resulting session is scoped to"
+              "required": true
             },
             {
               "wire": "redirect_uri",
@@ -4078,6 +4126,13 @@
           "params_type": "ListAccountsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -4090,6 +4145,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4111,6 +4173,23 @@
               "go_name": "groupID"
             }
           ],
+          "params_type": "ListGroupInlinePoliciesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[InlinePolicy]",
           "item_type": "InlinePolicy"
@@ -4128,6 +4207,23 @@
               "wire": "group_id",
               "go_name": "groupID",
               "doc": "Group ID"
+            }
+          ],
+          "params_type": "ListGroupPoliciesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4152,6 +4248,13 @@
           "params_type": "ListGroupServiceAccountsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -4164,6 +4267,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4189,6 +4299,13 @@
           "params_type": "ListGroupUsersParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -4201,6 +4318,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4219,6 +4343,13 @@
           "params_type": "ListGroupsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -4237,7 +4368,7 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by name (exact match or prefix with *)"
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4256,65 +4387,12 @@
           "params_type": "ListInvitationsParams",
           "params": [
             {
-              "wire": "limit",
-              "go_name": "Limit",
-              "go_type": "int",
-              "flag_kind": "int",
-              "doc": "Maximum number of items to return"
-            },
-            {
-              "wire": "marker",
-              "go_name": "Marker",
+              "wire": "crn",
+              "go_name": "CRN",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Opaque pagination cursor"
-            }
-          ],
-          "result_kind": "page",
-          "result_type": "*basaltic.Page[Invitation]",
-          "item_type": "Invitation",
-          "paginated": true
-        },
-        {
-          "id": "listOrganizations",
-          "go_name": "ListOrganizations",
-          "method": "GET",
-          "path": "/v1/organizations",
-          "summary": "List organizations",
-          "resource": "organization",
-          "verb": "list",
-          "params_type": "ListOrganizationsParams",
-          "params": [
-            {
-              "wire": "limit",
-              "go_name": "Limit",
-              "go_type": "int",
-              "flag_kind": "int",
-              "doc": "Maximum number of items to return"
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
             },
-            {
-              "wire": "marker",
-              "go_name": "Marker",
-              "go_type": "string",
-              "flag_kind": "string",
-              "doc": "Opaque pagination cursor"
-            }
-          ],
-          "result_kind": "page",
-          "result_type": "*basaltic.Page[OrganizationWithMembership]",
-          "item_type": "OrganizationWithMembership",
-          "paginated": true
-        },
-        {
-          "id": "listPolicies",
-          "go_name": "ListPolicies",
-          "method": "GET",
-          "path": "/v1/policies",
-          "summary": "List policies",
-          "resource": "policy",
-          "verb": "list",
-          "params_type": "ListPoliciesParams",
-          "params": [
             {
               "wire": "limit",
               "go_name": "Limit",
@@ -4334,7 +4412,95 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by name (exact match or prefix with *)"
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            }
+          ],
+          "result_kind": "page",
+          "result_type": "*basaltic.Page[Invitation]",
+          "item_type": "Invitation",
+          "paginated": true
+        },
+        {
+          "id": "listOrganizations",
+          "go_name": "ListOrganizations",
+          "method": "GET",
+          "path": "/v1/organizations",
+          "summary": "List organizations",
+          "resource": "organization",
+          "verb": "list",
+          "params_type": "ListOrganizationsParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "limit",
+              "go_name": "Limit",
+              "go_type": "int",
+              "flag_kind": "int",
+              "doc": "Maximum number of items to return"
+            },
+            {
+              "wire": "marker",
+              "go_name": "Marker",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            }
+          ],
+          "result_kind": "page",
+          "result_type": "*basaltic.Page[OrganizationWithMembership]",
+          "item_type": "OrganizationWithMembership",
+          "paginated": true
+        },
+        {
+          "id": "listPolicies",
+          "go_name": "ListPolicies",
+          "method": "GET",
+          "path": "/v1/policies",
+          "summary": "List policies",
+          "resource": "policy",
+          "verb": "list",
+          "params_type": "ListPoliciesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "limit",
+              "go_name": "Limit",
+              "go_type": "int",
+              "flag_kind": "int",
+              "doc": "Maximum number of items to return"
+            },
+            {
+              "wire": "marker",
+              "go_name": "Marker",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4360,6 +4526,13 @@
           "params_type": "ListPolicyGroupsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -4372,6 +4545,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4397,6 +4577,13 @@
           "params_type": "ListPolicyRolesParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -4409,6 +4596,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4434,6 +4628,13 @@
           "params_type": "ListPolicyServiceAccountsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -4446,6 +4647,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4471,6 +4679,13 @@
           "params_type": "ListPolicyUsersParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -4483,6 +4698,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4498,6 +4720,23 @@
           "summary": "List regions",
           "resource": "region",
           "verb": "list",
+          "params_type": "ListRegionsParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            }
+          ],
           "result_kind": "value",
           "result_type": "*ListRegionsResult"
         },
@@ -4513,6 +4752,23 @@
             {
               "wire": "role_id",
               "go_name": "roleID"
+            }
+          ],
+          "params_type": "ListRoleInlinePoliciesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4534,6 +4790,23 @@
               "doc": "Role ID"
             }
           ],
+          "params_type": "ListRolePoliciesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[Policy]",
           "item_type": "Policy"
@@ -4548,6 +4821,13 @@
           "verb": "list",
           "params_type": "ListRolesParams",
           "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
             {
               "wire": "limit",
               "go_name": "Limit",
@@ -4567,7 +4847,7 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by name (exact match or prefix with *)"
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4594,6 +4874,13 @@
               "doc": "Only show active (non-expired, non-revoked) sessions"
             },
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -4608,11 +4895,18 @@
               "doc": "Opaque pagination cursor"
             },
             {
-              "wire": "principal_id",
-              "go_name": "PrincipalID",
+              "wire": "name",
+              "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by principal ID (user or service account)"
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            },
+            {
+              "wire": "principal",
+              "go_name": "Principal",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Principal reference; principal_type is required"
             },
             {
               "wire": "principal_type",
@@ -4622,11 +4916,11 @@
               "doc": "Filter by principal type"
             },
             {
-              "wire": "role_id",
-              "go_name": "RoleID",
+              "wire": "role",
+              "go_name": "Role",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by role ID"
+              "doc": "Role UUID, immutable name, or organization-scoped role CRN"
             }
           ],
           "result_kind": "page",
@@ -4649,6 +4943,23 @@
               "doc": "Service Account ID"
             }
           ],
+          "params_type": "ListServiceAccountCredentialsParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[Credential]",
           "item_type": "Credential"
@@ -4668,6 +4979,23 @@
               "doc": "Service Account ID"
             }
           ],
+          "params_type": "ListServiceAccountGroupsParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[Group]",
           "item_type": "Group"
@@ -4684,6 +5012,23 @@
             {
               "wire": "service_account_id",
               "go_name": "serviceAccountID"
+            }
+          ],
+          "params_type": "ListServiceAccountInlinePoliciesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4705,6 +5050,23 @@
               "doc": "Service Account ID"
             }
           ],
+          "params_type": "ListServiceAccountPoliciesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[Policy]",
           "item_type": "Policy"
@@ -4719,6 +5081,13 @@
           "verb": "list",
           "params_type": "ListServiceAccountsParams",
           "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
             {
               "wire": "limit",
               "go_name": "Limit",
@@ -4738,7 +5107,7 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by name (exact match or prefix with *)"
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4761,6 +5130,23 @@
               "doc": "User ID"
             }
           ],
+          "params_type": "ListUserGroupsParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[Group]",
           "item_type": "Group"
@@ -4777,6 +5163,23 @@
             {
               "wire": "user_id",
               "go_name": "userID"
+            }
+          ],
+          "params_type": "ListUserInlinePoliciesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -4798,6 +5201,23 @@
               "doc": "User ID"
             }
           ],
+          "params_type": "ListUserPoliciesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[Policy]",
           "item_type": "Policy"
@@ -4812,6 +5232,13 @@
           "verb": "list",
           "params_type": "ListUsersParams",
           "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
             {
               "wire": "limit",
               "go_name": "Limit",
@@ -4831,7 +5258,7 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Filter by name (exact match or prefix with *)"
+              "doc": "Exact resource name, combined with crn using AND before pagination"
             }
           ],
           "result_kind": "page",
@@ -5158,9 +5585,9 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "policy_id",
-              "go_name": "PolicyID",
-              "go_type": "string",
+              "wire": "policy",
+              "go_name": "Policy",
+              "go_type": "PolicyReference",
               "flag_kind": "string",
               "required": true
             }
@@ -5185,9 +5612,9 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "policy_id",
-              "go_name": "PolicyID",
-              "go_type": "string",
+              "wire": "policy",
+              "go_name": "Policy",
+              "go_type": "PolicyReference",
               "flag_kind": "string",
               "required": true
             }
@@ -5212,9 +5639,9 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "policy_id",
-              "go_name": "PolicyID",
-              "go_type": "string",
+              "wire": "policy",
+              "go_name": "Policy",
+              "go_type": "PolicyReference",
               "flag_kind": "string",
               "required": true
             }
@@ -5280,14 +5707,6 @@
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
-            },
-            {
-              "wire": "name",
-              "go_name": "Name",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             }
           ],
           "result_kind": "value",
@@ -5370,14 +5789,6 @@
               "pointer": true
             },
             {
-              "wire": "name",
-              "go_name": "Name",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
-            },
-            {
               "wire": "tags",
               "go_name": "Tags",
               "go_type": "Tags",
@@ -5411,14 +5822,6 @@
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
-            },
-            {
-              "wire": "name",
-              "go_name": "Name",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
             },
             {
               "wire": "tags",
@@ -6981,7 +7384,7 @@
           "go_name": "UpdateTargetGroup",
           "method": "PATCH",
           "path": "/v1/target-groups/{id}",
-          "summary": "Rename a target group or retune its health check, framing, or stickiness",
+          "summary": "Update target group health checks, framing, or stickiness",
           "resource": "target-group",
           "verb": "update",
           "path_params": [
@@ -9373,6 +9776,13 @@
           "params_type": "ListVersionsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact secret/name/version/number CRN; foreign or mismatched identities return an empty page"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -9479,7 +9889,7 @@
       "name": "storage",
       "package": "storage",
       "title": "Basaltic Storage API",
-      "description": "Block volumes with their snapshots and snapshot policies, plus bucket\nmanagement for object storage. The S3 wire protocol itself is served\nseparately at `objects.{region}.basaltic.cloud`.",
+      "description": "Storage references accept UUIDs, CRNs, or scoped names in one field. Snapshot names require a fixed volume; source_snapshot accepts UUID or nested CRN only.\nBlock volumes with their snapshots and snapshot policies, plus bucket\nmanagement for object storage. The S3 wire protocol itself is served\nseparately at `objects.{region}.basaltic.cloud`.",
       "endpoint_template": "https://storage.{region}.basaltic.sh",
       "regional": true,
       "operations": [
@@ -9602,11 +10012,12 @@
               "flag_kind": "json"
             },
             {
-              "wire": "volume_id",
-              "go_name": "VolumeID",
+              "wire": "volume",
+              "go_name": "Volume",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Account-owned volume UUID, CRN, or exact name"
             }
           ],
           "result_kind": "value",
@@ -9675,11 +10086,12 @@
               "flag_kind": "json"
             },
             {
-              "wire": "volume_id",
-              "go_name": "VolumeID",
+              "wire": "volume",
+              "go_name": "Volume",
               "go_type": "string",
               "flag_kind": "string",
-              "required": true
+              "required": true,
+              "doc": "Account-owned volume UUID, CRN, or exact name"
             }
           ],
           "result_kind": "value",
@@ -9697,6 +10109,14 @@
           "body_type": "*VolumeCreateRequest",
           "body_kind": "json",
           "body_fields": [
+            {
+              "wire": "architecture",
+              "go_name": "Architecture",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "Architecture used for source_image name resolution"
+            },
             {
               "wire": "bootable",
               "go_name": "Bootable",
@@ -9727,20 +10147,20 @@
               "required": true
             },
             {
-              "wire": "source_image_id",
-              "go_name": "SourceImageID",
+              "wire": "source_image",
+              "go_name": "SourceImage",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Reserved: when supplied, the volume will be provisioned as a clone of the referenced image's base snapshot"
+              "doc": "Image UUID, name, name:version, or full CRN image/\u003cname\u003e/architecture/\u003carch\u003e/version/\u003cversion\u003e"
             },
             {
-              "wire": "source_snapshot_id",
-              "go_name": "SourceSnapshotID",
+              "wire": "source_snapshot",
+              "go_name": "SourceSnapshot",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Clone the new volume from an existing snapshot (restore)"
+              "doc": "Clone from an available account-owned snapshot UUID or nested CRN volume/\u003cvolume-name\u003e/snapshot/\u003csnapshot-name\u003e"
             },
             {
               "wire": "tags",
@@ -10269,6 +10689,13 @@
           "params_type": "ListBucketsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN filter"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -10280,6 +10707,13 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "Resume token — the last bucket name from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact account-scoped bucket name; an empty value matches nothing"
             }
           ],
           "result_kind": "page",
@@ -10440,6 +10874,13 @@
           "params_type": "ListSnapshotPoliciesParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN filter"
+            },
+            {
               "wire": "enabled",
               "go_name": "Enabled",
               "go_type": "*bool",
@@ -10465,14 +10906,14 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Case-insensitive substring match on the policy name"
+              "doc": "Exact account-scoped name match; an empty value matches nothing"
             },
             {
-              "wire": "volume_id",
-              "go_name": "VolumeID",
+              "wire": "volume",
+              "go_name": "Volume",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Narrow the listing to the policy attached to one volume"
+              "doc": "Account-owned volume UUID, CRN, or exact name"
             }
           ],
           "result_kind": "page",
@@ -10491,6 +10932,13 @@
           "params_type": "ListSnapshotsParams",
           "params": [
             {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN filter"
+            },
+            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -10508,7 +10956,14 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Case-insensitive substring match on the snapshot name"
+              "doc": "Exact snapshot name within an explicitly supplied volume filter; missing volume returns 400"
+            },
+            {
+              "wire": "snapshot_policy",
+              "go_name": "SnapshotPolicy",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Account-owned snapshot policy UUID, CRN, or exact name"
             },
             {
               "wire": "status",
@@ -10523,11 +10978,11 @@
               ]
             },
             {
-              "wire": "volume_id",
-              "go_name": "VolumeID",
+              "wire": "volume",
+              "go_name": "Volume",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Narrow the listing to snapshots of one volume"
+              "doc": "Account-owned volume UUID, CRN, or exact name"
             }
           ],
           "result_kind": "page",
@@ -10543,6 +10998,23 @@
           "summary": "List volume types",
           "resource": "volume-type",
           "verb": "list",
+          "params_type": "ListVolumeTypesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact regional platform volume-type CRN"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact display name, case-sensitive; an empty value matches nothing"
+            }
+          ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[VolumeType]",
           "item_type": "VolumeType"
@@ -10557,6 +11029,13 @@
           "verb": "list",
           "params_type": "ListVolumesParams",
           "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN filter"
+            },
             {
               "wire": "limit",
               "go_name": "Limit",
@@ -10575,7 +11054,7 @@
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Case-insensitive substring match on the volume name"
+              "doc": "Exact account-scoped name match; an empty value matches nothing"
             },
             {
               "wire": "status",

@@ -11,6 +11,18 @@
 // and the temporary STS credentials every other Basaltic API
 // authenticates against.
 //
+// Relationship inputs are classified once as CRN, UUID or name. A lookup
+// never falls back to another syntax. Policy, role and group names are
+// immutable. Their organization CRNs use empty region and account slots;
+// system policies use crn:iam::platform:policy/<name>. Bare policy names
+// select only organization policies. UUID path and response identity
+// fields retain their existing meaning.
+//
+// Every resource list accepts exact name and crn filters, combined with
+// AND before pagination. A mismatched or foreign CRN returns an empty
+// page. Organization-scoped CRNs resolve only in the authenticated
+// organization.
+//
 // Build a client from a shared [basaltic.Config]:
 //
 //	c := iam.New(cfg)

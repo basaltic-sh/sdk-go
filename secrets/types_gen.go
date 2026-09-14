@@ -101,6 +101,7 @@ type SecretVersion struct {
 	// CreatedBy CRN of the principal that created this version (e.g.
 	// crn:iam:::user/<id>, crn:iam:::service-account/<id>).
 	CreatedBy string `json:"created_by,omitempty"`
+	CRN       string `json:"crn"`
 	ID        string `json:"id"`
 	IsCurrent bool   `json:"is_current"`
 	Version   int    `json:"version"`

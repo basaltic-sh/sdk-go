@@ -19,8 +19,8 @@ import (
 // [Client.ListKeys]. A nil *ListKeysParams sends none of them.
 type ListKeysParams struct {
 	// CRN Exact KMS key CRN in the authenticated account and current region.
-	// Invalid, foreign or mismatched CRNs return an empty page. Combined
-	// with name and state filters.
+	// Malformed or empty CRNs return 400; valid foreign or mismatched CRNs
+	// return an empty page. Combined with name and state filters.
 	CRN   string
 	Limit int
 
@@ -339,8 +339,8 @@ func (c *Client) Sign(ctx context.Context, keyID string, body *SignRequest, opts
 
 // UpdateKey updates key metadata.
 //
-// Partial update of name, description, and tags. The key must not be in
-// state=pending_deletion — cancel deletion first.
+// Partial update of description and tags. The name is immutable. The key
+// must not be in state=pending_deletion — cancel deletion first.
 func (c *Client) UpdateKey(ctx context.Context, keyID string, body *UpdateKeyRequest, opts ...basaltic.RequestOption) (*Key, error) {
 	op := &basaltic.Operation{
 		ID:       "updateKey",
