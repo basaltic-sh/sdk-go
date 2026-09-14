@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "services": [
     {
       "name": "audit",
@@ -829,22 +829,6 @@
               "flag_kind": "string",
               "pointer": true,
               "doc": "The day this release stops receiving free security updates"
-            },
-            {
-              "wire": "format",
-              "go_name": "Format",
-              "go_type": "string",
-              "flag_kind": "string",
-              "required": true,
-              "enum": [
-                "qcow2",
-                "raw",
-                "vmdk",
-                "vhd",
-                "vhdx",
-                "vdi"
-              ],
-              "doc": "Source disk format at source_url; converted to the raw base on import"
             },
             {
               "wire": "min_disk_gb",

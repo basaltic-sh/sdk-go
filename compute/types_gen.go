@@ -348,13 +348,10 @@ type Image struct {
 	// this date. They stay bootable by id until then, and the date is
 	// published well ahead of it so you can plan the move.
 	EOLDate string `json:"eol_date,omitempty"`
+	ID      string `json:"id"`
 
-	// One of: "qcow2", "raw", "vmdk", "vhd", "vhdx", "vdi".
-	Format string `json:"format"`
-	ID     string `json:"id"`
-
-	// ImportError for a qcow2 upload that failed conversion (status=error), the
-	// reason. Absent otherwise.
+	// ImportError for a failed image import (status=error), the reason. Absent
+	// otherwise.
 	ImportError string `json:"import_error,omitempty"`
 
 	// IsCurrent whether this is the version resolve-by-name returns for its (name,
@@ -397,17 +394,9 @@ type ImageCreateRequest struct {
 	// EOLDate the day this release stops receiving free security updates. Omit it
 	// and the image inherits the date the name's current version carries,
 	// so re-publishing a tag can't quietly stop tracking its release.
-	EOLDate *string `json:"eol_date,omitempty"`
-
-	// Format source disk format at source_url; converted to the raw base on
-	// import.
-	//
-	// One of: "qcow2", "raw", "vmdk", "vhd", "vhdx", "vdi".
-	//
-	// Required.
-	Format    string `json:"format"`
-	MinDiskGB *int   `json:"min_disk_gb,omitempty"`
-	MinRAMMB  *int   `json:"min_ram_mb,omitempty"`
+	EOLDate   *string `json:"eol_date,omitempty"`
+	MinDiskGB *int    `json:"min_disk_gb,omitempty"`
+	MinRAMMB  *int    `json:"min_ram_mb,omitempty"`
 
 	// Name immutable image name (e.g. debian-13) whose current-version pointer
 	// can move; the new image becomes its current version. Names are
@@ -423,7 +412,10 @@ type ImageCreateRequest struct {
 
 	// SourceURL presigned https GET URL to the disk in an object store you control.
 	// Fetched once by the import worker (which rejects private/link-local
-	// targets). Not retained after import.
+	// targets). The worker detects qcow2, raw, vmdk, vhd, vhdx or vdi and
+	// converts it to raw storage. Unreadable or unsupported sources and
+	// images declaring backing files fail asynchronously with status error
+	// and import_error. Not retained after import.
 	//
 	// Required.
 	SourceURL string `json:"source_url"`
@@ -743,9 +735,11 @@ type InstancePoolFloatingIPAttachRequest struct {
 type InstancePoolTemplate struct {
 	FlavorID string `json:"flavor_id,omitempty"`
 
-	// IAMRoleID IAM role attached to every replica, reachable from its IMDS
-	// endpoint.
-	IAMRoleID string `json:"iam_role_id,omitempty"`
+	// IAMRole summary of the IAM role attached to every replica, visible with pool
+	// read access without iam:GetRole. Omitted when no role is attached,
+	// the role was deleted, or it belongs to another organization.
+	// Sensitive role fields remain available only through the IAM API.
+	IAMRole *InstanceRole `json:"iam_role,omitempty"`
 
 	// ImageID resolved image UUID pinned for every replica until template
 	// replacement.

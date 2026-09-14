@@ -14,24 +14,26 @@ type AuditLog struct {
 	// Action the action performed (e.g., "iam.policy.create", "instance.start")
 	Action string `json:"action,omitempty"`
 
+	// ActorCRN immutable event-time actor identity. Null for historical entries
+	// without a snapshot. Users use crn:iam:::user/<uuid>; service
+	// accounts use crn:iam:::service-account/<name>; assumed roles use
+	// crn:iam:::role/<name>. System actors use
+	// crn:iam::platform:system/<service>, with service names certificate,
+	// registry, secrets, queue, notifications and email.
+	ActorCRN string `json:"actor_crn,omitempty"`
+
 	// ActorEmail email of the actor (for users only)
 	ActorEmail string `json:"actor_email,omitempty"`
-
-	// ActorID ID of the user or service account that performed the action
-	ActorID string `json:"actor_id,omitempty"`
 
 	// ActorName name of the actor at the time of the event
 	ActorName string `json:"actor_name,omitempty"`
 
-	// ActorType type of actor
-	//
-	// One of: "user", "service_account", "system".
-	ActorType string `json:"actor_type,omitempty"`
-
 	// CRN canonical event identity, scoped to the authenticated organization.
 	CRN string `json:"crn,omitempty"`
 
-	// Details additional action-specific details
+	// Details additional action-specific details. For assumed-role actors,
+	// actor_session_crn records crn:iam:::sts-session/<id> to correlate
+	// the event with its AssumeRole call.
 	Details map[string]any `json:"details,omitempty"`
 
 	// ErrorCode error code for failed actions
@@ -44,20 +46,19 @@ type AuditLog struct {
 	// IPAddress IP address of the request origin
 	IPAddress string `json:"ip_address,omitempty"`
 
-	// OrganizationID organization context of the action
-	OrganizationID string `json:"organization_id,omitempty"`
-
 	// RequestID Request ID for correlation
 	RequestID string `json:"request_id,omitempty"`
 
-	// ResourceID ID of the resource affected
-	ResourceID string `json:"resource_id,omitempty"`
+	// ResourceCRN immutable event-time resource identity. Null for historical entries
+	// without a snapshot and enumerated events whose target cannot be
+	// identified from event-time data, such as an unknown-email password
+	// reset or a lookup that never resolved a row. A known target UUID is
+	// retained in details.resource_id; it is never substituted for the
+	// immutable name in a CRN.
+	ResourceCRN string `json:"resource_crn,omitempty"`
 
 	// ResourceName name of the resource at the time of the event
 	ResourceName string `json:"resource_name,omitempty"`
-
-	// ResourceType type of resource affected
-	ResourceType string `json:"resource_type,omitempty"`
 
 	// Status outcome of the action
 	//
