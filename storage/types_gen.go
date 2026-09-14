@@ -132,6 +132,25 @@ type EncryptionRuleDefault struct {
 	SseAlgorithm   string `json:"sse_algorithm"`
 }
 
+type Fault struct {
+	// Code stable machine-readable code owned by the reporting operation.
+	Code string `json:"code"`
+
+	// Details structured context; legacy strings are preserved in legacy_text.
+	Details map[string]any `json:"details"`
+
+	// FirstAt first observation in this active occurrence series.
+	FirstAt time.Time `json:"first_at"`
+
+	// LastAt latest observation in this active occurrence series.
+	LastAt      time.Time `json:"last_at"`
+	Message     string    `json:"message"`
+	Occurrences int       `json:"occurrences"`
+
+	// One of: "error", "warning".
+	Severity string `json:"severity"`
+}
+
 type InitiateMultipartUploadRequest struct {
 	ContentType *string `json:"content_type,omitempty"`
 
@@ -367,9 +386,11 @@ type Snapshot struct {
 	CRN         string `json:"crn,omitempty"`
 	Description string `json:"description,omitempty"`
 
-	// ErrorMessage last failure reason. Empty unless status=error.
-	ErrorMessage string `json:"error_message,omitempty"`
-	ID           string `json:"id,omitempty"`
+	// Faults active faults, newest first. Empty when healthy. Status is error if
+	// and only if an active error-severity fault exists. Resolved history
+	// is retained internally.
+	Faults []*Fault `json:"faults"`
+	ID     string   `json:"id,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -443,13 +464,15 @@ type SnapshotPolicy struct {
 	// Enabled disabling pauses the whole policy — no scheduled snapshots and no
 	// retention. A paused schedule that kept reaping would delete history
 	// while you were looking at it.
-	Enabled         bool                    `json:"enabled,omitempty"`
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Faults active warning faults, newest first; empty when healthy. Policies
+	// have no error status and faults never change enabled. Execution and
+	// retention recover independently; resolved history is retained
+	// internally.
+	Faults          []*Fault                `json:"faults"`
 	ID              string                  `json:"id,omitempty"`
 	IntervalMinutes SnapshotIntervalMinutes `json:"interval_minutes,omitempty"`
-
-	// LastError why the most recent fire produced no snapshot (quota exhausted,
-	// volume mid-extend, …). Absent when the last fire succeeded.
-	LastError string `json:"last_error,omitempty"`
 
 	// LastRunAt when the policy last fired. Absent until the first fire.
 	LastRunAt time.Time `json:"last_run_at,omitempty"`
@@ -576,9 +599,11 @@ type Volume struct {
 	CRN         string `json:"crn,omitempty"`
 	Description string `json:"description,omitempty"`
 
-	// ErrorMessage last failure reason. Empty unless status=error.
-	ErrorMessage string `json:"error_message,omitempty"`
-	ID           string `json:"id,omitempty"`
+	// Faults active faults, newest first. Empty when healthy. Status is error if
+	// and only if an active error-severity fault exists. Resolved history
+	// is retained internally.
+	Faults []*Fault `json:"faults"`
+	ID     string   `json:"id,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
