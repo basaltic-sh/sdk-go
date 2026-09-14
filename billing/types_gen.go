@@ -145,10 +145,17 @@ type Transaction struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	// CRN global organization-scoped transaction identity.
-	CRN           string `json:"crn"`
-	Description   string `json:"description,omitempty"`
-	ID            string `json:"id"`
-	ReferenceType string `json:"reference_type,omitempty"`
+	CRN         string `json:"crn"`
+	Description string `json:"description,omitempty"`
+	ID          string `json:"id"`
+
+	// Reference organization-scoped reference to the ledger entry's target:
+	// crn:billing:::invoice/<id>, crn:billing:::payment/<id>, or
+	// crn:billing:::credit/<id> for a credit grant. Pass this CRN to the
+	// corresponding collection's crn filter within the authenticated
+	// organization. Null for manual entries, unsupported reference types,
+	// or missing references.
+	Reference string `json:"reference,omitempty"`
 
 	// Type ledger entry type.
 	//
