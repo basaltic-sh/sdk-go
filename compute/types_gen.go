@@ -154,7 +154,11 @@ type FloatingIP struct {
 	CRN                   string    `json:"crn"`
 	Description           string    `json:"description,omitempty"`
 	Family                IPFamily  `json:"family"`
-	ID                    string    `json:"id"`
+
+	// HealthCheck the readiness check applied to this address's members. Absent when
+	// none is configured. See `FloatingIpHealthCheck`.
+	HealthCheck *FloatingIPHealthCheck `json:"health_check,omitempty"`
+	ID          string                 `json:"id"`
 
 	// InstancePoolID the instance pool this address belongs to, or null for an ordinary
 	// floating IP.
@@ -206,33 +210,86 @@ type FloatingIP struct {
 	UpdatedAt time.Time           `json:"updated_at"`
 }
 
+// FloatingIPHealthCheck a readiness check for a shared (anycast) floating IP's members — the
+// same vocabulary as a load balancer target group's health check, one
+// you already know. The platform checks each member's private address
+// within the VPC. A member that fails stops receiving traffic through
+// the floating IP and returns when it passes again. If EVERY member
+// fails, the whole address goes dark — a misconfigured check is a
+// visible outage you caused, not the platform quietly advertising
+// something it believes is down.
+//
+// The check is on the address, not per member: members are
+// interchangeable backends, and a pool derives them. An address with no
+// check behaves exactly as before — liveness only for pool members,
+// always-advertised for hand-attached ones.
+type FloatingIPHealthCheck struct {
+	// HealthyThreshold consecutive passes before a member flips healthy.
+	HealthyThreshold int `json:"healthy_threshold"`
+	IntervalSec      int `json:"interval_sec"`
+
+	// Matcher HTTP status or range that counts as passing; ignored for tcp.
+	Matcher string `json:"matcher,omitempty"`
+
+	// Path HTTP path probed; ignored for tcp.
+	Path string `json:"path,omitempty"`
+
+	// Port probed on the member.
+	Port int `json:"port"`
+
+	// Protocol `tcp` opens a connection; `http`/`https` issue a GET and match the
+	// status against `matcher`. There is no `udp`: a readiness probe needs
+	// an answer — check a udp service on a tcp health port instead.
+	//
+	// One of: "tcp", "http", "https".
+	Protocol string `json:"protocol"`
+
+	// TimeoutSec per-probe timeout; must be less than interval_sec.
+	TimeoutSec int `json:"timeout_sec"`
+
+	// UnhealthyThreshold consecutive failures before a member flips unhealthy.
+	UnhealthyThreshold int `json:"unhealthy_threshold"`
+}
+
 // FloatingIPMember one binding of a floating IP.
 type FloatingIPMember struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	// Health what the platform knows about this member.
 	//
-	// `unknown` — nobody is checking. Every member you attached yourself
-	// reads this: you chose the moment of attach, and the platform has no
-	// signal about what runs inside the instance. It is advertised.
+	// `unknown` — nobody is checking. A member you attached yourself
+	// with no health check on the address reads this: you chose the moment
+	// of attach, and the platform has no signal about what runs inside the
+	// instance. It is advertised.
 	//
-	// `healthy` — the platform has evidence this member is up. An
-	// instance pool's replica reads this once it has reached the instance
-	// metadata service.
+	// `healthy` — the platform has evidence this member is up (and, if a
+	// health check is configured on the address, that the check is
+	// passing).
 	//
 	// `unhealthy` — the platform is waiting for that evidence and has
-	// not seen it. The member keeps its place on the address and receives
-	// no traffic until it does. A pool replica reads this while it is
-	// still booting.
+	// not seen it, or a configured check is failing. The member keeps its
+	// place on the address and receives no traffic until it recovers.
 	//
-	// This is liveness, not readiness: `healthy` means the guest came up,
-	// not that your service is listening on it.
+	// Without a health check this is liveness only — `healthy` means the
+	// guest came up, not that your service is listening. Configure
+	// `health_check` on the floating IP to add readiness on top of that.
 	//
 	// One of: "unknown", "healthy", "unhealthy".
 	Health string `json:"health"`
 
 	// InterfaceID the bound interface (instance_nic floating IPs).
 	InterfaceID string `json:"interface_id,omitempty"`
+
+	// Reason why the member reads the `health` it does — so you can tell "your
+	// service is not answering" from "the guest has not booted yet".
+	//
+	// `unprobed` — nobody is checking (no health check, hand-attached).
+	// `booting` — the platform has not yet seen the guest come up.
+	// `probe_failed` — the configured health check is failing. `passing`
+	// — the guest is up and, if a check is configured, it passes.
+	//
+	// One of: "unprobed", "booting", "probe_failed", "passing".
+	Reason string `json:"reason"`
 
 	// ResourceID the bound resource id (lb / email_sender floating IPs).
 	ResourceID string `json:"resource_id,omitempty"`
@@ -430,9 +487,12 @@ type Instance struct {
 	// referenced flavor row has been retired.
 	Flavor *Flavor `json:"flavor,omitempty"`
 
-	// IAMRoleID IAM role the instance can assume via IMDS, if attached.
-	IAMRoleID string `json:"iam_role_id,omitempty"`
-	ID        string `json:"id,omitempty"`
+	// IAMRole summary of the attached IAM role, visible with instance read access
+	// without iam:GetRole. Omitted when no role is attached, the role was
+	// deleted, or it belongs to another organization. Sensitive role
+	// fields remain available only through the IAM API.
+	IAMRole *InstanceRole `json:"iam_role,omitempty"`
+	ID      string        `json:"id,omitempty"`
 
 	// Image resolved source image the instance booted from. Omitted for a
 	// volume-only boot or if the referenced image row is gone.
@@ -816,6 +876,15 @@ type InstanceRebootRequest struct {
 	// Hard force a power cycle (destroy + start, equivalent to a reset button)
 	// instead of the default ACPI graceful reboot the guest can act on.
 	Hard *bool `json:"hard,omitempty"`
+}
+
+type InstanceRole struct {
+	// CRN organization-scoped role identity, as used in policy documents.
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Name immutable role name.
+	Name string `json:"name"`
 }
 
 type InstanceUpdateRequest struct {

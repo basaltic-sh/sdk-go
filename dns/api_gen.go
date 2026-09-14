@@ -82,8 +82,9 @@ func (p *ListRecordsParams) withMarker(marker string) *ListRecordsParams {
 // ListZoneVPCAssociationsParams are the optional filters and pagination controls for
 // [Client.ListZoneVPCAssociations]. A nil *ListZoneVPCAssociationsParams sends none of them.
 type ListZoneVPCAssociationsParams struct {
-	// CRN exact associated VPC CRN in the configured DNS region. Foreign or
-	// mismatched CRNs return an empty collection.
+	// CRN exact associated VPC CRN in a region enabled for DNS. Name and CRN
+	// filters are conjunctive. Foreign or mismatched CRNs return an empty
+	// collection.
 	CRN string
 
 	// Name exact name of an associated VPC. An empty value matches nothing.
@@ -158,9 +159,12 @@ func (p *ListZonesParams) withMarker(marker string) *ListZonesParams {
 
 // AssociateZoneVPC associates a VPC with a private zone.
 //
-// Refused on public zones. Accepts an account-owned VPC UUID or CRN in
-// the configured DNS region; bare names return 400 and missing or
-// foreign VPCs return 404.
+// Refused on public zones. Accepts an account-owned VPC UUID or CRN from
+// any region enabled for DNS. CRNs resolve in their named region; UUIDs
+// search the enabled regions. Bare names return 400; missing,
+// foreign-account or unconfigured-region VPCs return 404. Incomplete
+// UUID searches and duplicate regional identities fail with a server
+// error.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.

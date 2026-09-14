@@ -127,13 +127,6 @@ type Price struct {
 
 	// UnitPrice price for one `unit`, as an exact decimal string.
 	UnitPrice string `json:"unit_price"`
-
-	// ValidFrom when this revision took effect.
-	ValidFrom time.Time `json:"valid_from"`
-
-	// ValidTo when the next revision supersedes it, or null while this is the
-	// current price.
-	ValidTo time.Time `json:"valid_to,omitempty"`
 }
 
 type PriceListResponse struct {

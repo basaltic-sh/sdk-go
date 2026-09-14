@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "services": [
     {
       "name": "audit",
@@ -2751,7 +2751,7 @@
               "go_name": "CRN",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Exact associated VPC CRN in the configured DNS region"
+              "doc": "Exact associated VPC CRN in a region enabled for DNS"
             },
             {
               "wire": "name",
@@ -7764,6 +7764,14 @@
               "doc": "Which family to allocate in"
             },
             {
+              "wire": "health_check",
+              "go_name": "HealthCheck",
+              "go_type": "*FloatingIPHealthCheck",
+              "flag_kind": "json",
+              "pointer": true,
+              "doc": "An optional readiness check for the address's members"
+            },
+            {
               "wire": "tags",
               "go_name": "Tags",
               "go_type": "map[string]string",
@@ -9531,6 +9539,14 @@
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
+            },
+            {
+              "wire": "health_check",
+              "go_name": "HealthCheck",
+              "go_type": "*FloatingIPHealthCheck",
+              "flag_kind": "json",
+              "pointer": true,
+              "doc": "Set (an object) or clear (null) the address's readiness check"
             },
             {
               "wire": "tags",

@@ -143,10 +143,12 @@ type VPCAssociationAccepted struct {
 type VPCAssociationRequest struct {
 	// VPC Account-owned VPC UUID or network/vpc CRN to associate with this
 	// private zone. Bare names return 400 with "VPC references on DNS
-	// zones must be a UUID or a CRN, which carries the region". Lookup is
-	// limited to the configured DNS region; missing, foreign-account or
-	// other-region VPCs return 404. The response contains the canonical
-	// VPC UUID.
+	// zones must be a UUID or a CRN, which carries the region". CRNs
+	// resolve in their named region; UUIDs search all regions enabled for
+	// DNS. Missing, foreign-account or unconfigured-region VPCs return
+	// 404. Incomplete UUID searches or duplicate regional UUID identities
+	// fail with a server error. The response contains the canonical VPC
+	// UUID.
 	//
 	// Required.
 	VPC string `json:"vpc"`
@@ -252,10 +254,12 @@ type ZoneCreateRequest struct {
 
 	// VPCs Account-owned VPC UUIDs or network/vpc CRNs the zone resolves in.
 	// Bare names are rejected with 400 because the request fixes no
-	// region. Lookup is limited to the configured DNS region; missing,
-	// foreign-account or other-region VPCs return 404. References are
-	// deduplicated by UUID. Required when visibility=private, rejected
-	// when visibility=public. More can be associated later via POST
+	// region. CRNs resolve in their named region; UUIDs search all regions
+	// enabled for DNS. Missing, foreign-account or unconfigured-region
+	// VPCs return 404. Incomplete UUID searches or duplicate regional UUID
+	// identities fail with a server error. References are deduplicated by
+	// UUID. Required when visibility=private, rejected when
+	// visibility=public. More can be associated later via POST
 	// /v1/zones/{zone_id}/vpc-associations.
 	VPCs []string `json:"vpcs,omitempty"`
 }

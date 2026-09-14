@@ -21,8 +21,9 @@ import (
 // [Client.ListLogGroups]. A nil *ListLogGroupsParams sends none of them.
 type ListLogGroupsParams struct {
 	// CRN exact telemetry/log-group CRN filter in the authenticated account
-	// and serving region. Malformed, foreign or mismatched CRNs return an
-	// empty page. Intersected with name and pagination.
+	// and serving region. Malformed or empty CRNs return 400. Valid
+	// foreign or mismatched CRNs return an empty page. Intersected with
+	// name and pagination.
 	CRN string
 
 	// Limit maximum number of items to return. A value above the maximum is
@@ -598,7 +599,7 @@ func (c *Client) IngestSpans(ctx context.Context, body *IngestSpansRequest, opts
 
 // ListLogGroups lists log groups (or look up one by name).
 //
-// Without `name`: returns the org's log groups, newest-first,
+// Without `name`: returns the account's log groups, newest-first,
 // keyset-paginated. With `name`: returns at most one log group matching
 // that exact name (empty list if no match). Requires
 // `telemetry:DescribeLogGroups`.
