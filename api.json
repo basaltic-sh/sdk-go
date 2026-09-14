@@ -26,7 +26,29 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*AuditLog"
+          "result_type": "*AuditLog",
+          "by_reference": {
+            "go_name": "GetAuditLogByReference",
+            "list_operation_id": "listAuditLogs",
+            "scope_type": "ListAuditLogsParams",
+            "has_name": false,
+            "scope_params": [
+              {
+                "wire": "actor",
+                "go_name": "Actor",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Filter by a canonical UUID or an exact historical IAM actor CRN (user, service-account, or role, with empty region and account)"
+              },
+              {
+                "wire": "resource",
+                "go_name": "Resource",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Filter by a canonical UUID or an event-time resource CRN, without looking up a live resource"
+              }
+            ]
+          }
         },
         {
           "id": "listAuditLogs",
@@ -164,7 +186,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Invoice"
+          "result_type": "*Invoice",
+          "by_reference": {
+            "go_name": "GetInvoiceByReference",
+            "list_operation_id": "listInvoices",
+            "scope_type": "ListInvoicesParams",
+            "has_name": false
+          }
         },
         {
           "id": "getInvoicePdf",
@@ -509,7 +537,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Certificate"
+          "result_type": "*Certificate",
+          "by_reference": {
+            "go_name": "GetCertificateByReference",
+            "list_operation_id": "listCertificates",
+            "scope_type": "ListCertificatesParams",
+            "has_name": true
+          }
         },
         {
           "id": "getCertificateMaterial",
@@ -1304,7 +1338,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Flavor"
+          "result_type": "*Flavor",
+          "by_reference": {
+            "go_name": "GetFlavorByReference",
+            "list_operation_id": "listFlavors",
+            "scope_type": "ListFlavorsParams",
+            "has_name": true
+          }
         },
         {
           "id": "getImage",
@@ -1322,7 +1362,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Image"
+          "result_type": "*Image",
+          "by_reference": {
+            "go_name": "GetImageByReference",
+            "list_operation_id": "listImages",
+            "scope_type": "ListImagesParams",
+            "has_name": true
+          }
         },
         {
           "id": "getInstance",
@@ -1340,7 +1386,29 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Instance"
+          "result_type": "*Instance",
+          "by_reference": {
+            "go_name": "GetInstanceByReference",
+            "list_operation_id": "listInstances",
+            "scope_type": "ListInstancesParams",
+            "has_name": true,
+            "scope_params": [
+              {
+                "wire": "flavor",
+                "go_name": "Flavor",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Filter by regional flavor reference (UUID, CRN or exact name)"
+              },
+              {
+                "wire": "image",
+                "go_name": "Image",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Filter by image reference (UUID, CRN or name; images also accept name:version)"
+              }
+            ]
+          }
         },
         {
           "id": "getInstancePool",
@@ -1357,7 +1425,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*InstancePool"
+          "result_type": "*InstancePool",
+          "by_reference": {
+            "go_name": "GetInstancePoolByReference",
+            "list_operation_id": "listInstancePools",
+            "scope_type": "ListInstancePoolsParams",
+            "has_name": true
+          }
         },
         {
           "id": "getKeypair",
@@ -1375,7 +1449,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Keypair"
+          "result_type": "*Keypair",
+          "by_reference": {
+            "go_name": "GetKeypairByReference",
+            "list_operation_id": "listKeypairs",
+            "scope_type": "ListKeypairsParams",
+            "has_name": true
+          }
         },
         {
           "id": "listFlavors",
@@ -2503,7 +2583,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Record"
+          "result_type": "*Record",
+          "by_reference": {
+            "go_name": "GetRecordByReference",
+            "list_operation_id": "listRecords",
+            "scope_type": "ListRecordsParams",
+            "has_name": true
+          }
         },
         {
           "id": "getZone",
@@ -2521,7 +2607,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Zone"
+          "result_type": "*Zone",
+          "by_reference": {
+            "go_name": "GetZoneByReference",
+            "list_operation_id": "listZones",
+            "scope_type": "ListZonesParams",
+            "has_name": true
+          }
         },
         {
           "id": "getZoneRecordImport",
@@ -3733,7 +3825,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Account"
+          "result_type": "*Account",
+          "by_reference": {
+            "go_name": "GetAccountByReference",
+            "list_operation_id": "listAccounts",
+            "scope_type": "ListAccountsParams",
+            "has_name": true
+          }
         },
         {
           "id": "getAccountResources",
@@ -3768,7 +3866,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Group"
+          "result_type": "*Group",
+          "by_reference": {
+            "go_name": "GetGroupByReference",
+            "list_operation_id": "listGroups",
+            "scope_type": "ListGroupsParams",
+            "has_name": true
+          }
         },
         {
           "id": "getGroupInlinePolicy",
@@ -3807,7 +3911,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Invitation"
+          "result_type": "*Invitation",
+          "by_reference": {
+            "go_name": "GetInvitationByReference",
+            "list_operation_id": "listInvitations",
+            "scope_type": "ListInvitationsParams",
+            "has_name": true
+          }
         },
         {
           "id": "getOAuthToken",
@@ -3927,7 +4037,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Policy"
+          "result_type": "*Policy",
+          "by_reference": {
+            "go_name": "GetPolicyByReference",
+            "list_operation_id": "listPolicies",
+            "scope_type": "ListPoliciesParams",
+            "has_name": true
+          }
         },
         {
           "id": "getRole",
@@ -3945,7 +4061,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Role"
+          "result_type": "*Role",
+          "by_reference": {
+            "go_name": "GetRoleByReference",
+            "list_operation_id": "listRoles",
+            "scope_type": "ListRolesParams",
+            "has_name": true
+          }
         },
         {
           "id": "getRoleInlinePolicy",
@@ -4001,7 +4123,29 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*STSSession"
+          "result_type": "*STSSession",
+          "by_reference": {
+            "go_name": "GetSTSSessionByReference",
+            "list_operation_id": "listSTSSessions",
+            "scope_type": "ListSTSSessionsParams",
+            "has_name": true,
+            "scope_params": [
+              {
+                "wire": "principal",
+                "go_name": "Principal",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Principal reference; principal_type is required"
+              },
+              {
+                "wire": "role",
+                "go_name": "Role",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Role UUID, immutable name, or organization-scoped role CRN"
+              }
+            ]
+          }
         },
         {
           "id": "getServiceAccount",
@@ -4019,7 +4163,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*ServiceAccount"
+          "result_type": "*ServiceAccount",
+          "by_reference": {
+            "go_name": "GetServiceAccountByReference",
+            "list_operation_id": "listServiceAccounts",
+            "scope_type": "ListServiceAccountsParams",
+            "has_name": true
+          }
         },
         {
           "id": "getServiceAccountInlinePolicy",
@@ -4075,7 +4225,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*User"
+          "result_type": "*User",
+          "by_reference": {
+            "go_name": "GetUserByReference",
+            "list_operation_id": "listUsers",
+            "scope_type": "ListUsersParams",
+            "has_name": true
+          }
         },
         {
           "id": "getUserInlinePolicy",
@@ -6126,7 +6282,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Key"
+          "result_type": "*Key",
+          "by_reference": {
+            "go_name": "GetKeyByReference",
+            "list_operation_id": "listKeys",
+            "scope_type": "ListKeysParams",
+            "has_name": true
+          }
         },
         {
           "id": "listKeys",
@@ -6889,7 +7051,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Listener"
+          "result_type": "*Listener",
+          "by_reference": {
+            "go_name": "GetListenerByReference",
+            "list_operation_id": "listListeners",
+            "scope_type": "ListListenersParams",
+            "has_name": true
+          }
         },
         {
           "id": "getLoadBalancer",
@@ -6906,7 +7074,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*LoadBalancer"
+          "result_type": "*LoadBalancer",
+          "by_reference": {
+            "go_name": "GetLoadBalancerByReference",
+            "list_operation_id": "listLoadBalancers",
+            "scope_type": "ListLoadBalancersParams",
+            "has_name": true
+          }
         },
         {
           "id": "getRule",
@@ -6931,7 +7105,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Rule"
+          "result_type": "*Rule",
+          "by_reference": {
+            "go_name": "GetRuleByReference",
+            "list_operation_id": "listRules",
+            "scope_type": "ListRulesParams",
+            "has_name": true
+          }
         },
         {
           "id": "getTarget",
@@ -6972,7 +7152,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*TargetGroup"
+          "result_type": "*TargetGroup",
+          "by_reference": {
+            "go_name": "GetTargetGroupByReference",
+            "list_operation_id": "listTargetGroups",
+            "scope_type": "ListTargetGroupsParams",
+            "has_name": true
+          }
         },
         {
           "id": "listListeners",
@@ -8382,7 +8568,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*EgressOnlyGateway"
+          "result_type": "*EgressOnlyGateway",
+          "by_reference": {
+            "go_name": "GetEgressOnlyGatewayByReference",
+            "list_operation_id": "listEgressOnlyGateways",
+            "scope_type": "ListEgressOnlyGatewaysParams",
+            "has_name": true
+          }
         },
         {
           "id": "getFloatingIp",
@@ -8400,7 +8592,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*FloatingIP"
+          "result_type": "*FloatingIP",
+          "by_reference": {
+            "go_name": "GetFloatingIPByReference",
+            "list_operation_id": "listFloatingIps",
+            "scope_type": "ListFloatingIPsParams",
+            "has_name": true
+          }
         },
         {
           "id": "getInterface",
@@ -8418,7 +8616,29 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Interface"
+          "result_type": "*Interface",
+          "by_reference": {
+            "go_name": "GetInterfaceByReference",
+            "list_operation_id": "listInterfaces",
+            "scope_type": "ListInterfacesParams",
+            "has_name": true,
+            "scope_params": [
+              {
+                "wire": "subnet",
+                "go_name": "Subnet",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Subnet UUID or nested CRN; an exact bare name requires the vpc filter"
+              },
+              {
+                "wire": "vpc",
+                "go_name": "VPC",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "VPC UUID, CRN or exact account-scoped name"
+              }
+            ]
+          }
         },
         {
           "id": "getInternetGateway",
@@ -8436,7 +8656,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*InternetGateway"
+          "result_type": "*InternetGateway",
+          "by_reference": {
+            "go_name": "GetInternetGatewayByReference",
+            "list_operation_id": "listInternetGateways",
+            "scope_type": "ListInternetGatewaysParams",
+            "has_name": true
+          }
         },
         {
           "id": "getNATGateway",
@@ -8454,7 +8680,29 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*NATGateway"
+          "result_type": "*NATGateway",
+          "by_reference": {
+            "go_name": "GetNATGatewayByReference",
+            "list_operation_id": "listNATGateways",
+            "scope_type": "ListNATGatewaysParams",
+            "has_name": true,
+            "scope_params": [
+              {
+                "wire": "subnet",
+                "go_name": "Subnet",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Subnet UUID or nested CRN; an exact bare name requires the vpc filter"
+              },
+              {
+                "wire": "vpc",
+                "go_name": "VPC",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "VPC UUID, CRN or exact account-scoped name"
+              }
+            ]
+          }
         },
         {
           "id": "getRoute",
@@ -8477,7 +8725,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Route"
+          "result_type": "*Route",
+          "by_reference": {
+            "go_name": "GetRouteByReference",
+            "list_operation_id": "listRoutes",
+            "scope_type": "ListRoutesParams",
+            "has_name": true
+          }
         },
         {
           "id": "getRouteTable",
@@ -8495,7 +8749,22 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*RouteTable"
+          "result_type": "*RouteTable",
+          "by_reference": {
+            "go_name": "GetRouteTableByReference",
+            "list_operation_id": "listRouteTables",
+            "scope_type": "ListRouteTablesParams",
+            "has_name": true,
+            "scope_params": [
+              {
+                "wire": "vpc",
+                "go_name": "VPC",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "VPC UUID, CRN or exact name in the caller account"
+              }
+            ]
+          }
         },
         {
           "id": "getSecurityGroup",
@@ -8513,7 +8782,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*SecurityGroup"
+          "result_type": "*SecurityGroup",
+          "by_reference": {
+            "go_name": "GetSecurityGroupByReference",
+            "list_operation_id": "listSecurityGroups",
+            "scope_type": "ListSecurityGroupsParams",
+            "has_name": true
+          }
         },
         {
           "id": "getSecurityGroupRule",
@@ -8536,7 +8811,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*SecurityGroupRule"
+          "result_type": "*SecurityGroupRule",
+          "by_reference": {
+            "go_name": "GetSecurityGroupRuleByReference",
+            "list_operation_id": "listSecurityGroupRules",
+            "scope_type": "ListSecurityGroupRulesParams",
+            "has_name": true
+          }
         },
         {
           "id": "getSubnet",
@@ -8554,7 +8835,22 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Subnet"
+          "result_type": "*Subnet",
+          "by_reference": {
+            "go_name": "GetSubnetByReference",
+            "list_operation_id": "listSubnets",
+            "scope_type": "ListSubnetsParams",
+            "has_name": true,
+            "scope_params": [
+              {
+                "wire": "vpc",
+                "go_name": "VPC",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "VPC UUID, CRN or exact name in the caller account"
+              }
+            ]
+          }
         },
         {
           "id": "getVpc",
@@ -8572,7 +8868,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*VPC"
+          "result_type": "*VPC",
+          "by_reference": {
+            "go_name": "GetVPCByReference",
+            "list_operation_id": "listVpcs",
+            "scope_type": "ListVPCsParams",
+            "has_name": true
+          }
         },
         {
           "id": "listEgressOnlyGateways",
@@ -9679,7 +9981,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Secret"
+          "result_type": "*Secret",
+          "by_reference": {
+            "go_name": "DescribeSecretByReference",
+            "list_operation_id": "listSecrets",
+            "scope_type": "ListSecretsParams",
+            "has_name": true
+          }
         },
         {
           "id": "getSecretValue",
@@ -10555,7 +10863,29 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Snapshot"
+          "result_type": "*Snapshot",
+          "by_reference": {
+            "go_name": "GetSnapshotByReference",
+            "list_operation_id": "listSnapshots",
+            "scope_type": "ListSnapshotsParams",
+            "has_name": true,
+            "scope_params": [
+              {
+                "wire": "snapshot_policy",
+                "go_name": "SnapshotPolicy",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Account-owned snapshot policy UUID, CRN, or exact name"
+              },
+              {
+                "wire": "volume",
+                "go_name": "Volume",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Account-owned volume UUID, CRN, or exact name"
+              }
+            ]
+          }
         },
         {
           "id": "getSnapshotPolicy",
@@ -10573,7 +10903,22 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*SnapshotPolicy"
+          "result_type": "*SnapshotPolicy",
+          "by_reference": {
+            "go_name": "GetSnapshotPolicyByReference",
+            "list_operation_id": "listSnapshotPolicies",
+            "scope_type": "ListSnapshotPoliciesParams",
+            "has_name": true,
+            "scope_params": [
+              {
+                "wire": "volume",
+                "go_name": "Volume",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Account-owned volume UUID, CRN, or exact name"
+              }
+            ]
+          }
         },
         {
           "id": "getVolume",
@@ -10591,7 +10936,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*Volume"
+          "result_type": "*Volume",
+          "by_reference": {
+            "go_name": "GetVolumeByReference",
+            "list_operation_id": "listVolumes",
+            "scope_type": "ListVolumesParams",
+            "has_name": true
+          }
         },
         {
           "id": "headBucket",
@@ -11631,7 +11982,13 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*LogGroup"
+          "result_type": "*LogGroup",
+          "by_reference": {
+            "go_name": "GetLogGroupByReference",
+            "list_operation_id": "listLogGroups",
+            "scope_type": "ListLogGroupsParams",
+            "has_name": true
+          }
         },
         {
           "id": "getRetainedTelemetryPresence",

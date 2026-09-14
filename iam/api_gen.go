@@ -3811,3 +3811,217 @@ func (c *Client) UpdateServiceAccount(ctx context.Context, serviceAccountID stri
 	}
 	return out.ServiceAccount, nil
 }
+
+// GetAccountByReference fetches one account by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetAccount]; a CRN or a name goes to [Client.ListAccounts] as
+// an exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetAccountByReference(ctx context.Context, ref string, scope *ListAccountsParams, opts ...basaltic.RequestOption) (*Account, error) {
+	return basaltic.ResolveByReference(ctx, ref, "account", "listAccounts", true,
+		func(ctx context.Context, refID string) (*Account, error) {
+			return c.GetAccount(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Account], error) {
+			var p ListAccountsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListAccounts(ctx, &p, opts...)
+		})
+}
+
+// GetGroupByReference fetches one group by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetGroup]; a CRN or a name goes to [Client.ListGroups] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetGroupByReference(ctx context.Context, ref string, scope *ListGroupsParams, opts ...basaltic.RequestOption) (*Group, error) {
+	return basaltic.ResolveByReference(ctx, ref, "group", "listGroups", true,
+		func(ctx context.Context, refID string) (*Group, error) {
+			return c.GetGroup(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Group], error) {
+			var p ListGroupsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListGroups(ctx, &p, opts...)
+		})
+}
+
+// GetInvitationByReference fetches one invitation by an id, a CRN or a
+// name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetInvitation]; a CRN or a name goes to
+// [Client.ListInvitations] as an exact filter, together with any filters
+// already set on scope, which may be nil. A miss is a not-found error
+// for the kind the string was read as — no other kind is tried — and
+// more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetInvitationByReference(ctx context.Context, ref string, scope *ListInvitationsParams, opts ...basaltic.RequestOption) (*Invitation, error) {
+	return basaltic.ResolveByReference(ctx, ref, "invitation", "listInvitations", true,
+		func(ctx context.Context, refID string) (*Invitation, error) {
+			return c.GetInvitation(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Invitation], error) {
+			var p ListInvitationsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListInvitations(ctx, &p, opts...)
+		})
+}
+
+// GetPolicyByReference fetches one policy by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetPolicy]; a CRN or a name goes to [Client.ListPolicies] as
+// an exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetPolicyByReference(ctx context.Context, ref string, scope *ListPoliciesParams, opts ...basaltic.RequestOption) (*Policy, error) {
+	return basaltic.ResolveByReference(ctx, ref, "policy", "listPolicies", true,
+		func(ctx context.Context, refID string) (*Policy, error) {
+			return c.GetPolicy(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Policy], error) {
+			var p ListPoliciesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListPolicies(ctx, &p, opts...)
+		})
+}
+
+// GetRoleByReference fetches one role by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetRole]; a CRN or a name goes to [Client.ListRoles] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetRoleByReference(ctx context.Context, ref string, scope *ListRolesParams, opts ...basaltic.RequestOption) (*Role, error) {
+	return basaltic.ResolveByReference(ctx, ref, "role", "listRoles", true,
+		func(ctx context.Context, refID string) (*Role, error) {
+			return c.GetRole(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Role], error) {
+			var p ListRolesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListRoles(ctx, &p, opts...)
+		})
+}
+
+// GetSTSSessionByReference fetches one sts session by an id, a CRN or a
+// name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetSTSSession]; a CRN or a name goes to
+// [Client.ListSTSSessions] as an exact filter, together with any filters
+// already set on scope, which may be nil. A miss is a not-found error
+// for the kind the string was read as — no other kind is tried — and
+// more than one match is a [basaltic.AmbiguousReferenceError].
+//
+// A name is unique only within its parent; fix it on scope (Principal,
+// Role) or the lookup can match more than one.
+func (c *Client) GetSTSSessionByReference(ctx context.Context, ref string, scope *ListSTSSessionsParams, opts ...basaltic.RequestOption) (*STSSession, error) {
+	return basaltic.ResolveByReference(ctx, ref, "sts-session", "listSTSSessions", true,
+		func(ctx context.Context, refID string) (*STSSession, error) {
+			return c.GetSTSSession(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[STSSession], error) {
+			var p ListSTSSessionsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListSTSSessions(ctx, &p, opts...)
+		})
+}
+
+// GetServiceAccountByReference fetches one service account by an id, a
+// CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetServiceAccount]; a CRN or a name goes to
+// [Client.ListServiceAccounts] as an exact filter, together with any
+// filters already set on scope, which may be nil. A miss is a not-found
+// error for the kind the string was read as — no other kind is tried
+// — and more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetServiceAccountByReference(ctx context.Context, ref string, scope *ListServiceAccountsParams, opts ...basaltic.RequestOption) (*ServiceAccount, error) {
+	return basaltic.ResolveByReference(ctx, ref, "service-account", "listServiceAccounts", true,
+		func(ctx context.Context, refID string) (*ServiceAccount, error) {
+			return c.GetServiceAccount(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[ServiceAccount], error) {
+			var p ListServiceAccountsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListServiceAccounts(ctx, &p, opts...)
+		})
+}
+
+// GetUserByReference fetches one user by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetUser]; a CRN or a name goes to [Client.ListUsers] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetUserByReference(ctx context.Context, ref string, scope *ListUsersParams, opts ...basaltic.RequestOption) (*User, error) {
+	return basaltic.ResolveByReference(ctx, ref, "user", "listUsers", true,
+		func(ctx context.Context, refID string) (*User, error) {
+			return c.GetUser(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[User], error) {
+			var p ListUsersParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListUsers(ctx, &p, opts...)
+		})
+}

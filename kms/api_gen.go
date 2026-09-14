@@ -375,3 +375,29 @@ func (c *Client) Verify(ctx context.Context, keyID string, body *VerifyRequest, 
 	}
 	return out.SignatureValid, nil
 }
+
+// GetKeyByReference fetches one key by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetKey]; a CRN or a name goes to [Client.ListKeys] as an exact
+// filter, together with any filters already set on scope, which may be
+// nil. A miss is a not-found error for the kind the string was read as
+// — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetKeyByReference(ctx context.Context, ref string, scope *ListKeysParams, opts ...basaltic.RequestOption) (*Key, error) {
+	return basaltic.ResolveByReference(ctx, ref, "key", "listKeys", true,
+		func(ctx context.Context, refID string) (*Key, error) {
+			return c.GetKey(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Key], error) {
+			var p ListKeysParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListKeys(ctx, &p, opts...)
+		})
+}

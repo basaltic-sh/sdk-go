@@ -704,3 +704,55 @@ func (c *Client) VerifyZoneOwnership(ctx context.Context, zoneID string, opts ..
 	}
 	return out.Zone, nil
 }
+
+// GetRecordByReference fetches one record by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetRecord]; a CRN or a name goes to [Client.ListRecords] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetRecordByReference(ctx context.Context, zoneID string, ref string, scope *ListRecordsParams, opts ...basaltic.RequestOption) (*Record, error) {
+	return basaltic.ResolveByReference(ctx, ref, "record", "listRecords", true,
+		func(ctx context.Context, refID string) (*Record, error) {
+			return c.GetRecord(ctx, zoneID, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Record], error) {
+			var p ListRecordsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListRecords(ctx, zoneID, &p, opts...)
+		})
+}
+
+// GetZoneByReference fetches one zone by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetZone]; a CRN or a name goes to [Client.ListZones] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetZoneByReference(ctx context.Context, ref string, scope *ListZonesParams, opts ...basaltic.RequestOption) (*Zone, error) {
+	return basaltic.ResolveByReference(ctx, ref, "zone", "listZones", true,
+		func(ctx context.Context, refID string) (*Zone, error) {
+			return c.GetZone(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Zone], error) {
+			var p ListZonesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListZones(ctx, &p, opts...)
+		})
+}

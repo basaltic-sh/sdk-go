@@ -835,3 +835,107 @@ func (c *Client) UpdateTargetGroup(ctx context.Context, id string, body *UpdateT
 	}
 	return out.TargetGroup, nil
 }
+
+// GetListenerByReference fetches one listener by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetListener]; a CRN or a name goes to [Client.ListListeners]
+// as an exact filter, together with any filters already set on scope,
+// which may be nil. A miss is a not-found error for the kind the string
+// was read as — no other kind is tried — and more than one match is
+// a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetListenerByReference(ctx context.Context, id string, ref string, scope *ListListenersParams, opts ...basaltic.RequestOption) (*Listener, error) {
+	return basaltic.ResolveByReference(ctx, ref, "listener", "listListeners", true,
+		func(ctx context.Context, refID string) (*Listener, error) {
+			return c.GetListener(ctx, id, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Listener], error) {
+			var p ListListenersParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			return c.ListListeners(ctx, id, &p, opts...)
+		})
+}
+
+// GetLoadBalancerByReference fetches one load balancer by an id, a CRN
+// or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetLoadBalancer]; a CRN or a name goes to
+// [Client.ListLoadBalancers] as an exact filter, together with any
+// filters already set on scope, which may be nil. A miss is a not-found
+// error for the kind the string was read as — no other kind is tried
+// — and more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetLoadBalancerByReference(ctx context.Context, ref string, scope *ListLoadBalancersParams, opts ...basaltic.RequestOption) (*LoadBalancer, error) {
+	return basaltic.ResolveByReference(ctx, ref, "load-balancer", "listLoadBalancers", true,
+		func(ctx context.Context, refID string) (*LoadBalancer, error) {
+			return c.GetLoadBalancer(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[LoadBalancer], error) {
+			var p ListLoadBalancersParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListLoadBalancers(ctx, &p, opts...)
+		})
+}
+
+// GetRuleByReference fetches one rule by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetRule]; a CRN or a name goes to [Client.ListRules] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetRuleByReference(ctx context.Context, id string, listenerID string, ref string, scope *ListRulesParams, opts ...basaltic.RequestOption) (*Rule, error) {
+	return basaltic.ResolveByReference(ctx, ref, "rule", "listRules", true,
+		func(ctx context.Context, refID string) (*Rule, error) {
+			return c.GetRule(ctx, id, listenerID, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Rule], error) {
+			var p ListRulesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			return c.ListRules(ctx, id, listenerID, &p, opts...)
+		})
+}
+
+// GetTargetGroupByReference fetches one target group by an id, a CRN or
+// a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetTargetGroup]; a CRN or a name goes to
+// [Client.ListTargetGroups] as an exact filter, together with any
+// filters already set on scope, which may be nil. A miss is a not-found
+// error for the kind the string was read as — no other kind is tried
+// — and more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetTargetGroupByReference(ctx context.Context, ref string, scope *ListTargetGroupsParams, opts ...basaltic.RequestOption) (*TargetGroup, error) {
+	return basaltic.ResolveByReference(ctx, ref, "target-group", "listTargetGroups", true,
+		func(ctx context.Context, refID string) (*TargetGroup, error) {
+			return c.GetTargetGroup(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[TargetGroup], error) {
+			var p ListTargetGroupsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListTargetGroups(ctx, &p, opts...)
+		})
+}

@@ -72,6 +72,26 @@ type manifestOp struct {
 	Paginated  bool `json:"paginated,omitempty"`
 	Idempotent bool `json:"idempotent,omitempty"`
 	Deprecated bool `json:"deprecated,omitempty"`
+
+	// ByReference is set on a get whose resource also has a list, and
+	// describes the Get<Resource>ByReference method emitted beside it: the
+	// CLI's `get <ref>` is built from this rather than from the id form.
+	ByReference *manifestByReference `json:"by_reference,omitempty"`
+}
+
+// manifestByReference describes a Get<Resource>ByReference method.
+type manifestByReference struct {
+	GoName string `json:"go_name"`
+	// ListOperationID is the list the CRN and name filters are sent to.
+	ListOperationID string `json:"list_operation_id"`
+	// ScopeType is the list's params type, which the method takes as its
+	// scope argument.
+	ScopeType string `json:"scope_type"`
+	// HasName is false where the resource carries no name.
+	HasName bool `json:"has_name"`
+	// ScopeParams are the list's own reference filters, which fix the parent
+	// a name is unique within.
+	ScopeParams []manifestField `json:"scope_params,omitempty"`
 }
 
 type manifestParam struct {
@@ -198,6 +218,26 @@ func (b *builder) manifestOp(op *operation) manifestOp {
 			Enum:     b.enumValues(p.Type),
 			Doc:      usageText(p.RawDoc),
 		})
+	}
+	for _, r := range b.byReference {
+		if r.Get != op {
+			continue
+		}
+		m.ByReference = &manifestByReference{
+			GoName:          r.GoName(),
+			ListOperationID: r.List.ID,
+			ScopeType:       r.List.ParamsType,
+			HasName:         r.HasName,
+		}
+		for _, p := range r.Scope {
+			m.ByReference.ScopeParams = append(m.ByReference.ScopeParams, manifestField{
+				Wire:     p.WireName,
+				GoName:   p.Name,
+				GoType:   p.Type,
+				FlagKind: "string",
+				Doc:      usageText(p.RawDoc),
+			})
+		}
 	}
 	if op.Body == bodyJSON {
 		if nt, ok := b.types[strings.TrimPrefix(op.BodyType, "*")]; ok {

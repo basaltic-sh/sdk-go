@@ -215,3 +215,34 @@ func (c *Client) ListAuditLogsAll(ctx context.Context, params *ListAuditLogsPara
 		return c.ListAuditLogs(ctx, params.withMarker(marker), opts...)
 	})
 }
+
+// GetAuditLogByReference fetches one log by an id or a CRN.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetAuditLog]; a CRN or a name goes to [Client.ListAuditLogs]
+// as an exact filter, together with any filters already set on scope,
+// which may be nil. A miss is a not-found error for the kind the string
+// was read as — no other kind is tried — and more than one match is
+// a [basaltic.AmbiguousReferenceError].
+//
+// This resource has no name; a name reference is refused before any request.
+//
+// A name is unique only within its parent; fix it on scope (Actor,
+// Resource) or the lookup can match more than one.
+func (c *Client) GetAuditLogByReference(ctx context.Context, ref string, scope *ListAuditLogsParams, opts ...basaltic.RequestOption) (*AuditLog, error) {
+	return basaltic.ResolveByReference(ctx, ref, "log", "listAuditLogs", false,
+		func(ctx context.Context, refID string) (*AuditLog, error) {
+			return c.GetAuditLog(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[AuditLog], error) {
+			var p ListAuditLogsParams
+			if scope != nil {
+				p = *scope
+			}
+			_ = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListAuditLogs(ctx, &p, opts...)
+		})
+}

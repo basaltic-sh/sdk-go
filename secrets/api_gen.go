@@ -376,3 +376,30 @@ func (c *Client) UpdateSecret(ctx context.Context, secretID string, body *Update
 	}
 	return out.Secret, nil
 }
+
+// DescribeSecretByReference fetches one secret by an id, a CRN or a
+// name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.DescribeSecret]; a CRN or a name goes to [Client.ListSecrets]
+// as an exact filter, together with any filters already set on scope,
+// which may be nil. A miss is a not-found error for the kind the string
+// was read as — no other kind is tried — and more than one match is
+// a [basaltic.AmbiguousReferenceError].
+func (c *Client) DescribeSecretByReference(ctx context.Context, ref string, scope *ListSecretsParams, opts ...basaltic.RequestOption) (*Secret, error) {
+	return basaltic.ResolveByReference(ctx, ref, "secret", "listSecrets", true,
+		func(ctx context.Context, refID string) (*Secret, error) {
+			return c.DescribeSecret(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Secret], error) {
+			var p ListSecretsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListSecrets(ctx, &p, opts...)
+		})
+}

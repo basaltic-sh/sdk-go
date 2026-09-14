@@ -998,3 +998,30 @@ func (c *Client) WriteMetrics(ctx context.Context, body io.Reader, opts ...basal
 	}
 	return nil
 }
+
+// GetLogGroupByReference fetches one log group by an id, a CRN or a
+// name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetLogGroup]; a CRN or a name goes to [Client.ListLogGroups]
+// as an exact filter, together with any filters already set on scope,
+// which may be nil. A miss is a not-found error for the kind the string
+// was read as — no other kind is tried — and more than one match is
+// a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetLogGroupByReference(ctx context.Context, ref string, scope *ListLogGroupsParams, opts ...basaltic.RequestOption) (*LogGroup, error) {
+	return basaltic.ResolveByReference(ctx, ref, "log-group", "listLogGroups", true,
+		func(ctx context.Context, refID string) (*LogGroup, error) {
+			return c.GetLogGroup(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[LogGroup], error) {
+			var p ListLogGroupsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListLogGroups(ctx, &p, opts...)
+		})
+}

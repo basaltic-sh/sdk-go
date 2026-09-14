@@ -149,6 +149,20 @@ func TestEveryGeneratedMethodIssuesAWellFormedRequest(t *testing.T) {
 				if !ok {
 					t.Skipf("cannot synthesise arguments for %s", fn.Type())
 				}
+				if strings.HasSuffix(method.Name, "ByReference") {
+					// A by-reference getter classifies its last string
+					// argument; an id sends it down the same single request
+					// as the plain get. The CRN and name paths, which go to
+					// the list instead, are covered in reference_wire_test.go.
+					const id = "0f9c1c8a-8c3e-4c7b-9c2e-1a2b3c4d5e6f"
+					last := strArgs[len(strArgs)-1]
+					for i := range args {
+						if args[i].Kind() == reflect.String && args[i].String() == last {
+							args[i] = reflect.ValueOf(id)
+						}
+					}
+					strArgs[len(strArgs)-1] = id
+				}
 				out := fn.Call(args)
 
 				if seq, isIter := findIterator(out); isIter {

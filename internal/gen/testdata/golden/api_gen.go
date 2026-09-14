@@ -19,6 +19,9 @@ import (
 // ListWidgetsParams are the optional filters and pagination controls for
 // [Client.ListWidgets]. A nil *ListWidgetsParams sends none of them.
 type ListWidgetsParams struct {
+	// CRN exact widget CRN. A foreign or mismatched CRN returns an empty page.
+	CRN string
+
 	// IncludeRetired include retired widgets.
 	IncludeRetired *bool
 
@@ -27,6 +30,12 @@ type ListWidgetsParams struct {
 
 	// Marker opaque pagination cursor.
 	Marker string
+
+	// Name exact widget name. Empty values match no named resources.
+	Name string
+
+	// Shelf filter by shelf reference (UUID, CRN or exact name).
+	Shelf string
 
 	// WidgetState filter by lifecycle state.
 	WidgetState WidgetState
@@ -39,6 +48,9 @@ func (p *ListWidgetsParams) query() url.Values {
 	if p == nil {
 		return q
 	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
 	if p.IncludeRetired != nil {
 		q.Set("include_retired", strconv.FormatBool(*p.IncludeRetired))
 	}
@@ -47,6 +59,12 @@ func (p *ListWidgetsParams) query() url.Values {
 	}
 	if p.Marker != "" {
 		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	if p.Shelf != "" {
+		q.Set("shelf", p.Shelf)
 	}
 	if p.WidgetState != "" {
 		q.Set("widget_state", string(p.WidgetState))
@@ -205,4 +223,33 @@ func (c *Client) ListWidgetsAll(ctx context.Context, params *ListWidgetsParams, 
 	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[Widget], error) {
 		return c.ListWidgets(ctx, params.withMarker(marker), opts...)
 	})
+}
+
+// GetWidgetByReference fetches one widget by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetWidget]; a CRN or a name goes to [Client.ListWidgets] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+//
+// A name is unique only within its parent; fix it on scope (Shelf) or
+// the lookup can match more than one.
+func (c *Client) GetWidgetByReference(ctx context.Context, ref string, scope *ListWidgetsParams, opts ...basaltic.RequestOption) (*Widget, error) {
+	return basaltic.ResolveByReference(ctx, ref, "widget", "listWidgets", true,
+		func(ctx context.Context, refID string) (*Widget, error) {
+			return c.GetWidget(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Widget], error) {
+			var p ListWidgetsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListWidgets(ctx, &p, opts...)
+		})
 }

@@ -1702,3 +1702,136 @@ func (c *Client) UpdateInstanceVolumeAttachment(ctx context.Context, instanceID 
 	}
 	return nil
 }
+
+// GetFlavorByReference fetches one flavor by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetFlavor]; a CRN or a name goes to [Client.ListFlavors] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetFlavorByReference(ctx context.Context, ref string, scope *ListFlavorsParams, opts ...basaltic.RequestOption) (*Flavor, error) {
+	return basaltic.ResolveByReference(ctx, ref, "flavor", "listFlavors", true,
+		func(ctx context.Context, refID string) (*Flavor, error) {
+			return c.GetFlavor(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Flavor], error) {
+			var p ListFlavorsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			return c.ListFlavors(ctx, &p, opts...)
+		})
+}
+
+// GetImageByReference fetches one image by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetImage]; a CRN or a name goes to [Client.ListImages] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetImageByReference(ctx context.Context, ref string, scope *ListImagesParams, opts ...basaltic.RequestOption) (*Image, error) {
+	return basaltic.ResolveByReference(ctx, ref, "image", "listImages", true,
+		func(ctx context.Context, refID string) (*Image, error) {
+			return c.GetImage(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Image], error) {
+			var p ListImagesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListImages(ctx, &p, opts...)
+		})
+}
+
+// GetInstanceByReference fetches one instance by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetInstance]; a CRN or a name goes to [Client.ListInstances]
+// as an exact filter, together with any filters already set on scope,
+// which may be nil. A miss is a not-found error for the kind the string
+// was read as — no other kind is tried — and more than one match is
+// a [basaltic.AmbiguousReferenceError].
+//
+// A name is unique only within its parent; fix it on scope (Flavor,
+// Image) or the lookup can match more than one.
+func (c *Client) GetInstanceByReference(ctx context.Context, ref string, scope *ListInstancesParams, opts ...basaltic.RequestOption) (*Instance, error) {
+	return basaltic.ResolveByReference(ctx, ref, "instance", "listInstances", true,
+		func(ctx context.Context, refID string) (*Instance, error) {
+			return c.GetInstance(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Instance], error) {
+			var p ListInstancesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListInstances(ctx, &p, opts...)
+		})
+}
+
+// GetInstancePoolByReference fetches one instance pool by an id, a CRN
+// or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetInstancePool]; a CRN or a name goes to
+// [Client.ListInstancePools] as an exact filter, together with any
+// filters already set on scope, which may be nil. A miss is a not-found
+// error for the kind the string was read as — no other kind is tried
+// — and more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetInstancePoolByReference(ctx context.Context, ref string, scope *ListInstancePoolsParams, opts ...basaltic.RequestOption) (*InstancePool, error) {
+	return basaltic.ResolveByReference(ctx, ref, "instance-pool", "listInstancePools", true,
+		func(ctx context.Context, refID string) (*InstancePool, error) {
+			return c.GetInstancePool(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[InstancePool], error) {
+			var p ListInstancePoolsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListInstancePools(ctx, &p, opts...)
+		})
+}
+
+// GetKeypairByReference fetches one keypair by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetKeypair]; a CRN or a name goes to [Client.ListKeypairs] as
+// an exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetKeypairByReference(ctx context.Context, ref string, scope *ListKeypairsParams, opts ...basaltic.RequestOption) (*Keypair, error) {
+	return basaltic.ResolveByReference(ctx, ref, "keypair", "listKeypairs", true,
+		func(ctx context.Context, refID string) (*Keypair, error) {
+			return c.GetKeypair(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Keypair], error) {
+			var p ListKeypairsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListKeypairs(ctx, &p, opts...)
+		})
+}

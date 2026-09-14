@@ -63,6 +63,29 @@ With no options, `NewConfig` reads the environment:
 Options beat the environment, so a program can take its region from the
 environment and still override it at one call site.
 
+## Referring to resources
+
+Wherever a request names another resource — the flavor of an instance, the
+subnet of an interface — the field takes one string that may be a UUID, a
+CRN or a name. The platform reads it by syntax alone: a `crn:` prefix is a
+CRN, the canonical 36-character UUID form is an id, anything else is a name,
+and a miss under one reading is never retried under another.
+[`ParseReference`](reference.go) applies the same rule client-side.
+
+Every resource with a get and a list also has a `Get<Resource>ByReference`,
+which fetches one resource by any of the three:
+
+```go
+inst, err := c.GetInstanceByReference(ctx, "web-01", nil)
+sub, err := n.GetSubnetByReference(ctx, "public", &network.ListSubnetsParams{VPC: "prod"})
+```
+
+An id goes to the get; a CRN or a name goes to the list as an exact filter,
+together with whatever the scope argument sets. A name is unique only within
+its parent, so fix the parent on the scope — `basaltic.IsAmbiguousReference`
+reports when more than one resource matched — and `basaltic.IsNotFound`
+reports a miss, for the kind the string was read as.
+
 ## Services
 
 One package per service. Import only what you use.

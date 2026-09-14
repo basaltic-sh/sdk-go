@@ -12,6 +12,18 @@
         in: query
         schema: { type: string }
         description: Opaque pagination cursor.
+      - name: name
+        in: query
+        schema: { type: string }
+        description: Exact widget name. Empty values match no named resources.
+      - name: crn
+        in: query
+        schema: { type: string }
+        description: Exact widget CRN. A foreign or mismatched CRN returns an empty page.
+      - name: shelf
+        in: query
+        schema: { type: string }
+        description: Filter by shelf reference (UUID, CRN or exact name).
       - name: widget_state
         in: query
         schema: { $ref: '../components/schemas/widget.yaml#/WidgetState' }

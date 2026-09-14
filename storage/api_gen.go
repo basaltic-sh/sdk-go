@@ -1565,3 +1565,88 @@ func (c *Client) UploadPart(ctx context.Context, bucket string, uploadID string,
 	}
 	return &out, nil
 }
+
+// GetSnapshotByReference fetches one snapshot by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetSnapshot]; a CRN or a name goes to [Client.ListSnapshots]
+// as an exact filter, together with any filters already set on scope,
+// which may be nil. A miss is a not-found error for the kind the string
+// was read as — no other kind is tried — and more than one match is
+// a [basaltic.AmbiguousReferenceError].
+//
+// A name is unique only within its parent; fix it on scope
+// (SnapshotPolicy, Volume) or the lookup can match more than one.
+func (c *Client) GetSnapshotByReference(ctx context.Context, ref string, scope *ListSnapshotsParams, opts ...basaltic.RequestOption) (*Snapshot, error) {
+	return basaltic.ResolveByReference(ctx, ref, "snapshot", "listSnapshots", true,
+		func(ctx context.Context, refID string) (*Snapshot, error) {
+			return c.GetSnapshot(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Snapshot], error) {
+			var p ListSnapshotsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListSnapshots(ctx, &p, opts...)
+		})
+}
+
+// GetSnapshotPolicyByReference fetches one snapshot policy by an id, a
+// CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetSnapshotPolicy]; a CRN or a name goes to
+// [Client.ListSnapshotPolicies] as an exact filter, together with any
+// filters already set on scope, which may be nil. A miss is a not-found
+// error for the kind the string was read as — no other kind is tried
+// — and more than one match is a [basaltic.AmbiguousReferenceError].
+//
+// A name is unique only within its parent; fix it on scope (Volume) or
+// the lookup can match more than one.
+func (c *Client) GetSnapshotPolicyByReference(ctx context.Context, ref string, scope *ListSnapshotPoliciesParams, opts ...basaltic.RequestOption) (*SnapshotPolicy, error) {
+	return basaltic.ResolveByReference(ctx, ref, "snapshot-policy", "listSnapshotPolicies", true,
+		func(ctx context.Context, refID string) (*SnapshotPolicy, error) {
+			return c.GetSnapshotPolicy(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[SnapshotPolicy], error) {
+			var p ListSnapshotPoliciesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListSnapshotPolicies(ctx, &p, opts...)
+		})
+}
+
+// GetVolumeByReference fetches one volume by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetVolume]; a CRN or a name goes to [Client.ListVolumes] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetVolumeByReference(ctx context.Context, ref string, scope *ListVolumesParams, opts ...basaltic.RequestOption) (*Volume, error) {
+	return basaltic.ResolveByReference(ctx, ref, "volume", "listVolumes", true,
+		func(ctx context.Context, refID string) (*Volume, error) {
+			return c.GetVolume(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Volume], error) {
+			var p ListVolumesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListVolumes(ctx, &p, opts...)
+		})
+}

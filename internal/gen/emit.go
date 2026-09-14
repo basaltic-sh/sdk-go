@@ -210,6 +210,9 @@ func (b *builder) emitAPI() ([]byte, error) {
 			return nil, err
 		}
 	}
+	for _, r := range b.byReference {
+		b.emitByReference(&body, r)
+	}
 	return fileHeader(b.service, nil, body.String()), nil
 }
 

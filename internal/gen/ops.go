@@ -129,6 +129,7 @@ func (b *builder) buildOperations(spec map[string]any, specFile string) error {
 	for _, op := range b.ops {
 		op.Resource, op.Verb = res.resolve(op, op.xResource)
 	}
+	b.deriveByReference()
 	return nil
 }
 

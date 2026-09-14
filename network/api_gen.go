@@ -2222,3 +2222,309 @@ func (c *Client) UpdateVPC(ctx context.Context, vpcID string, body *VPCUpdateReq
 	}
 	return out.VPC, nil
 }
+
+// GetEgressOnlyGatewayByReference fetches one egress only gateway by an
+// id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetEgressOnlyGateway]; a CRN or a name goes to
+// [Client.ListEgressOnlyGateways] as an exact filter, together with any
+// filters already set on scope, which may be nil. A miss is a not-found
+// error for the kind the string was read as — no other kind is tried
+// — and more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetEgressOnlyGatewayByReference(ctx context.Context, ref string, scope *ListEgressOnlyGatewaysParams, opts ...basaltic.RequestOption) (*EgressOnlyGateway, error) {
+	return basaltic.ResolveByReference(ctx, ref, "egress-only-gateway", "listEgressOnlyGateways", true,
+		func(ctx context.Context, refID string) (*EgressOnlyGateway, error) {
+			return c.GetEgressOnlyGateway(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[EgressOnlyGateway], error) {
+			var p ListEgressOnlyGatewaysParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListEgressOnlyGateways(ctx, &p, opts...)
+		})
+}
+
+// GetFloatingIPByReference fetches one floating ip by an id, a CRN or a
+// name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetFloatingIP]; a CRN or a name goes to
+// [Client.ListFloatingIPs] as an exact filter, together with any filters
+// already set on scope, which may be nil. A miss is a not-found error
+// for the kind the string was read as — no other kind is tried — and
+// more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetFloatingIPByReference(ctx context.Context, ref string, scope *ListFloatingIPsParams, opts ...basaltic.RequestOption) (*FloatingIP, error) {
+	return basaltic.ResolveByReference(ctx, ref, "floating-ip", "listFloatingIps", true,
+		func(ctx context.Context, refID string) (*FloatingIP, error) {
+			return c.GetFloatingIP(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[FloatingIP], error) {
+			var p ListFloatingIPsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListFloatingIPs(ctx, &p, opts...)
+		})
+}
+
+// GetInterfaceByReference fetches one interface by an id, a CRN or a
+// name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetInterface]; a CRN or a name goes to [Client.ListInterfaces]
+// as an exact filter, together with any filters already set on scope,
+// which may be nil. A miss is a not-found error for the kind the string
+// was read as — no other kind is tried — and more than one match is
+// a [basaltic.AmbiguousReferenceError].
+//
+// A name is unique only within its parent; fix it on scope (Subnet, VPC)
+// or the lookup can match more than one.
+func (c *Client) GetInterfaceByReference(ctx context.Context, ref string, scope *ListInterfacesParams, opts ...basaltic.RequestOption) (*Interface, error) {
+	return basaltic.ResolveByReference(ctx, ref, "interface", "listInterfaces", true,
+		func(ctx context.Context, refID string) (*Interface, error) {
+			return c.GetInterface(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Interface], error) {
+			var p ListInterfacesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListInterfaces(ctx, &p, opts...)
+		})
+}
+
+// GetInternetGatewayByReference fetches one internet gateway by an id, a
+// CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetInternetGateway]; a CRN or a name goes to
+// [Client.ListInternetGateways] as an exact filter, together with any
+// filters already set on scope, which may be nil. A miss is a not-found
+// error for the kind the string was read as — no other kind is tried
+// — and more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetInternetGatewayByReference(ctx context.Context, ref string, scope *ListInternetGatewaysParams, opts ...basaltic.RequestOption) (*InternetGateway, error) {
+	return basaltic.ResolveByReference(ctx, ref, "internet-gateway", "listInternetGateways", true,
+		func(ctx context.Context, refID string) (*InternetGateway, error) {
+			return c.GetInternetGateway(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[InternetGateway], error) {
+			var p ListInternetGatewaysParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListInternetGateways(ctx, &p, opts...)
+		})
+}
+
+// GetNATGatewayByReference fetches one nat gateway by an id, a CRN or a
+// name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetNATGateway]; a CRN or a name goes to
+// [Client.ListNATGateways] as an exact filter, together with any filters
+// already set on scope, which may be nil. A miss is a not-found error
+// for the kind the string was read as — no other kind is tried — and
+// more than one match is a [basaltic.AmbiguousReferenceError].
+//
+// A name is unique only within its parent; fix it on scope (Subnet, VPC)
+// or the lookup can match more than one.
+func (c *Client) GetNATGatewayByReference(ctx context.Context, ref string, scope *ListNATGatewaysParams, opts ...basaltic.RequestOption) (*NATGateway, error) {
+	return basaltic.ResolveByReference(ctx, ref, "nat-gateway", "listNATGateways", true,
+		func(ctx context.Context, refID string) (*NATGateway, error) {
+			return c.GetNATGateway(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[NATGateway], error) {
+			var p ListNATGatewaysParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListNATGateways(ctx, &p, opts...)
+		})
+}
+
+// GetRouteByReference fetches one route by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetRoute]; a CRN or a name goes to [Client.ListRoutes] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetRouteByReference(ctx context.Context, routeTableID string, ref string, scope *ListRoutesParams, opts ...basaltic.RequestOption) (*Route, error) {
+	return basaltic.ResolveByReference(ctx, ref, "route", "listRoutes", true,
+		func(ctx context.Context, refID string) (*Route, error) {
+			return c.GetRoute(ctx, routeTableID, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Route], error) {
+			var p ListRoutesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListRoutes(ctx, routeTableID, &p, opts...)
+		})
+}
+
+// GetRouteTableByReference fetches one route table by an id, a CRN or a
+// name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetRouteTable]; a CRN or a name goes to
+// [Client.ListRouteTables] as an exact filter, together with any filters
+// already set on scope, which may be nil. A miss is a not-found error
+// for the kind the string was read as — no other kind is tried — and
+// more than one match is a [basaltic.AmbiguousReferenceError].
+//
+// A name is unique only within its parent; fix it on scope (VPC) or the
+// lookup can match more than one.
+func (c *Client) GetRouteTableByReference(ctx context.Context, ref string, scope *ListRouteTablesParams, opts ...basaltic.RequestOption) (*RouteTable, error) {
+	return basaltic.ResolveByReference(ctx, ref, "route-table", "listRouteTables", true,
+		func(ctx context.Context, refID string) (*RouteTable, error) {
+			return c.GetRouteTable(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[RouteTable], error) {
+			var p ListRouteTablesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListRouteTables(ctx, &p, opts...)
+		})
+}
+
+// GetSecurityGroupByReference fetches one security group by an id, a CRN
+// or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetSecurityGroup]; a CRN or a name goes to
+// [Client.ListSecurityGroups] as an exact filter, together with any
+// filters already set on scope, which may be nil. A miss is a not-found
+// error for the kind the string was read as — no other kind is tried
+// — and more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetSecurityGroupByReference(ctx context.Context, ref string, scope *ListSecurityGroupsParams, opts ...basaltic.RequestOption) (*SecurityGroup, error) {
+	return basaltic.ResolveByReference(ctx, ref, "security-group", "listSecurityGroups", true,
+		func(ctx context.Context, refID string) (*SecurityGroup, error) {
+			return c.GetSecurityGroup(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[SecurityGroup], error) {
+			var p ListSecurityGroupsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListSecurityGroups(ctx, &p, opts...)
+		})
+}
+
+// GetSecurityGroupRuleByReference fetches one security group rule by an
+// id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetSecurityGroupRule]; a CRN or a name goes to
+// [Client.ListSecurityGroupRules] as an exact filter, together with any
+// filters already set on scope, which may be nil. A miss is a not-found
+// error for the kind the string was read as — no other kind is tried
+// — and more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetSecurityGroupRuleByReference(ctx context.Context, securityGroupID string, ref string, scope *ListSecurityGroupRulesParams, opts ...basaltic.RequestOption) (*SecurityGroupRule, error) {
+	return basaltic.ResolveByReference(ctx, ref, "security-group-rule", "listSecurityGroupRules", true,
+		func(ctx context.Context, refID string) (*SecurityGroupRule, error) {
+			return c.GetSecurityGroupRule(ctx, securityGroupID, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[SecurityGroupRule], error) {
+			var p ListSecurityGroupRulesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListSecurityGroupRules(ctx, securityGroupID, &p, opts...)
+		})
+}
+
+// GetSubnetByReference fetches one subnet by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetSubnet]; a CRN or a name goes to [Client.ListSubnets] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+//
+// A name is unique only within its parent; fix it on scope (VPC) or the
+// lookup can match more than one.
+func (c *Client) GetSubnetByReference(ctx context.Context, ref string, scope *ListSubnetsParams, opts ...basaltic.RequestOption) (*Subnet, error) {
+	return basaltic.ResolveByReference(ctx, ref, "subnet", "listSubnets", true,
+		func(ctx context.Context, refID string) (*Subnet, error) {
+			return c.GetSubnet(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Subnet], error) {
+			var p ListSubnetsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListSubnets(ctx, &p, opts...)
+		})
+}
+
+// GetVPCByReference fetches one vpc by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetVPC]; a CRN or a name goes to [Client.ListVPCs] as an exact
+// filter, together with any filters already set on scope, which may be
+// nil. A miss is a not-found error for the kind the string was read as
+// — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetVPCByReference(ctx context.Context, ref string, scope *ListVPCsParams, opts ...basaltic.RequestOption) (*VPC, error) {
+	return basaltic.ResolveByReference(ctx, ref, "vpc", "listVpcs", true,
+		func(ctx context.Context, refID string) (*VPC, error) {
+			return c.GetVPC(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[VPC], error) {
+			var p ListVPCsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListVPCs(ctx, &p, opts...)
+		})
+}

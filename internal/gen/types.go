@@ -69,6 +69,9 @@ type builder struct {
 	byRef   map[string]string // ref identity -> Go type name
 	origins map[string]ref    // Go type name -> where it came from
 	ops     []*operation
+	// byReference pairs each resource's get with its list, for the
+	// Get<Resource>ByReference methods. See byref.go.
+	byReference []*byReference
 
 	// overrides renames a schema whose Go name would collide with another
 	// file's. Keyed by "<file>.yaml#/<Name>".
