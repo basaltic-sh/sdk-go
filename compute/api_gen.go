@@ -691,7 +691,7 @@ func (c *Client) CreateInstance(ctx context.Context, body *InstanceCreateRequest
 // Create a pool from a launch template and a desired count. The
 // desired_count instances are spawned synchronously; a background
 // reconciler then converges member_count toward desired_count as it's
-// changed. min_count/max_count default to desired_count.
+// changed. On create only, min_count/max_count default to desired_count.
 //
 // The top-level `tags` label the pool itself; `template.tags` are
 // stamped on every instance it launches.
@@ -1451,7 +1451,9 @@ func (c *Client) RebootInstance(ctx context.Context, instanceID string, body *In
 //
 // Capacity does not dip. The pool runs one instance over its target for
 // the duration so a replacement is serving before anything is retired,
-// unless it is already at max_count, where it replaces in place instead.
+// when headroom is available. At max_count, the refresh waits until
+// headroom becomes available instead of retiring a member below
+// desired_count.
 //
 // Idempotent: asking again while a roll is running is accepted and does
 // not restart it. Watch `refresh_in_progress` and `stale_instance_count`
@@ -1650,10 +1652,18 @@ func (c *Client) UpdateInstance(ctx context.Context, instanceID string, body *In
 
 // UpdateInstancePool updates an instance pool's size, tags or launch template.
 //
-// Change desired_count (bounded by the pool's min_count/max_count), the
-// pool's own tags, and/or the launch template. The reconciler scales the
-// live instance set to match a new desired_count. min_count and
-// max_count are fixed at create.
+// Change desired_count, min_count, max_count, the pool's own tags,
+// and/or the launch template. Omitted bounds retain their current
+// values. The resulting bounds must satisfy 0 <= min_count <= max_count
+// <= 100. If desired_count is omitted, it is clamped into the new bounds
+// and the reconciler scales the live instance set to match. An explicit
+// desired_count must lie within the new bounds. Invalid sizing returns
+// 400 with nothing applied, including tags and template changes. Managed
+// pools remain read-only through the customer API.
+//
+// Lowering max_count to desired_count removes refresh surge headroom.
+// The refresh waits until headroom becomes available; normal scaling
+// continues.
 //
 // `tags` relabels the POOL and nothing else: it takes effect
 // immediately, no instance is touched, and the new set is what a later

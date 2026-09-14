@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "services": [
     {
       "name": "audit",
@@ -2193,7 +2193,23 @@
               "go_type": "*int",
               "flag_kind": "int",
               "pointer": true,
-              "doc": "New target size, bounded by the pool's min_count/max_count and the hard platform cap of 100"
+              "doc": "New target size, bounded by the resulting min_count/max_count and the hard platform cap of 100"
+            },
+            {
+              "wire": "max_count",
+              "go_name": "MaxCount",
+              "go_type": "*int",
+              "flag_kind": "int",
+              "pointer": true,
+              "doc": "New upper bound; omitted desired_count falls to this bound if needed"
+            },
+            {
+              "wire": "min_count",
+              "go_name": "MinCount",
+              "go_type": "*int",
+              "flag_kind": "int",
+              "pointer": true,
+              "doc": "New lower bound; omitted desired_count rises to this bound if needed"
             },
             {
               "wire": "tags",

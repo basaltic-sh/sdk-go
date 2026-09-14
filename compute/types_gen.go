@@ -104,6 +104,25 @@ const (
 	CurrentStateSuspended CurrentState = "suspended"
 )
 
+type Fault struct {
+	// Code stable machine-readable code owned by the reporting operation.
+	Code string `json:"code"`
+
+	// Details structured context; legacy strings are preserved in legacy_text.
+	Details map[string]any `json:"details"`
+
+	// FirstAt first observation in this active occurrence series.
+	FirstAt time.Time `json:"first_at"`
+
+	// LastAt latest observation in this active occurrence series.
+	LastAt      time.Time `json:"last_at"`
+	Message     string    `json:"message"`
+	Occurrences int       `json:"occurrences"`
+
+	// One of: "error", "warning".
+	Severity string `json:"severity"`
+}
+
 // Flavor a compute size (vCPU + RAM). A flavor carries no disk size — the
 // boot disk is a customer volume sized at launch, floored by the image's
 // min_disk_gb.
@@ -472,8 +491,11 @@ type Instance struct {
 	// running, Stop for stopped, Delete for deleted.
 	//
 	// One of: "running", "stopped", "deleted".
-	DesiredState string         `json:"desired_state,omitempty"`
-	Fault        *InstanceFault `json:"fault,omitempty"`
+	DesiredState string `json:"desired_state,omitempty"`
+
+	// Faults active faults ordered by last_at descending, then internal history
+	// id descending for a stable tie-breaker. Healthy resources return [].
+	Faults []*Fault `json:"faults"`
 
 	// Flavor resolved flavor (compute size) the instance runs on. Omitted if the
 	// referenced flavor row has been retired.
@@ -590,15 +612,6 @@ type InstanceCreateRequest struct {
 	Volumes []*InstanceVolume `json:"volumes,omitempty"`
 }
 
-type InstanceFault struct {
-	At time.Time `json:"at,omitempty"`
-
-	// Code short machine-readable failure code.
-	Code    string `json:"code,omitempty"`
-	Details string `json:"details,omitempty"`
-	Message string `json:"message,omitempty"`
-}
-
 // InstancePool a launch template plus a desired count. Creating a pool spawns
 // desired_count instances; a reconciler converges member_count toward
 // desired_count as it changes. member_count is how many members the pool
@@ -692,7 +705,8 @@ type InstancePool struct {
 // takes. The pool's own fields — description, tags, sizing — stay at
 // the top level, because they describe the pool rather than the
 // instances in it. A flavor and a primary subnet are required, as
-// `template.flavor` + `template.networks[0].subnet`.
+// `template.flavor` + `template.networks[0].subnet`. On create only,
+// omitted min_count and max_count default to desired_count.
 type InstancePoolCreateRequest struct {
 	Description  *string `json:"description,omitempty"`
 	DesiredCount *int    `json:"desired_count,omitempty"`
@@ -831,10 +845,17 @@ type InstancePoolTemplateRequest struct {
 	Volumes []*InstanceVolume `json:"volumes,omitempty"`
 }
 
-// InstancePoolUpdateRequest every field is optional; an omitted one is left alone, and sending
-// none of them is a 400 rather than a silent no-op.
+// InstancePoolUpdateRequest every field is optional; sending none of them is a 400. Omitted bounds
+// retain their current values. The resulting bounds must satisfy 0 <=
+// min_count <= max_count <= 100, or the entire request returns 400. If
+// desired_count is omitted, it is clamped into the resulting bounds. If
+// supplied, desired_count must lie within those bounds or the entire
+// request returns 400 with no changes applied. A changed target is
+// reconciled normally. Managed pools are read-only through the customer
+// API.
 //
-// `min_count` and `max_count` are fixed at create and are not patchable.
+// A refresh waits when max_count leaves no surge headroom; increasing
+// max_count allows it to resume.
 //
 // The two tag sets move independently. `tags` relabels the pool itself
 // and takes effect immediately, touching no instance. `template.tags`
@@ -846,9 +867,17 @@ type InstancePoolTemplateRequest struct {
 // onto the current template with POST
 // /v1/instance-pools/{pool_id}/refresh.
 type InstancePoolUpdateRequest struct {
-	// DesiredCount new target size, bounded by the pool's min_count/max_count and the
-	// hard platform cap of 100.
+	// DesiredCount new target size, bounded by the resulting min_count/max_count and
+	// the hard platform cap of 100.
 	DesiredCount *int `json:"desired_count,omitempty"`
+
+	// MaxCount new upper bound; omitted desired_count falls to this bound if
+	// needed.
+	MaxCount *int `json:"max_count,omitempty"`
+
+	// MinCount new lower bound; omitted desired_count rises to this bound if
+	// needed.
+	MinCount *int `json:"min_count,omitempty"`
 
 	// Tags REPLACES the pool's labels: the map you send becomes the whole set,
 	// an empty object clears them, and omitting the field leaves them
