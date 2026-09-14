@@ -647,7 +647,10 @@ type InstancePool struct {
 	// `running`.
 	LiveCount int    `json:"live_count,omitempty"`
 	ManagedBy string `json:"managed_by,omitempty"`
-	MaxCount  int    `json:"max_count,omitempty"`
+
+	// MaxCount a value of 0 means the pool holds no members until max_count is
+	// raised.
+	MaxCount int `json:"max_count,omitempty"`
 
 	// MemberCount how many instances the pool holds, running or not. This is what the
 	// reconciler converges toward desired_count and what `status`
@@ -717,8 +720,11 @@ type InstancePool struct {
 type InstancePoolCreateRequest struct {
 	Description  *string `json:"description,omitempty"`
 	DesiredCount *int    `json:"desired_count,omitempty"`
-	MaxCount     *int    `json:"max_count,omitempty"`
-	MinCount     *int    `json:"min_count,omitempty"`
+
+	// MaxCount a value of 0 means the pool holds no members until max_count is
+	// raised.
+	MaxCount *int `json:"max_count,omitempty"`
+	MinCount *int `json:"min_count,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -879,7 +885,8 @@ type InstancePoolUpdateRequest struct {
 	DesiredCount *int `json:"desired_count,omitempty"`
 
 	// MaxCount new upper bound; omitted desired_count falls to this bound if
-	// needed.
+	// needed. A value of 0 means the pool holds no members until max_count
+	// is raised.
 	MaxCount *int `json:"max_count,omitempty"`
 
 	// MinCount new lower bound; omitted desired_count rises to this bound if

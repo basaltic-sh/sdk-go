@@ -1037,7 +1037,8 @@
               "go_name": "MaxCount",
               "go_type": "*int",
               "flag_kind": "int",
-              "pointer": true
+              "pointer": true,
+              "doc": "A value of 0 means the pool holds no members until max_count is raised"
             },
             {
               "wire": "min_count",
