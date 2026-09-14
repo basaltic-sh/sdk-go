@@ -1,7 +1,8 @@
 # Exercises the shapes the real specifications actually contain: an enum, a
 # list envelope with meta, a single-field response envelope, required versus
-# optional request fields, a map alias, and a description attached to a $ref
-# through a one-element allOf.
+# optional request fields, a map alias, a description attached to a $ref
+# through a one-element allOf, and the two spellings of a nullable reference
+# on a response (a oneOf and an anyOf pairing a $ref with a null member).
 
 WidgetState:
   type: string
@@ -30,6 +31,26 @@ Widget:
       description: >-
         The widget this one was cloned from. Omitted when it was created
         directly.
+    slot:
+      oneOf:
+        - $ref: '#/Slot'
+        - type: object
+          nullable: true
+      description: Where the widget sits; null when the slot was removed.
+    shelf:
+      anyOf:
+        - $ref: '#/Slot'
+        - type: object
+          nullable: true
+          enum: [null]
+      description: The shelf the slot belongs to; null when it no longer exists.
+
+Slot:
+  type: object
+  description: A place a widget can occupy.
+  properties:
+    id: { type: string, format: uuid }
+    label: { type: string }
 
 WidgetCreateRequest:
   type: object

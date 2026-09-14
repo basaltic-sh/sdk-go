@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "services": [
     {
       "name": "audit",
@@ -1136,7 +1136,7 @@
           "go_name": "DeleteImage",
           "method": "DELETE",
           "path": "/v1/images/{image_id}",
-          "summary": "Delete (hide) an image",
+          "summary": "Delete an unused image",
           "resource": "image",
           "verb": "delete",
           "path_params": [
@@ -1510,14 +1510,6 @@
               "doc": "Exact resource CRN, intersected with all other filters before pagination"
             },
             {
-              "wire": "include_hidden",
-              "go_name": "IncludeHidden",
-              "go_type": "*bool",
-              "flag_kind": "bool",
-              "pointer": true,
-              "doc": "Include the requesting account's hidden images for cleanup discovery"
-            },
-            {
               "wire": "limit",
               "go_name": "Limit",
               "go_type": "int",
@@ -1549,7 +1541,7 @@
               "go_name": "Status",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "One of: \"pending\", \"importing\", \"active\", \"error\", \"hidden\""
+              "doc": "One of: \"pending\", \"importing\", \"active\", \"error\", \"deleting\", \"withdrawn\""
             },
             {
               "wire": "visibility",

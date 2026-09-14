@@ -421,14 +421,19 @@ func (b *builder) typeForSchema(schema node, base, hint string, requestSide bool
 			}
 		}
 	}
-	// A two-member oneOf pairing a $ref with a "null" member is how the
-	// specifications express a nullable reference on a response; the Go
-	// side already models absence with a nil pointer, so unwrap to the
-	// reference itself.
-	if oneOf := list(m, "oneOf"); len(oneOf) == 2 && len(obj(m, "properties")) == 0 {
+	// A two-member oneOf or anyOf pairing a $ref with a "null" member is
+	// how the specifications express a nullable reference on a response
+	// (networking uses oneOf, the compute/loadbalancer/database placement
+	// embeds anyOf); the Go side already models absence with a nil
+	// pointer, so unwrap to the reference itself.
+	for _, combinator := range []string{"oneOf", "anyOf"} {
+		members := list(m, combinator)
+		if len(members) != 2 || len(obj(m, "properties")) != 0 {
+			continue
+		}
 		var ref map[string]any
 		nulls := 0
-		for _, member := range oneOf {
+		for _, member := range members {
 			inner, ok := mapOf(member)
 			if !ok {
 				continue

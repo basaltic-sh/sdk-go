@@ -19,6 +19,12 @@ type GetTokenResult struct {
 	ExpiresIn   int    `json:"expires_in,omitempty"`
 }
 
+// Slot a place a widget can occupy.
+type Slot struct {
+	ID    string `json:"id,omitempty"`
+	Label string `json:"label,omitempty"`
+}
+
 type Tags = map[string]string
 
 // Widget a widget.
@@ -29,8 +35,14 @@ type Widget struct {
 
 	// Parent the widget this one was cloned from. Omitted when it was created
 	// directly.
-	Parent      *Widget     `json:"parent,omitempty"`
-	PrimaryIPv6 string      `json:"primary_ipv6,omitempty"`
+	Parent      *Widget `json:"parent,omitempty"`
+	PrimaryIPv6 string  `json:"primary_ipv6,omitempty"`
+
+	// Shelf the shelf the slot belongs to; null when it no longer exists.
+	Shelf *Slot `json:"shelf,omitempty"`
+
+	// Slot where the widget sits; null when the slot was removed.
+	Slot        *Slot       `json:"slot,omitempty"`
 	Tags        Tags        `json:"tags,omitempty"`
 	WidgetState WidgetState `json:"widget_state,omitempty"`
 }

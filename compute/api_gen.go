@@ -93,10 +93,6 @@ type ListImagesParams struct {
 	// the represented resource, not the binding.
 	CRN string
 
-	// IncludeHidden include the requesting account's hidden images for cleanup
-	// discovery.
-	IncludeHidden *bool
-
 	// Limit maximum number of items to return. A value above the maximum is
 	// clamped to it rather than rejected, so a page shorter than the one
 	// you asked for is normal — page until `meta.has_more` is false, not
@@ -114,7 +110,8 @@ type ListImagesParams struct {
 	Name string
 	OS   string
 
-	// Status one of: "pending", "importing", "active", "error", "hidden".
+	// Status one of: "pending", "importing", "active", "error", "deleting",
+	// "withdrawn".
 	Status string
 
 	// Visibility one of: "public", "private".
@@ -136,9 +133,6 @@ func (p *ListImagesParams) query() url.Values {
 	}
 	if p.CRN != "" {
 		q.Set("crn", p.CRN)
-	}
-	if p.IncludeHidden != nil {
-		q.Set("include_hidden", strconv.FormatBool(*p.IncludeHidden))
 	}
 	if p.Limit != 0 {
 		q.Set("limit", strconv.Itoa(int(p.Limit)))
@@ -685,8 +679,8 @@ func (c *Client) AttachInstanceVolume(ctx context.Context, instanceID string, bo
 
 // CreateImage imports an image from an object URL.
 //
-// Creating an image in the platform account requires
-// `compute:CreatePlatformImage` instead of `compute:CreateImage`.
+// Creating an image in the platform account requires a principal acting
+// in that account with `compute:CreateImage`.
 //
 // Registers an image for import from a presigned object URL — no image
 // bytes flow through this API. Upload your disk to any bucket you
@@ -845,20 +839,22 @@ func (c *Client) CreateSerialConsoleTicket(ctx context.Context, instanceID strin
 	return &out, nil
 }
 
-// DeleteImage deletes (hide) an image.
+// DeleteImage deletes an unused image.
 //
-// Deleting an image owned by the platform account additionally requires
-// `compute:DeletePlatformImage`; `compute:DeleteImage` is always checked
-// first.
+// Deleting a platform image requires a principal acting in the platform
+// account with `compute:DeleteImage`; other accounts receive 403.
 //
-// Soft-delete: the catalog row is flipped to status=hidden so in-flight
-// clones can still complete. The underlying image data is reclaimed as
-// soon as nothing is cloned from it — immediately when the image has
-// no running instances, and by a background sweep otherwise.
+// Refuses with 409 and code IMAGE_IN_USE if any instance (in any state)
+// or instance-pool template references this image. The image is
+// unchanged. The existing code/message error envelope has no structured
+// details field; message names both counts, including zero, for example:
+// "image is in use by 2 instances and 0 pools".
 //
-// An image the catalog withdrew at end-of-life keeps its data on
-// purpose, so deleting it by id is how you ask for that data to go.
-// Deleting an already-deleted image is a 404.
+// An unused image transitions to status=deleting and its snapshot and
+// base data are reclaimed asynchronously. GET returns the deleting
+// resource until cleanup completes, then 404. A repeated DELETE returns
+// 404, including during cleanup. Withdrawn images follow the same
+// reference checks.
 func (c *Client) DeleteImage(ctx context.Context, imageID string, opts ...basaltic.RequestOption) (*Image, error) {
 	op := &basaltic.Operation{
 		ID:       "deleteImage",
@@ -1164,10 +1160,10 @@ func (c *Client) ListFlavors(ctx context.Context, params *ListFlavorsParams, opt
 // false` that is newer than the current one. Pass `all_versions=true`
 // for a tag's whole history.
 //
-// Account cleanup can also pass `include_hidden=true` to inspect its own
-// hidden images. This never exposes another account's hidden images,
-// including withdrawn platform images, and does not make tombstones
-// bootable.
+// Withdrawn images are excluded by default. Use `status=withdrawn` or
+// `all_versions=true` to inspect them. They remain readable by ID but
+// cannot be used to launch instances. Deleting images remain readable
+// until asynchronous cleanup completes.
 //
 // Returns one page. Use ListImagesAll to walk every page.
 func (c *Client) ListImages(ctx context.Context, params *ListImagesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Image], error) {
@@ -1748,9 +1744,8 @@ func (c *Client) StopInstance(ctx context.Context, instanceID string, opts ...ba
 
 // UpdateImage updates an image's metadata.
 //
-// Updating an image owned by the platform account additionally requires
-// `compute:UpdatePlatformImage`; `compute:UpdateImage` is always checked
-// first.
+// Updating a platform image requires a principal acting in the platform
+// account with `compute:UpdateImage`; other accounts receive 403.
 func (c *Client) UpdateImage(ctx context.Context, imageID string, body *ImageUpdateRequest, opts ...basaltic.RequestOption) (*Image, error) {
 	op := &basaltic.Operation{
 		ID:       "updateImage",

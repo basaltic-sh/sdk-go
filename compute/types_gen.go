@@ -394,7 +394,7 @@ type Image struct {
 	OSVersion string `json:"os_version,omitempty"`
 	SizeBytes int64  `json:"size_bytes,omitempty"`
 
-	// One of: "pending", "importing", "active", "error", "hidden".
+	// One of: "pending", "importing", "active", "error", "deleting", "withdrawn".
 	Status    string    `json:"status"`
 	Tags      Tags      `json:"tags,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -406,6 +406,12 @@ type Image struct {
 
 	// One of: "public", "private".
 	Visibility string `json:"visibility"`
+
+	// WithdrawalReason why this image was withdrawn. Present for status=withdrawn:
+	// end_of_life for platform release withdrawal (see eol_date), or
+	// legacy for a migrated withdrawal whose original reason is unknown.
+	// Withdrawn images retain their data but cannot be launched.
+	WithdrawalReason string `json:"withdrawal_reason,omitempty"`
 }
 
 type ImageCreateRequest struct {
@@ -1006,8 +1012,9 @@ type ListInstanceNiCsNIC struct {
 	// floating IP fronting several NICs at once reports the same address
 	// on each of them.
 	PublicIP string `json:"public_ip,omitempty"`
-	SubnetID string `json:"subnet_id,omitempty"`
-	VPCID    string `json:"vpc_id,omitempty"`
+
+	// Subnet placement; null when the referenced subnet no longer exists.
+	Subnet *Subnet `json:"subnet"`
 }
 
 type ListInstanceVolumesAttachment struct {
@@ -1106,9 +1113,8 @@ type NetworkConfigResponse struct {
 	// force).
 	SecurityGroupIDs []string `json:"security_group_ids,omitempty"`
 
-	// SubnetID Subnet UUID or complete VPC/subnet CRN. Bare names require a VPC
-	// parent and are rejected here.
-	SubnetID string `json:"subnet_id"`
+	// Subnet placement; null when the referenced subnet no longer exists.
+	Subnet *Subnet `json:"subnet"`
 }
 
 type ReinstallInstanceRequest struct {
@@ -1135,6 +1141,16 @@ type ResizeInstanceRequest struct {
 	Flavor string `json:"flavor"`
 }
 
+// RouteTableSummary route table used by a subnet, without repeating its VPC. Null when the
+// non-owning lookup no longer resolves, for example during concurrent
+// reassociation and deletion of the former table. Deleting a table still
+// associated with subnets is refused.
+type RouteTableSummary struct {
+	CRN  string `json:"crn"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 // SerialConsoleTicket a one-shot credential for opening a serial console from a browser.
 // Pass `ticket` as a query parameter on the WebSocket upgrade.
 type SerialConsoleTicket struct {
@@ -1149,11 +1165,59 @@ type SerialConsoleTicket struct {
 	Ticket string `json:"ticket"`
 }
 
+type Subnet struct {
+	CIDR string `json:"cidr"`
+
+	// CIDRV6 the dual-stack IPv6 /64, if the subnet is v6-enabled. Its presence
+	// (vs the v4 cidr) is how a client tells the subnet's families apart.
+	CIDRV6      string    `json:"cidr_v6,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	CRN         string    `json:"crn"`
+	Description string    `json:"description,omitempty"`
+	GatewayIP   string    `json:"gateway_ip"`
+	GatewayIPV6 string    `json:"gateway_ip_v6,omitempty"`
+	ID          string    `json:"id"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name       string             `json:"name"`
+	RouteTable *RouteTableSummary `json:"route_table"`
+	Tags       map[string]string  `json:"tags"`
+	UpdatedAt  time.Time          `json:"updated_at"`
+	VPC        *VPC               `json:"vpc"`
+}
+
 type Tags = map[string]string
 
 type UpdateInstanceVolumeAttachmentRequest struct {
 	// Required.
 	DeleteOnTermination bool `json:"delete_on_termination"`
+}
+
+type VPC struct {
+	// CIDRV4 IPv4 CIDR block carved up by subnets. Must be private (RFC 1918):
+	// within 10.0.0.0/8, 172.16.0.0/12 or 192.168.0.0/16. Immutable after
+	// create.
+	CIDRV4 string `json:"cidr_v4"`
+
+	// CIDRV6 the globally-routable /60 delegated from the region's IPv6 pool when
+	// the VPC was created with assign_ipv6_cidr; null for v4-only VPCs.
+	// Immutable after create.
+	CIDRV6    string    `json:"cidr_v6,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// CRN Cloud Resource Name (name-based, region+account-scoped).
+	CRN         string `json:"crn"`
+	Description string `json:"description,omitempty"`
+	ID          string `json:"id"`
+
+	// Name 1-63 chars, lowercase alphanumeric + hyphen Resource names must not
+	// start with the literal crn: prefix or be UUIDs (canonical, compact,
+	// braced, or urn:uuid: forms, in either case).
+	Name      string            `json:"name"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
 }
 
 // VolumeMount what the in-guest agent reported about this attachment.
