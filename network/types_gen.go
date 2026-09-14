@@ -20,10 +20,8 @@ type AttachFloatingIPRequest struct {
 
 type DetachFloatingIPRequest struct {
 	// Interface UUID or nested CRN; bare names, null and empty references
-	// are rejected. Selecting one member leaves the address serving from
-	// the rest; omitting the field detaches every member. On an address
-	// with a single member the two are the same thing. Naming a NIC that
-	// is not a member is a no-op.
+	// are rejected. Omitting the field clears the binding. Naming a NIC
+	// that is not a member is a no-op.
 	Interface *string `json:"interface,omitempty"`
 }
 
@@ -46,7 +44,7 @@ type EgressOnlyGateway struct {
 	Name      string            `json:"name"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
-	VPCID     string            `json:"vpc_id"`
+	VPC       *VPC              `json:"vpc"`
 }
 
 type EgressOnlyGatewayCreateRequest struct {
@@ -72,39 +70,31 @@ type EgressOnlyGatewayUpdateRequest struct {
 }
 
 type FloatingIP struct {
-	// AttachedToInterfaceID legacy single-binding field: the sole interface this floating IP is
-	// bound to, or null when unattached OR when it has more than one
-	// member (an anycast floating IP). `members` is authoritative.
-	AttachedToInterfaceID string    `json:"attached_to_interface_id,omitempty"`
-	CreatedAt             time.Time `json:"created_at"`
-	CRN                   string    `json:"crn"`
-	Description           string    `json:"description,omitempty"`
-	Family                IPFamily  `json:"family"`
+	// AttachedTo Canonical CRN of the bound interface, instance pool, or load
+	// balancer; null when unattached. A pool-owned address names its pool
+	// even when the pool has zero members. Only pool-owned addresses may
+	// have multiple NIC members. Manage their bindings through the
+	// instance pool floating IP endpoints; direct attach and detach are
+	// refused.
+	AttachedTo  string    `json:"attached_to"`
+	CreatedAt   time.Time `json:"created_at"`
+	CRN         string    `json:"crn"`
+	Description string    `json:"description,omitempty"`
+	Family      IPFamily  `json:"family"`
 
 	// HealthCheck the readiness check applied to this address's members. Absent when
 	// none is configured. See `FloatingIpHealthCheck`.
 	HealthCheck *FloatingIPHealthCheck `json:"health_check,omitempty"`
 	ID          string                 `json:"id"`
 
-	// InstancePoolID the instance pool this address belongs to, or null for an ordinary
-	// floating IP.
-	//
-	// A pool's address is the only one that can have more than one member.
-	// Its members are the pool's live replicas — one per hypervisor,
-	// maintained by the pool as it scales — so `attach` and `detach` on
-	// this floating IP are refused: use `POST
-	// /v1/instance-pools/{pool_id}/floating-ips` and `DELETE
-	// /v1/instance-pools/{pool_id}/floating-ips/{floating_ip_id}`.
-	InstancePoolID string `json:"instance_pool_id,omitempty"`
-
 	// IPAddress the public address, in the family it was allocated in.
 	IPAddress string `json:"ip_address"`
 
 	// Members the floating IP's bindings. A floating IP fronts 0 members
 	// (allocated, unattached), 1 member (the everyday case), or N members
-	// — an anycast floating IP, where one public IP is delivered to N VM
-	// NICs across hosts (each advertised as a /32 from the host holding
-	// it).
+	// for an instance pool — an anycast floating IP, where one public IP
+	// is delivered to N VM NICs across hosts (each advertised as a /32
+	// from the host holding it).
 	//
 	// Members may share a hypervisor. Two of them on one host used to mean
 	// one served and the other was silently dark; a member's forwarding
@@ -218,8 +208,9 @@ type FloatingIPMember struct {
 	// One of: "unknown", "healthy", "unhealthy".
 	Health string `json:"health"`
 
-	// InterfaceID the bound interface (instance_nic floating IPs).
-	InterfaceID string `json:"interface_id,omitempty"`
+	// Interface Bound NIC summary; null for a load balancer binding named by
+	// attached_to.
+	Interface *FloatingIPMemberInterface `json:"interface"`
 
 	// Reason why the member reads the `health` it does — so you can tell "your
 	// service is not answering" from "the guest has not booted yet".
@@ -231,9 +222,23 @@ type FloatingIPMember struct {
 	//
 	// One of: "unprobed", "booting", "probe_failed", "passing".
 	Reason string `json:"reason"`
+}
 
-	// ResourceID the bound resource id (lb / email_sender floating IPs).
-	ResourceID string `json:"resource_id,omitempty"`
+// FloatingIPMemberInterface Bound NIC summary; null for a load balancer binding named by
+// attached_to.
+type FloatingIPMemberInterface struct {
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Instance owning instance; null when the interface has no owning instance.
+	Instance *FloatingIPMemberInterfaceInstance `json:"instance"`
+}
+
+// FloatingIPMemberInterfaceInstance owning instance; null when the interface has no owning instance.
+type FloatingIPMemberInterfaceInstance struct {
+	CRN  string `json:"crn"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type FloatingIPUpdateRequest struct {
@@ -292,10 +297,9 @@ type Interface struct {
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
 	Name      string            `json:"name"`
-	SubnetID  string            `json:"subnet_id"`
+	Subnet    *Subnet           `json:"subnet"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
-	VPCID     string            `json:"vpc_id"`
 }
 
 type InterfaceCreateRequest struct {
@@ -390,15 +394,10 @@ type NATGateway struct {
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
-	Name string `json:"name"`
-
-	// SubnetID subnet the NAT GW lives in. Subnet delete is blocked while occupied.
-	SubnetID  string            `json:"subnet_id"`
+	Name      string            `json:"name"`
+	Subnet    *Subnet           `json:"subnet"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
-
-	// VPCID VPC of the parent subnet (denormalised for convenience).
-	VPCID string `json:"vpc_id"`
 }
 
 type NATGatewayCreateRequest struct {
@@ -501,7 +500,7 @@ type RouteTable struct {
 	Name      string            `json:"name"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
-	VPCID     string            `json:"vpc_id"`
+	VPC       *VPC              `json:"vpc"`
 }
 
 type RouteTableCreateRequest struct {
@@ -520,6 +519,16 @@ type RouteTableCreateRequest struct {
 	//
 	// Required.
 	VPC string `json:"vpc"`
+}
+
+// RouteTableSummary route table used by a subnet, without repeating its VPC. Null when the
+// non-owning lookup no longer resolves, for example during concurrent
+// reassociation and deletion of the former table. Deleting a table still
+// associated with subnets is refused.
+type RouteTableSummary struct {
+	CRN  string `json:"crn"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type RouteTableUpdateRequest struct {
@@ -660,16 +669,11 @@ type Subnet struct {
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
-	Name string `json:"name"`
-
-	// RouteTableID route table this subnet uses. Determines public/private semantics
-	// — a subnet is "public" if its route table has a 0.0.0.0/0 route
-	// pointing at an internet gateway, "private" otherwise. Defaults to
-	// the VPC's main table.
-	RouteTableID string            `json:"route_table_id"`
-	Tags         map[string]string `json:"tags"`
-	UpdatedAt    time.Time         `json:"updated_at"`
-	VPCID        string            `json:"vpc_id"`
+	Name       string             `json:"name"`
+	RouteTable *RouteTableSummary `json:"route_table"`
+	Tags       map[string]string  `json:"tags"`
+	UpdatedAt  time.Time          `json:"updated_at"`
+	VPC        *VPC               `json:"vpc"`
 }
 
 type SubnetCreateRequest struct {

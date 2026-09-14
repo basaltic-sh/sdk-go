@@ -207,16 +207,17 @@ func (p *ListInstanceNiCsParams) query() url.Values {
 // ListInstancePoolFloatingIPsParams are the optional filters and pagination controls for
 // [Client.ListInstancePoolFloatingIPs]. A nil *ListInstancePoolFloatingIPsParams sends none of them.
 type ListInstancePoolFloatingIPsParams struct {
-	// CRN exact resource CRN, intersected with all other filters before
-	// pagination. A foreign or mismatched CRN returns an empty page;
-	// malformed or empty CRNs return 400. Nested attachment lists filter
-	// the represented resource, not the binding.
-	CRN string
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
+	Limit int
 
-	// Name exact, case-sensitive name. Empty values match no named resources.
-	// Instance NIC lists match interface names within the instance
-	// bindings; multiple interfaces with the same name may match. Floating
-	// IPs have no name identity and return an empty list for this filter.
+	// Marker resume token — the last id from the previous page.
+	Marker string
+
+	// Name exact resource name. This resource has no name, so a supplied name
+	// returns an empty result.
 	Name string
 }
 
@@ -230,10 +231,27 @@ func (p *ListInstancePoolFloatingIPsParams) query() url.Values {
 	if p.CRN != "" {
 		q.Set("crn", p.CRN)
 	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
 	if p.Name != "" {
 		q.Set("name", p.Name)
 	}
 	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListInstancePoolFloatingIPsParams) withMarker(marker string) *ListInstancePoolFloatingIPsParams {
+	var out ListInstancePoolFloatingIPsParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
 }
 
 // ListInstancePoolsParams are the optional filters and pagination controls for
@@ -479,6 +497,28 @@ type ListPoolInstancesParams struct {
 	// the represented resource, not the binding.
 	CRN string
 
+	// CurrentState filter by where the instances actually are.
+	CurrentState CurrentState
+
+	// Flavor filter by regional flavor reference (UUID, CRN or exact name).
+	Flavor string
+
+	// Image filter by image reference (UUID, CRN or name; images also accept
+	// name:version).
+	Image string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+
 	// Name exact, case-sensitive name. Empty values match no named resources.
 	// Instance NIC lists match interface names within the instance
 	// bindings; multiple interfaces with the same name may match. Floating
@@ -496,10 +536,36 @@ func (p *ListPoolInstancesParams) query() url.Values {
 	if p.CRN != "" {
 		q.Set("crn", p.CRN)
 	}
+	if p.CurrentState != "" {
+		q.Set("current_state", string(p.CurrentState))
+	}
+	if p.Flavor != "" {
+		q.Set("flavor", p.Flavor)
+	}
+	if p.Image != "" {
+		q.Set("image", p.Image)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
 	if p.Name != "" {
 		q.Set("name", p.Name)
 	}
 	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListPoolInstancesParams) withMarker(marker string) *ListPoolInstancesParams {
+	var out ListPoolInstancesParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
 }
 
 // StartSerialConsoleParams are the optional filters and pagination controls for
@@ -1186,6 +1252,8 @@ func (c *Client) ListInstanceNiCs(ctx context.Context, instanceID string, params
 // The addresses the WHOLE pool answers on. Not the per-replica addresses
 // `template.networks[].assign_public_ip` allocates — those belong to
 // the replica and are read from the instance.
+//
+// Returns one page. Use ListInstancePoolFloatingIPsAll to walk every page.
 func (c *Client) ListInstancePoolFloatingIPs(ctx context.Context, poolID string, params *ListInstancePoolFloatingIPsParams, opts ...basaltic.RequestOption) (*basaltic.Page[FloatingIP], error) {
 	op := &basaltic.Operation{
 		ID:       "listInstancePoolFloatingIps",
@@ -1196,12 +1264,45 @@ func (c *Client) ListInstancePoolFloatingIPs(ctx context.Context, poolID string,
 	op.Query = params.query()
 	var out struct {
 		Items []FloatingIP `json:"floating_ips"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
 	page := &basaltic.Page[FloatingIP]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
 	return page, nil
+}
+
+// ListInstancePoolFloatingIPsAll walks every page of
+// ListInstancePoolFloatingIPs, yielding one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListInstancePoolFloatingIPsAll(ctx, poolID, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListInstancePoolFloatingIPsAll(ctx context.Context, poolID string, params *ListInstancePoolFloatingIPsParams, opts ...basaltic.RequestOption) iter.Seq2[FloatingIP, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[FloatingIP], error) {
+		return c.ListInstancePoolFloatingIPs(ctx, poolID, params.withMarker(marker), opts...)
+	})
 }
 
 // ListInstancePools lists instance pools.
@@ -1395,11 +1496,15 @@ func (c *Client) ListKeypairsAll(ctx context.Context, params *ListKeypairsParams
 	})
 }
 
-// ListPoolInstances lists a pool's instance bindings.
+// ListPoolInstances lists a pool's instances.
 //
-// The live (pool, instance) bindings, each with its stable sequence
-// number.
-func (c *Client) ListPoolInstances(ctx context.Context, poolID string, params *ListPoolInstancesParams, opts ...basaltic.RequestOption) (*basaltic.Page[PoolInstance], error) {
+// List full instances scoped to this pool, with the same filters,
+// ordering and pagination as the top-level instance list. The stable
+// replica sequence number is available in instance metadata as
+// `basalt:pool:sequence_num`.
+//
+// Returns one page. Use ListPoolInstancesAll to walk every page.
+func (c *Client) ListPoolInstances(ctx context.Context, poolID string, params *ListPoolInstancesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Instance], error) {
 	op := &basaltic.Operation{
 		ID:       "listPoolInstances",
 		Method:   "GET",
@@ -1408,13 +1513,46 @@ func (c *Client) ListPoolInstances(ctx context.Context, poolID string, params *L
 	}
 	op.Query = params.query()
 	var out struct {
-		Items []PoolInstance `json:"instances"`
+		Items []Instance `json:"instances"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	page := &basaltic.Page[PoolInstance]{Items: out.Items}
+	page := &basaltic.Page[Instance]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
 	return page, nil
+}
+
+// ListPoolInstancesAll walks every page of ListPoolInstances, yielding
+// one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListPoolInstancesAll(ctx, poolID, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListPoolInstancesAll(ctx context.Context, poolID string, params *ListPoolInstancesParams, opts ...basaltic.RequestOption) iter.Seq2[Instance, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[Instance], error) {
+		return c.ListPoolInstances(ctx, poolID, params.withMarker(marker), opts...)
+	})
 }
 
 // RebootInstance reboots instance.

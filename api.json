@@ -1619,19 +1619,33 @@
               "go_name": "CRN",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Exact resource CRN, intersected with all other filters before pagination"
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
+              "wire": "limit",
+              "go_name": "Limit",
+              "go_type": "int",
+              "flag_kind": "int"
+            },
+            {
+              "wire": "marker",
+              "go_name": "Marker",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Resume token — the last id from the previous page"
             },
             {
               "wire": "name",
               "go_name": "Name",
               "go_type": "string",
               "flag_kind": "string",
-              "doc": "Exact, case-sensitive name"
+              "doc": "Exact resource name"
             }
           ],
           "result_kind": "page",
           "result_type": "*basaltic.Page[FloatingIP]",
-          "item_type": "FloatingIP"
+          "item_type": "FloatingIP",
+          "paginated": true
         },
         {
           "id": "listInstancePools",
@@ -1841,7 +1855,7 @@
           "go_name": "ListPoolInstances",
           "method": "GET",
           "path": "/v1/instance-pools/{pool_id}/instances",
-          "summary": "List a pool's instance bindings",
+          "summary": "List a pool's instances",
           "resource": "instance-pool",
           "verb": "list-instances",
           "path_params": [
@@ -1860,6 +1874,56 @@
               "doc": "Exact resource CRN, intersected with all other filters before pagination"
             },
             {
+              "wire": "current_state",
+              "go_name": "CurrentState",
+              "go_type": "CurrentState",
+              "flag_kind": "string",
+              "enum": [
+                "pending",
+                "building",
+                "running",
+                "stopping",
+                "stopped",
+                "rebooting",
+                "migrating",
+                "deleting",
+                "deleted",
+                "error",
+                "crashed",
+                "paused",
+                "suspended"
+              ],
+              "doc": "Filter by where the instances actually are"
+            },
+            {
+              "wire": "flavor",
+              "go_name": "Flavor",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Filter by regional flavor reference (UUID, CRN or exact name)"
+            },
+            {
+              "wire": "image",
+              "go_name": "Image",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Filter by image reference (UUID, CRN or name; images also accept name:version)"
+            },
+            {
+              "wire": "limit",
+              "go_name": "Limit",
+              "go_type": "int",
+              "flag_kind": "int",
+              "doc": "Maximum number of items to return"
+            },
+            {
+              "wire": "marker",
+              "go_name": "Marker",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Opaque pagination cursor"
+            },
+            {
               "wire": "name",
               "go_name": "Name",
               "go_type": "string",
@@ -1868,8 +1932,9 @@
             }
           ],
           "result_kind": "page",
-          "result_type": "*basaltic.Page[PoolInstance]",
-          "item_type": "PoolInstance"
+          "result_type": "*basaltic.Page[Instance]",
+          "item_type": "Instance",
+          "paginated": true
         },
         {
           "id": "rebootInstance",
@@ -8605,7 +8670,16 @@
             "go_name": "GetFloatingIPByReference",
             "list_operation_id": "listFloatingIps",
             "scope_type": "ListFloatingIPsParams",
-            "has_name": true
+            "has_name": true,
+            "scope_params": [
+              {
+                "wire": "attached_to",
+                "go_name": "AttachedTo",
+                "go_type": "string",
+                "flag_kind": "string",
+                "doc": "Exact attachment CRN: an interface for an ordinary binding, an instance pool (including a pool with zero members), or a load balancer"
+              }
+            ]
           }
         },
         {
@@ -8937,6 +9011,13 @@
           "verb": "list",
           "params_type": "ListFloatingIPsParams",
           "params": [
+            {
+              "wire": "attached_to",
+              "go_name": "AttachedTo",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact attachment CRN: an interface for an ordinary binding, an instance pool (including a pool with zero members), or a load balancer"
+            },
             {
               "wire": "crn",
               "go_name": "CRN",

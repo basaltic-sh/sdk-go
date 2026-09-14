@@ -67,6 +67,13 @@ func (p *ListEgressOnlyGatewaysParams) withMarker(marker string) *ListEgressOnly
 // ListFloatingIPsParams are the optional filters and pagination controls for
 // [Client.ListFloatingIPs]. A nil *ListFloatingIPsParams sends none of them.
 type ListFloatingIPsParams struct {
+	// AttachedTo exact attachment CRN: an interface for an ordinary binding, an
+	// instance pool (including a pool with zero members), or a load
+	// balancer. Applied before pagination and intersected with other
+	// filters. Malformed CRNs return 400; well-formed foreign or
+	// mismatched CRNs return an empty page.
+	AttachedTo string
+
 	// CRN Exact CRN, validated against the endpoint type, region and caller
 	// account. Valid foreign or mismatched CRNs return an empty result;
 	// malformed or flat child CRNs return 400. Filters are conjunctive.
@@ -87,6 +94,9 @@ func (p *ListFloatingIPsParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
+	}
+	if p.AttachedTo != "" {
+		q.Set("attached_to", p.AttachedTo)
 	}
 	if p.CRN != "" {
 		q.Set("crn", p.CRN)
@@ -629,28 +639,12 @@ func (p *ListVPCsParams) withMarker(marker string) *ListVPCsParams {
 // to the instance behind it. Idempotent re-attach to the same iface is a
 // no-op.
 //
-// SEVERAL INTERFACES MAKE IT AN ANYCAST ADDRESS. Attaching a second
-// interface is allowed: every member answers on the same public address,
-// and a connection is delivered to one of them. Members may share a
-// hypervisor — the host splits connections across the members it holds
-// and the edge splits across hypervisors — so this is a capacity
-// decision, not a correctness one. Losing a member ends the connections
-// it was serving; the address itself keeps working from the others.
-//
-// Every member must be in the SAME VPC (409 otherwise): one router
-// carries the address, so a member in another VPC would have no return
-// path.
-//
-// Members are not health-checked. `members[].health` reads `unknown` for
-// instance NICs, and an instance whose application has died keeps its
-// share of the connections until it is detached.
-//
-// An instance pool can own the address instead (`POST
-// /v1/instance-pools/{pool_id}/floating-ips`), which keeps the member
-// set in step with the pool as it scales rather than leaving you to
-// re-attach by hand. An address a pool already owns is refused here —
-// attach and detach it at the pool. A floating IP bound to a load
-// balancer / email sender can't take NIC members either (409).
+// Attaching a second distinct NIC returns 409 with a message directing
+// you to instance pools. Multiple members require a pool-owned address;
+// use `POST /v1/instance-pools/{pool_id}/floating-ips` to manage those
+// bindings. An address already owned by a pool or bound to a load
+// balancer is refused here (409). A manually attached NIC without a
+// health check has health `unknown` and remains advertised.
 //
 // The interface's subnet must already route `0.0.0.0/0` to an internet
 // gateway, or the address would be handed back unreachable (400).
@@ -2260,6 +2254,9 @@ func (c *Client) GetEgressOnlyGatewayByReference(ctx context.Context, ref string
 // already set on scope, which may be nil. A miss is a not-found error
 // for the kind the string was read as — no other kind is tried — and
 // more than one match is a [basaltic.AmbiguousReferenceError].
+//
+// A name is unique only within its parent; fix it on scope (AttachedTo)
+// or the lookup can match more than one.
 func (c *Client) GetFloatingIPByReference(ctx context.Context, ref string, scope *ListFloatingIPsParams, opts ...basaltic.RequestOption) (*FloatingIP, error) {
 	return basaltic.ResolveByReference(ctx, ref, "floating-ip", "listFloatingIps", true,
 		func(ctx context.Context, refID string) (*FloatingIP, error) {

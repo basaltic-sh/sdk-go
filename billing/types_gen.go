@@ -89,9 +89,12 @@ type Payment struct {
 	CreatedAt   time.Time `json:"created_at"`
 
 	// CRN global organization-scoped payment identity.
-	CRN       string `json:"crn"`
-	ID        string `json:"id"`
-	InvoiceID string `json:"invoice_id,omitempty"`
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Invoice current invoice list shape, without items; null when the invoice has
+	// been deleted.
+	Invoice *Invoice `json:"invoice"`
 
 	// One of: "pending", "processing", "succeeded", "failed", "refunded".
 	Status string `json:"status"`
