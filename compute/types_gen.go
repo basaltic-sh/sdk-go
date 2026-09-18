@@ -374,11 +374,12 @@ type Image struct {
 	// this date. They stay bootable by id until then, and the date is
 	// published well ahead of it so you can plan the move.
 	EOLDate string `json:"eol_date,omitempty"`
-	ID      string `json:"id"`
 
-	// ImportError for a failed image import (status=error), the reason. Absent
-	// otherwise.
-	ImportError string `json:"import_error,omitempty"`
+	// Faults active faults, newest first. Empty for a healthy image. Error faults
+	// set status to error without disabling an eligible import or cleanup
+	// retry.
+	Faults []*Fault `json:"faults"`
+	ID     string   `json:"id"`
 
 	// IsCurrent whether this is the version resolve-by-name returns for its (name,
 	// architecture) — i.e. the name's current tag target.
@@ -394,6 +395,9 @@ type Image struct {
 	OSVersion string `json:"os_version,omitempty"`
 	SizeBytes int64  `json:"size_bytes,omitempty"`
 
+	// Status error exactly while an active error fault exists; import and
+	// deletion progress remain independently retryable.
+	//
 	// One of: "pending", "importing", "active", "error", "deleting", "withdrawn".
 	Status    string    `json:"status"`
 	Tags      Tags      `json:"tags,omitempty"`
@@ -407,10 +411,11 @@ type Image struct {
 	// One of: "public", "private".
 	Visibility string `json:"visibility"`
 
-	// WithdrawalReason why this image was withdrawn. Present for status=withdrawn:
-	// end_of_life for platform release withdrawal (see eol_date), or
-	// legacy for a migrated withdrawal whose original reason is unknown.
-	// Withdrawn images retain their data but cannot be launched.
+	// WithdrawalReason why this image was withdrawn. Present for withdrawn images,
+	// including those with an independent error fault: end_of_life for
+	// platform release withdrawal (see eol_date), or legacy for a migrated
+	// withdrawal whose original reason is unknown. Withdrawn images retain
+	// their data but cannot be launched.
 	WithdrawalReason string `json:"withdrawal_reason,omitempty"`
 }
 
@@ -447,7 +452,7 @@ type ImageCreateRequest struct {
 	// targets). The worker detects qcow2, raw, vmdk, vhd, vhdx or vdi and
 	// converts it to raw storage. Unreadable or unsupported sources and
 	// images declaring backing files fail asynchronously with status error
-	// and import_error. Not retained after import.
+	// and an active conversion fault. Not retained after import.
 	//
 	// Required.
 	SourceURL string `json:"source_url"`
@@ -642,12 +647,10 @@ type InstancePool struct {
 	Description  string `json:"description,omitempty"`
 	DesiredCount int    `json:"desired_count,omitempty"`
 
-	// ErrorMessage the last failure the reconciler recorded, cleared when the pool
-	// reaches its target. Set alongside status `error`, and left in place
-	// through a later resize — a pool that failed to spawn and is being
-	// scaled again has not yet proved the failure is behind it.
-	ErrorMessage string `json:"error_message,omitempty"`
-	ID           string `json:"id,omitempty"`
+	// Faults active faults, newest first. Empty for a healthy pool. Recovery
+	// resolves only the successful operation's codes.
+	Faults []*Fault `json:"faults"`
+	ID     string   `json:"id,omitempty"`
 
 	// LiveCount how many members are UP — bound instances whose current_state is
 	// `running`.
@@ -695,9 +698,10 @@ type InstancePool struct {
 	// an instance refresh, which runs the pool one instance over its
 	// target while a replacement comes up.
 	//
-	// `error` carries the last failure in error_message and is still
-	// reconciled — the pool keeps being retried. `deleting` is a
-	// teardown in flight.
+	// `error` means an active error fault exists. Capacity failures remain
+	// eligible for reconciliation; failed deletion retains its teardown
+	// intent and never recreates members. `deleting` is teardown without
+	// an active error.
 	//
 	// One of: "active", "scaling", "error", "deleting".
 	Status string `json:"status,omitempty"`

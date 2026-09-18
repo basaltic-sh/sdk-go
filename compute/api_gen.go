@@ -691,8 +691,8 @@ func (c *Client) AttachInstanceVolume(ctx context.Context, instanceID string, bo
 // status=importing, and a worker fetches the URL, converts it to the raw
 // base (qcow2 / raw / vmdk / vhd / vhdx / vdi are accepted), and imports
 // it into regional storage. The row flips to active (or error, with
-// import_error set) once it finishes — poll GET /v1/images/{image_id}
-// for the status.
+// active faults) once it finishes — poll GET /v1/images/{image_id} for
+// the status.
 //
 // A name behaves like a movable tag: by default the new image becomes
 // the "current" version for its (name, architecture), so future launches

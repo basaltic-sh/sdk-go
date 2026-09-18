@@ -25,13 +25,15 @@ type Certificate struct {
 
 	// CRN name-based, so an IAM policy can wildcard a naming convention
 	// (`crn:certificate::my-account:certificate/prod-*`). The region slot
-	// is empty — certs are not region-bound.
-	CRN     string   `json:"crn,omitempty"`
-	Domains []string `json:"domains,omitempty"`
+	// is empty for compatibility; certificate storage and KMS material are
+	// regional.
+	CRN       string    `json:"crn,omitempty"`
+	Domains   []string  `json:"domains,omitempty"`
+	ExpiresAt time.Time `json:"expires_at,omitempty"`
 
-	// ErrorMessage last failure reason (set when status=error).
-	ErrorMessage string    `json:"error_message,omitempty"`
-	ExpiresAt    time.Time `json:"expires_at,omitempty"`
+	// Faults active faults, ordered newest first. Empty when healthy. Renewal
+	// failures are warnings while valid certificate material still serves.
+	Faults []*Fault `json:"faults"`
 
 	// Fingerprint Hex SHA-256 of the leaf's DER — the certificate's material
 	// version. Changes on every rotation; consumers use it to know when to
@@ -61,13 +63,17 @@ type CertificateChallenge struct {
 	// Domain the cert SAN this challenge belongs to (as the customer wrote it).
 	Domain string `json:"domain,omitempty"`
 
-	// ErrorMessage last verification failure (e.g. "CNAME = foo, want bar"). Cleared
-	// when the challenge eventually verifies.
-	ErrorMessage string `json:"error_message,omitempty"`
-
 	// ExpectedCname Target FQDN (RHS of the CNAME). Hosted in the platform's validation
 	// zone, where the per-order TXT is published during issuance.
 	ExpectedCname string `json:"expected_cname,omitempty"`
+
+	// Faults active verification warnings only; empty when healthy. Successful
+	// verification resolves verification faults while retaining history.
+	// verified records a successful observation and remains true if a
+	// later renewal observes a DNS failure. Internal history uses the
+	// parent CRN followed by /challenge/<stored-uuid>; no separate
+	// endpoint is exposed.
+	Faults []*Fault `json:"faults"`
 
 	// OurDNS true when the domain is hosted on the platform DNS service and the
 	// CNAME was created automatically. False means the customer owns the
@@ -131,6 +137,7 @@ const (
 	CertificateSourceUploaded CertificateSource = "uploaded"
 )
 
+// CertificateStatus error if and only if an active error-severity fault exists.
 type CertificateStatus string
 
 // Values CertificateStatus accepts.
@@ -142,6 +149,25 @@ const (
 	CertificateStatusExpired    CertificateStatus = "expired"
 	CertificateStatusRevoked    CertificateStatus = "revoked"
 )
+
+type Fault struct {
+	// Code stable machine-readable code owned by the reporting operation.
+	Code string `json:"code"`
+
+	// Details structured context; legacy strings are preserved in legacy_text.
+	Details map[string]any `json:"details"`
+
+	// FirstAt first observation in this active occurrence series.
+	FirstAt time.Time `json:"first_at"`
+
+	// LastAt latest observation in this active occurrence series.
+	LastAt      time.Time `json:"last_at"`
+	Message     string    `json:"message"`
+	Occurrences int       `json:"occurrences"`
+
+	// One of: "error", "warning".
+	Severity string `json:"severity"`
+}
 
 // Material a certificate's full PEM bundle including the decrypted private key.
 // Returned ONLY by the material endpoint, which requires the stronger

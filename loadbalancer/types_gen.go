@@ -187,6 +187,25 @@ type CreateTargetGroupRequest struct {
 	TargetType *string `json:"target_type,omitempty"`
 }
 
+type Fault struct {
+	// Code stable machine-readable code owned by the reporting operation.
+	Code string `json:"code"`
+
+	// Details structured context; legacy strings are preserved in legacy_text.
+	Details map[string]any `json:"details"`
+
+	// FirstAt first observation in this active occurrence series.
+	FirstAt time.Time `json:"first_at"`
+
+	// LastAt latest observation in this active occurrence series.
+	LastAt      time.Time `json:"last_at"`
+	Message     string    `json:"message"`
+	Occurrences int       `json:"occurrences"`
+
+	// One of: "error", "warning".
+	Severity string `json:"severity"`
+}
+
 type HealthCheck struct {
 	HealthyThreshold int    `json:"healthy_threshold,omitempty"`
 	IntervalSec      int    `json:"interval_sec,omitempty"`
@@ -254,8 +273,11 @@ type LoadBalancer struct {
 	// floating IP on an internet-facing LB and to the private VIP
 	// otherwise. Omitted in regions where auto-DNS is not configured —
 	// the VIP and FIP stay authoritative either way.
-	DNSName      string `json:"dns_name,omitempty"`
-	ErrorMessage string `json:"error_message,omitempty"`
+	DNSName string `json:"dns_name,omitempty"`
+
+	// Faults active faults; status is error exactly when an active error fault
+	// remains.
+	Faults []*Fault `json:"faults"`
 
 	// FlavorID compute flavor each LB instance runs on. Must be a
 	// loadbalancer-family flavor.
