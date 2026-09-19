@@ -481,8 +481,7 @@ func (c *Client) CreateSnapshotPolicy(ctx context.Context, body *SnapshotPolicyC
 //
 // Accept a volume creation request. The row is persisted in status
 // `creating` and provisioned asynchronously — poll GET until status
-// changes to `available` (success) or `error` (provisioning failed; see
-// `error_message`).
+// changes to `available` (success) or `error`, with active faults.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -884,8 +883,9 @@ func (c *Client) GetSnapshot(ctx context.Context, snapshotID string, opts ...bas
 //
 // Read one policy's schedule, retention window and run state.
 //
-// `last_error` is the field to check on a schedule that has stopped
-// producing snapshots: it carries the reason the most recent run took
+// A failed run is warning-only: `enabled` does not move and the policy
+// never reports `error`. Check `faults` when a schedule has stopped
+// producing snapshots — it carries the reason the most recent run took
 // none (quota exhausted, volume mid-extend, …) and is empty after a
 // run that succeeded. `next_run_at` and `last_run_at` say where in the
 // cycle the policy is.

@@ -33,6 +33,12 @@ type Certificate struct {
 
 	// Faults active faults, ordered newest first. Empty when healthy. Renewal
 	// failures are warnings while valid certificate material still serves.
+	// Codes: CERTIFICATE_ISSUANCE_START_FAILED (issuance could not be
+	// scheduled), CERTIFICATE_ISSUANCE_FAILED (the signing request
+	// failed), CERTIFICATE_RENEWAL_FAILED (renewal did not complete; a
+	// warning while valid material is still serving, an error once it has
+	// expired), CERTIFICATE_REVOCATION_FAILED (revocation did not
+	// complete).
 	Faults []*Fault `json:"faults"`
 
 	// Fingerprint Hex SHA-256 of the leaf's DER — the certificate's material
@@ -70,9 +76,10 @@ type CertificateChallenge struct {
 	// Faults active verification warnings only; empty when healthy. Successful
 	// verification resolves verification faults while retaining history.
 	// verified records a successful observation and remains true if a
-	// later renewal observes a DNS failure. Internal history uses the
-	// parent CRN followed by /challenge/<stored-uuid>; no separate
-	// endpoint is exposed.
+	// later renewal observes a DNS failure. A CNAME mismatch records
+	// CERTIFICATE_DNS_VERIFICATION_FAILED as a warning; verified does not
+	// move. Internal history uses the parent CRN followed by
+	// /challenge/<stored-uuid>; no separate endpoint is exposed.
 	Faults []*Fault `json:"faults"`
 
 	// OurDNS true when the domain is hosted on the platform DNS service and the

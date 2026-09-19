@@ -78,20 +78,13 @@ type builder struct {
 	overrides map[string]string
 }
 
-// nameOverrides resolves the collisions the specifications currently carry.
-//
-// Two files define a schema called Image and the compute service reaches
-// both: components/schemas/images.yaml#/Image is the /v1/images resource,
-// while components/schemas/compute.yaml#/Image is the narrower summary
-// embedded in an instance. They are genuinely different types, so the
-// generator cannot pick one — it renames the embedded one and says so here.
-//
-// An entry is a bug in the specifications, not a feature of the generator: a
-// new collision fails the build rather than landing silently.
-var nameOverrides = map[string]string{
-	"compute.yaml#/Image":             "InstanceImage",
-	"compute.yaml#/ImageListResponse": "InstanceImageListResponse",
-}
+// nameOverrides renames a schema whose generated name would collide with
+// another reachable from the same service. Empty today: the last collision
+// (compute.yaml#/Image versus images.yaml#/Image) was removed from the
+// specifications when Instance.image started referencing images.yaml#/Image
+// directly, so an entry here is a bug in the specifications, not a feature of
+// the generator — a new collision fails the build rather than landing silently.
+var nameOverrides = map[string]string{}
 
 func newBuilder(ld *loader, service, specDir string) *builder {
 	return &builder{
