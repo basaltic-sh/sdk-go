@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "services": [
     {
       "name": "audit",
@@ -640,7 +640,7 @@
           "go_name": "AttachInstanceNIC",
           "method": "POST",
           "path": "/v1/instances/{instance_id}/nics",
-          "summary": "Attach a NIC to a running instance",
+          "summary": "Attach an existing NIC to an instance",
           "resource": "instance",
           "verb": "attach-nic",
           "path_params": [
@@ -656,38 +656,10 @@
             {
               "wire": "interface",
               "go_name": "Interface",
-              "go_type": "*string",
+              "go_type": "string",
               "flag_kind": "string",
-              "pointer": true,
+              "required": true,
               "doc": "Existing standalone interface UUID or complete VPC/subnet/interface CRN"
-            },
-            {
-              "wire": "ip_address",
-              "go_name": "IPAddress",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
-            },
-            {
-              "wire": "mac",
-              "go_name": "MAC",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true
-            },
-            {
-              "wire": "security_groups",
-              "go_name": "SecurityGroups",
-              "go_type": "[]string",
-              "flag_kind": "stringSlice"
-            },
-            {
-              "wire": "subnet",
-              "go_name": "Subnet",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Subnet UUID or complete VPC/subnet CRN; a bare name requires a VPC parent and is rejected here"
             }
           ],
           "result_kind": "value",
@@ -887,17 +859,6 @@
               "flag_kind": "string",
               "pointer": true,
               "doc": "Identifies this build within name, and must be unique there — re-publishing a version that a tag already carries is a 409"
-            },
-            {
-              "wire": "visibility",
-              "go_name": "Visibility",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "enum": [
-                "public",
-                "private"
-              ]
             }
           ],
           "result_kind": "value",
@@ -1479,6 +1440,55 @@
           "item_type": "Flavor"
         },
         {
+          "id": "listImageCatalog",
+          "go_name": "ListImageCatalog",
+          "method": "GET",
+          "path": "/v1/image-catalog",
+          "summary": "List the launch image catalog",
+          "resource": "image-catalog",
+          "verb": "list",
+          "params_type": "ListImageCatalogParams",
+          "params": [
+            {
+              "wire": "architecture",
+              "go_name": "Architecture",
+              "go_type": "string",
+              "flag_kind": "string"
+            },
+            {
+              "wire": "limit",
+              "go_name": "Limit",
+              "go_type": "int",
+              "flag_kind": "int",
+              "doc": "Maximum number of items to return"
+            },
+            {
+              "wire": "marker",
+              "go_name": "Marker",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Opaque pagination cursor"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact image name"
+            },
+            {
+              "wire": "os",
+              "go_name": "OS",
+              "go_type": "string",
+              "flag_kind": "string"
+            }
+          ],
+          "result_kind": "page",
+          "result_type": "*basaltic.Page[ImageCatalogCategory]",
+          "item_type": "ImageCatalogCategory",
+          "paginated": true
+        },
+        {
           "id": "listImages",
           "go_name": "ListImages",
           "method": "GET",
@@ -1542,13 +1552,6 @@
               "go_type": "string",
               "flag_kind": "string",
               "doc": "One of: \"pending\", \"importing\", \"active\", \"error\", \"deleting\", \"withdrawn\""
-            },
-            {
-              "wire": "visibility",
-              "go_name": "Visibility",
-              "go_type": "string",
-              "flag_kind": "string",
-              "doc": "One of: \"public\", \"private\""
             }
           ],
           "result_kind": "page",
@@ -2171,17 +2174,6 @@
               "go_name": "Tags",
               "go_type": "Tags",
               "flag_kind": "json"
-            },
-            {
-              "wire": "visibility",
-              "go_name": "Visibility",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "enum": [
-                "public",
-                "private"
-              ]
             }
           ],
           "result_kind": "value",

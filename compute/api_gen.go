@@ -79,6 +79,64 @@ func (p *ListFlavorsParams) query() url.Values {
 	return q
 }
 
+// ListImageCatalogParams are the optional filters and pagination controls for
+// [Client.ListImageCatalog]. A nil *ListImageCatalogParams sends none of them.
+type ListImageCatalogParams struct {
+	Architecture string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+
+	// Name exact image name.
+	Name string
+	OS   string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListImageCatalogParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.Architecture != "" {
+		q.Set("architecture", p.Architecture)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	if p.OS != "" {
+		q.Set("os", p.OS)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListImageCatalogParams) withMarker(marker string) *ListImageCatalogParams {
+	var out ListImageCatalogParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
 // ListImagesParams are the optional filters and pagination controls for
 // [Client.ListImages]. A nil *ListImagesParams sends none of them.
 type ListImagesParams struct {
@@ -113,9 +171,6 @@ type ListImagesParams struct {
 	// Status one of: "pending", "importing", "active", "error", "deleting",
 	// "withdrawn".
 	Status string
-
-	// Visibility one of: "public", "private".
-	Visibility string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -148,9 +203,6 @@ func (p *ListImagesParams) query() url.Values {
 	}
 	if p.Status != "" {
 		q.Set("status", p.Status)
-	}
-	if p.Visibility != "" {
-		q.Set("visibility", p.Visibility)
 	}
 	return q
 }
@@ -568,9 +620,14 @@ type StartSerialConsoleParams struct {
 	// BacklogBytes replay this many bytes of already-written output before live output
 	// begins, so attaching to a quiet guest shows why it is quiet instead
 	// of an empty screen. 0 disables replay. Values above 65536 are
-	// clamped. Replay and live output are the same stream read forward, so
-	// nothing is lost or duplicated at the join — including output the
-	// guest produces while you are connecting.
+	// clamped. The replay is the tail of the same recording
+	// `/console/output` serves; the live session is the guest's serial
+	// port. The two are separate sources, so the join is marked with a
+	// `\r\n--- live ---\r\n` line: everything before it is history,
+	// everything after it is happening now. A guest printing at the
+	// instant you connect may have a few bytes land on neither side of
+	// that line — a quiet guest, the case replay exists for, is replayed
+	// exactly.
 	BacklogBytes int
 }
 
@@ -587,12 +644,32 @@ func (p *StartSerialConsoleParams) query() url.Values {
 	return q
 }
 
-// AttachInstanceNIC attaches a NIC to a running instance.
+// AttachInstanceNIC attaches an existing NIC to an instance.
 //
-// Provisions a new network interface in the given subnet (address
-// allocation + optional security-group attachments). The device is
-// hot-plugged into the instance asynchronously — the instance must be
-// running or stopped.
+// Attaches an existing standalone network interface. The instance must
+// be running or stopped. To create an interface, use `POST
+// /v1/interfaces` on the Network API before attaching it. This operation
+// never provisions an interface.
+//
+// The attachment is durable the moment this returns: it is part of the
+// instance's spec and survives reboots. Delivery to the guest is
+// asynchronous and the response says what it takes.
+//
+// A stopped instance comes up with the device, and `restart_required` is
+// absent. A running instance is given the device while it runs where the
+// region supports that: the call returns before the guest has it,
+// `restart_required` is absent, and the interface appears in the guest
+// moments later — poll `GET /v1/instances/{instance_id}/nics`, or
+// watch the guest for a link carrying the MAC in this response. Where
+// the region does not, the response sets `restart_required`: reboot the
+// instance with `{"hard": true}` to deliver it. A soft reboot is ACPI
+// inside the same launcher and will not.
+//
+// The address is DHCP's either way. Nothing configures the new interface
+// inside the guest, so an image that does not bring up a network device
+// when it appears (cloud-init hotplug, NetworkManager, systemd-networkd
+// with a wildcard match) holds the link without an address until
+// something in the guest asks for the lease.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -1147,11 +1224,77 @@ func (c *Client) ListFlavors(ctx context.Context, params *ListFlavorsParams, opt
 	return page, nil
 }
 
+// ListImageCatalog lists the launch image catalog.
+//
+// Returns current active images categorized as platform or account.
+// Platform entries must be owned by the platform account and carry
+// basalt:catalog=platform. The same tag on an account image does not
+// share it with other accounts. Each name/architecture appears once,
+// using its current build. Staged, superseded, importing, failed,
+// deleting and withdrawn builds are excluded. Tags and operational
+// metadata are omitted. Categories may expand in the future (for example
+// apps); clients should handle unfamiliar category names. Pagination
+// applies across all entries, ordered by name and id. Both current
+// categories are present on every page, even when one has no entries.
+//
+// Returns one page. Use ListImageCatalogAll to walk every page.
+func (c *Client) ListImageCatalog(ctx context.Context, params *ListImageCatalogParams, opts ...basaltic.RequestOption) (*basaltic.Page[ImageCatalogCategory], error) {
+	op := &basaltic.Operation{
+		ID:     "listImageCatalog",
+		Method: "GET",
+		Path:   "/v1/image-catalog",
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []ImageCatalogCategory `json:"categories"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[ImageCatalogCategory]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListImageCatalogAll walks every page of ListImageCatalog, yielding one
+// item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListImageCatalogAll(ctx, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListImageCatalogAll(ctx context.Context, params *ListImageCatalogParams, opts ...basaltic.RequestOption) iter.Seq2[ImageCatalogCategory, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[ImageCatalogCategory], error) {
+		return c.ListImageCatalog(ctx, params.withMarker(marker), opts...)
+	})
+}
+
 // ListImages lists images.
 //
-// List images visible to the requesting account: public platform images
-// plus any images the account owns. Private platform images are staging
-// and visible only to the platform account.
+// List only images owned by the selected account. Use GET
+// /v1/image-catalog to discover current launchable account and platform
+// images. Images cannot be made public. Platform catalog membership is
+// controlled by basalt:catalog=platform on images owned by the platform
+// account.
 //
 // One row per tag. A build drops out of this listing once a *newer*
 // build holds its name — superseded history, which stays bootable by

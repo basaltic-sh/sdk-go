@@ -81,7 +81,7 @@ func TestLiveEndpointRouting(t *testing.T) {
 	ctx := liveContext(t)
 
 	// iam is global: no {region} in its endpoint.
-	regions, err := iam.New(cfg).ListRegions(ctx)
+	regions, err := iam.New(cfg).ListRegions(ctx, nil)
 	if err != nil {
 		t.Fatalf("iam.ListRegions (global): %v", err)
 	}
@@ -171,5 +171,35 @@ func TestLiveEmptyPathArgumentIsRefusedLocally(t *testing.T) {
 	}
 	if _, isAPI := basaltic.AsError(err); isAPI {
 		t.Error("the empty id reached the platform; it should be refused locally")
+	}
+}
+
+// Catalog pages group current launch choices without exposing build history.
+func TestLiveImageCatalog(t *testing.T) {
+	cfg := liveConfig(t)
+	ctx := liveContext(t)
+	client := compute.New(cfg)
+	seen := map[string]bool{}
+	for category, err := range client.ListImageCatalogAll(ctx, &compute.ListImageCatalogParams{Limit: 1}) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range category.Images {
+			key := category.Name + "/" + entry.Name + "/" + entry.Architecture
+			if seen[key] {
+				t.Fatalf("duplicate catalog name/architecture: %s", key)
+			}
+			seen[key] = true
+			detail, err := client.GetImage(ctx, entry.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !detail.IsCurrent || detail.Status != "active" {
+				t.Fatalf("catalog returned a non-current or inactive image: %s", entry.ID)
+			}
+		}
+	}
+	if len(seen) == 0 {
+		t.Fatal("catalog is empty")
 	}
 }

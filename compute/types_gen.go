@@ -11,27 +11,34 @@ import (
 )
 
 type AttachInstanceNICAttachment struct {
-	BootIndex   int    `json:"boot_index,omitempty"`
+	BootIndex int `json:"boot_index,omitempty"`
+
+	// External the attached interface existed before this call (interface was
+	// given). Detach unbinds it and leaves it standalone rather than
+	// destroying it.
+	External    bool   `json:"external,omitempty"`
 	InterfaceID string `json:"interface_id,omitempty"`
 	IP          string `json:"ip,omitempty"`
 	MAC         string `json:"mac,omitempty"`
+
+	// RestartRequired the guest does not carry the interface yet and a hard reboot is what
+	// delivers it — an interface past the first is a network on the
+	// instance's launcher, and a launcher's networks are fixed for its
+	// lifetime. Set when the instance was running in a region that cannot
+	// attach to a running guest. Absent for a stopped instance, which
+	// comes up with the device, and absent where the region attaches live,
+	// where the running guest is given the device without a restart.
+	RestartRequired bool `json:"restart_required,omitempty"`
 }
 
-// AttachInstanceNICRequest exactly one of subnet (provision a fresh NIC) or interface (attach an
-// existing standalone interface) must be set.
 type AttachInstanceNICRequest struct {
 	// Interface existing standalone interface UUID or complete VPC/subnet/interface
 	// CRN. Bare names lack the subnet parent and are rejected. It keeps
 	// its address, MAC, and security groups; detach returns it to
 	// standalone instead of destroying it.
-	Interface      *string  `json:"interface,omitempty"`
-	IPAddress      *string  `json:"ip_address,omitempty"`
-	MAC            *string  `json:"mac,omitempty"`
-	SecurityGroups []string `json:"security_groups,omitempty"`
-
-	// Subnet UUID or complete VPC/subnet CRN; a bare name requires a VPC
-	// parent and is rejected here.
-	Subnet *string `json:"subnet,omitempty"`
+	//
+	// Required.
+	Interface string `json:"interface"`
 }
 
 type AttachInstanceVolumeAttachment struct {
@@ -60,6 +67,21 @@ type AttachInstanceVolumeRequest struct {
 	//
 	// Required.
 	Volume string `json:"volume"`
+}
+
+// CatalogImage launch metadata for the current active build of an image name and
+// architecture. No tags, build history, or operational metadata are
+// exposed.
+type CatalogImage struct {
+	Architecture string `json:"architecture"`
+	CRN          string `json:"crn"`
+	EOLDate      string `json:"eol_date,omitempty"`
+	ID           string `json:"id"`
+	MinDiskGB    int    `json:"min_disk_gb"`
+	MinRAMMB     int    `json:"min_ram_mb"`
+	Name         string `json:"name"`
+	OS           string `json:"os,omitempty"`
+	OSVersion    string `json:"os_version,omitempty"`
 }
 
 type CreateKeypairKeypair struct {
@@ -408,15 +430,20 @@ type Image struct {
 	// Stamped as a UTC timestamp when the uploader didn't choose one.
 	Version string `json:"version"`
 
-	// One of: "public", "private".
-	Visibility string `json:"visibility"`
-
 	// WithdrawalReason why this image was withdrawn. Present for withdrawn images,
 	// including those with an independent error fault: end_of_life for
 	// platform release withdrawal (see eol_date), or legacy for a migrated
 	// withdrawal whose original reason is unknown. Withdrawn images retain
 	// their data but cannot be launched.
 	WithdrawalReason string `json:"withdrawal_reason,omitempty"`
+}
+
+type ImageCatalogCategory struct {
+	Images []*CatalogImage `json:"images"`
+
+	// Name catalog category. Currently platform or account; future categories
+	// may include apps.
+	Name string `json:"name"`
 }
 
 type ImageCreateRequest struct {
@@ -463,9 +490,6 @@ type ImageCreateRequest struct {
 	// and the server stamps a UTC timestamp, so every build is addressable
 	// as `name:version` whether or not you labelled it.
 	Version *string `json:"version,omitempty"`
-
-	// One of: "public", "private".
-	Visibility *string `json:"visibility,omitempty"`
 }
 
 type ImageUpdateRequest struct {
@@ -484,9 +508,6 @@ type ImageUpdateRequest struct {
 	// mistake has to be removable.
 	EOLDate *string `json:"eol_date,omitempty"`
 	Tags    Tags    `json:"tags,omitempty"`
-
-	// One of: "public", "private".
-	Visibility *string `json:"visibility,omitempty"`
 }
 
 type Instance struct {
@@ -595,10 +616,11 @@ type InstanceCreateRequest struct {
 	// `name:version`, which pins one build and is how you opt out of the
 	// tag moving under you; or a bare `name`, which follows the tag to
 	// whichever build is current when the instance is created. Names
-	// prefer a usable caller-owned build over a public platform build for
-	// the requested architecture (default amd64). A CRN pins owner, name,
-	// architecture and version. Resolution never retries another reference
-	// kind; responses and stored templates retain the resolved image UUID.
+	// prefer a usable caller-owned build over a tagged platform catalog
+	// build for the requested architecture (default amd64). A CRN pins
+	// owner, name, architecture and version. Resolution never retries
+	// another reference kind; responses and stored templates retain the
+	// resolved image UUID.
 	Image    *string  `json:"image,omitempty"`
 	Keypairs []string `json:"keypairs,omitempty"`
 	Metadata Metadata `json:"metadata,omitempty"`

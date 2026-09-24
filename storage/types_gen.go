@@ -641,7 +641,7 @@ type VolumeCreateRequest struct {
 
 	// SourceImage Image UUID, name, name:version, or full CRN
 	// image/<name>/architecture/<arch>/version/<version>. Names resolve in
-	// the caller account first, then public platform images, using
+	// the caller account first, then tagged platform catalog images, using
 	// architecture (default amd64). Mutually exclusive with
 	// source_snapshot. Image tags are not accepted.
 	SourceImage *string `json:"source_image,omitempty"`
