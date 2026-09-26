@@ -542,8 +542,8 @@ type Instance struct {
 
 	// IAMRole summary of the attached IAM role, visible with instance read access
 	// without iam:GetRole. Omitted when no role is attached, the role was
-	// deleted, or it belongs to another organization. Sensitive role
-	// fields remain available only through the IAM API.
+	// deleted, or it belongs to another account. Sensitive role fields
+	// remain available only through the IAM API.
 	IAMRole *InstanceRole `json:"iam_role,omitempty"`
 	ID      string        `json:"id,omitempty"`
 
@@ -603,7 +603,7 @@ type InstanceCreateRequest struct {
 	// Required.
 	Flavor string `json:"flavor"`
 
-	// IAMRole attach this organization-scoped IAM role by UUID, CRN or exact name.
+	// IAMRole attach an IAM role from the same account by UUID, CRN or exact name.
 	// The role's trust policy must permit `crn:compute:*:*:instance/*` (or
 	// the specific instance CRN). The instance's IMDS endpoint
 	// (169.254.169.254) mints short-lived STS credentials for this role
@@ -796,8 +796,8 @@ type InstancePoolTemplate struct {
 
 	// IAMRole summary of the IAM role attached to every replica, visible with pool
 	// read access without iam:GetRole. Omitted when no role is attached,
-	// the role was deleted, or it belongs to another organization.
-	// Sensitive role fields remain available only through the IAM API.
+	// the role was deleted, or it belongs to another account. Sensitive
+	// role fields remain available only through the IAM API.
 	IAMRole *InstanceRole `json:"iam_role,omitempty"`
 
 	// ImageID resolved image UUID pinned for every replica until template
@@ -847,7 +847,7 @@ type InstancePoolTemplateRequest struct {
 	// Required.
 	Flavor string `json:"flavor"`
 
-	// IAMRole Organization-scoped IAM role reference (UUID, CRN or exact name).
+	// IAMRole IAM role reference from the same account (UUID, CRN or exact name).
 	// PassRole and instance trust authorization apply.
 	IAMRole *string `json:"iam_role,omitempty"`
 
@@ -948,7 +948,7 @@ type InstanceRebootRequest struct {
 }
 
 type InstanceRole struct {
-	// CRN organization-scoped role identity, as used in policy documents.
+	// CRN account-scoped role identity, as used in policy documents.
 	CRN string `json:"crn"`
 	ID  string `json:"id"`
 

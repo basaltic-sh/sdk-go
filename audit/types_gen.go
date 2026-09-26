@@ -15,11 +15,15 @@ type AuditLog struct {
 	Action string `json:"action,omitempty"`
 
 	// ActorCRN immutable event-time actor identity. Null for historical entries
-	// without a snapshot. Users use crn:iam:::user/<uuid>; service
-	// accounts use crn:iam:::service-account/<name>; assumed roles use
-	// crn:iam:::role/<name>. System actors use
-	// crn:iam::platform:system/<service>, with service names certificate,
-	// registry, secrets, queue, notifications and email.
+	// without a snapshot. New user events use
+	// crn:workspace:::organization/<organization-uuid>/user/<user-uuid>;
+	// service accounts use
+	// crn:iam::<account-handle>:service-account/<name>; assumed roles use
+	// crn:iam::<account-handle>:role/<name>, with the session identity in
+	// details.actor_session_crn. Historical entries retain their original
+	// CRNs, including legacy IAM organization identities. System actors
+	// use crn:iam::platform:system/<service>, with service names
+	// certificate, registry, secrets, queue, notifications and email.
 	ActorCRN string `json:"actor_crn,omitempty"`
 
 	// ActorEmail email of the actor (for users only)

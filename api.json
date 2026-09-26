@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "services": [
     {
       "name": "audit",
@@ -905,7 +905,7 @@
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Attach this organization-scoped IAM role by UUID, CRN or exact name"
+              "doc": "Attach an IAM role from the same account by UUID, CRN or exact name"
             },
             {
               "wire": "image",
