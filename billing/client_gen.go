@@ -6,10 +6,9 @@
 
 // Package billing is the Billing API.
 //
-// Prices, metered usage, invoices, payments and credits — what the
-// account has consumed and been charged. The price catalog
-// (`/v1/prices`) is public; everything else is scoped to the calling
-// account.
+// Prices, metered usage, invoices, payments and credits for the
+// organization. The price catalog (`/v1/prices`) is public; other
+// operations require organization policy grants for billing actions.
 //
 // Read-only. Settling an invoice and managing payment methods happen in
 // the console.

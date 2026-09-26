@@ -10,29 +10,9 @@ import (
 	"time"
 )
 
-type Account struct {
-	CreatedAt   time.Time `json:"created_at,omitempty"`
-	Description string    `json:"description,omitempty"`
-
-	// Handle globally-unique, immutable handle (URL-safe identifier). Sent as
-	// X-Account-Id on every request that needs account context and
-	// embedded in CRNs.
-	Handle string `json:"handle,omitempty"`
-
-	// ID Internal UUID. Used for joins; the handle is the public identifier.
-	ID             string `json:"id,omitempty"`
-	Name           string `json:"name,omitempty"`
-	OrganizationID string `json:"organization_id,omitempty"`
-
-	// One of: "active", "suspended", "deleted".
-	Status    string    `json:"status,omitempty"`
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
-}
-
-// AccountReference Account UUID, unique handle (not display name), or
-// crn:iam::<handle>:account/<handle>. Region must be empty and both
-// handle components must match. The selected account establishes
-// organization scope for federation.
+// AccountReference Account UUID, immutable handle, or an organization-qualified Workspace
+// account CRN. The account establishes the owning organization for
+// federation and must match the target role account.
 type AccountReference = string
 
 type AssumeRoleRequest struct {
@@ -61,12 +41,21 @@ type AssumeRoleResponse struct {
 	// AccessToken bearer token for the Basaltic API. Present on every role session.
 	AccessToken string `json:"access_token,omitempty"`
 
+	// AccountHandle owning account handle of the target role.
+	AccountHandle string `json:"account_handle,omitempty"`
+
+	// AccountID owning account UUID of the target role.
+	AccountID string `json:"account_id,omitempty"`
+
 	// Expiration when the session — and therefore both credential forms —
 	// expires.
 	Expiration time.Time `json:"expiration,omitempty"`
 
 	// ExpiresIn seconds until `access_token` expires.
 	ExpiresIn int `json:"expires_in,omitempty"`
+
+	// RoleID Immutable UUID of the assumed role.
+	RoleID string `json:"role_id,omitempty"`
 
 	// SecretAccessKey SigV4 secret, for the S3 endpoint.
 	SecretAccessKey string `json:"secret_access_key,omitempty"`
@@ -107,16 +96,6 @@ type AssumeRoleWithWebIdentityRequest struct {
 	WebIdentityToken string `json:"web_identity_token"`
 }
 
-type CreateAccountRequest struct {
-	Description *string `json:"description,omitempty"`
-
-	// Required.
-	Handle string `json:"handle"`
-
-	// Required.
-	Name string `json:"name"`
-}
-
 type Credential struct {
 	AccessKeyID string    `json:"access_key_id,omitempty"`
 	CreatedAt   time.Time `json:"created_at,omitempty"`
@@ -144,86 +123,10 @@ type CredentialCreateResponse struct {
 	SecretAccessKey string `json:"secret_access_key,omitempty"`
 }
 
-type Group struct {
-	CreatedAt time.Time `json:"created_at,omitempty"`
-
-	// CRN Cloud Resource Name
-	CRN         string `json:"crn,omitempty"`
-	Description string `json:"description,omitempty"`
-	ID          string `json:"id,omitempty"`
-
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	Name      string    `json:"name,omitempty"`
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
-}
-
-type GroupCreateRequest struct {
-	Description *string `json:"description,omitempty"`
-
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	//
-	// Required.
-	Name string `json:"name"`
-}
-
-// GroupReference Group UUID, immutable name, or crn:iam:::group/<name>, resolved only
-// in the caller organization. Region and account components must be
-// empty.
-type GroupReference = string
-
-// GroupServiceAccount a service account in a group
-type GroupServiceAccount struct {
-	AddedAt time.Time `json:"added_at,omitempty"`
-
-	// CRN of the service account
-	CRN string `json:"crn,omitempty"`
-
-	// Description of the service account, when it has one
-	Description string `json:"description,omitempty"`
-	ID          string `json:"id,omitempty"`
-
-	// Name of the service account Resource names must not start with the
-	// literal crn: prefix or be UUIDs (canonical, compact, braced, or
-	// urn:uuid: forms, in either case).
-	Name string `json:"name,omitempty"`
-}
-
-type GroupSummary struct {
-	ID string `json:"id,omitempty"`
-
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	Name string `json:"name,omitempty"`
-}
-
-// GroupUpdateRequest the resource name is immutable.
-type GroupUpdateRequest struct {
-	Description *string `json:"description,omitempty"`
-}
-
-// GroupUser a user in a group
-type GroupUser struct {
-	AddedAt time.Time `json:"added_at,omitempty"`
-
-	// CRN of the user
-	CRN   string `json:"crn,omitempty"`
-	Email string `json:"email,omitempty"`
-	ID    string `json:"id,omitempty"`
-
-	// Name display name of the user
-	Name string `json:"name,omitempty"`
-}
-
 type InlinePolicy struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
-	// CRN canonical principal-scoped inline policy identity; named principals
-	// use their immutable name, users use UUID.
+	// CRN canonical inline policy identity under the owning account principal.
 	CRN      string          `json:"crn"`
 	Document *PolicyDocument `json:"document,omitempty"`
 	ID       string          `json:"id,omitempty"`
@@ -234,31 +137,9 @@ type InlinePolicy struct {
 	Name        string `json:"name,omitempty"`
 	PrincipalID string `json:"principal_id,omitempty"`
 
-	// One of: "user", "service_account", "role", "group".
+	// One of: "service_account", "role".
 	PrincipalType string    `json:"principal_type,omitempty"`
 	UpdatedAt     time.Time `json:"updated_at,omitempty"`
-}
-
-type Invitation struct {
-	CreatedAt time.Time `json:"created_at,omitempty"`
-
-	// Email address of the invited user
-	Email     string    `json:"email,omitempty"`
-	ExpiresAt time.Time `json:"expires_at,omitempty"`
-
-	// Groups the user will be added to upon accepting
-	Groups    []*GroupSummary      `json:"groups,omitempty"`
-	ID        string               `json:"id,omitempty"`
-	InvitedBy *InvitationInvitedBy `json:"invited_by,omitempty"`
-
-	// One of: "pending", "accepted", "expired", "cancelled".
-	Status string `json:"status,omitempty"`
-}
-
-type InvitationInvitedBy struct {
-	Email string `json:"email,omitempty"`
-	ID    string `json:"id,omitempty"`
-	Name  string `json:"name,omitempty"`
 }
 
 type ListRegionsResult struct {
@@ -418,79 +299,9 @@ type OAuthTokenResponse struct {
 	TokenType string `json:"token_type"`
 }
 
-type Organization struct {
-	CreatedAt   time.Time `json:"created_at,omitempty"`
-	Description string    `json:"description,omitempty"`
-	ID          string    `json:"id,omitempty"`
-	Name        string    `json:"name,omitempty"`
-
-	// OwnerID ID of the organization owner
-	OwnerID string `json:"owner_id,omitempty"`
-
-	// Status lifecycle state. A newly created organization is `pending` until its
-	// owner has verified a phone number and attached a payment method;
-	// until then every resource API refuses it with
-	// `ORGANIZATION_ONBOARDING_REQUIRED`. `suspended` is a billing or
-	// administrative hold, and `terminated` is irreversible.
-	//
-	// One of: "pending", "active", "suspended", "terminated".
-	Status string `json:"status,omitempty"`
-
-	// SuspensionReason why the organization is suspended; absent unless it is. The two are
-	// the same `status` but not the same situation — a `billing` hold is
-	// one the customer can clear by settling their account, and the
-	// platform still grants organization context for it so they can reach
-	// billing to do so. A `manual` hold is an operator decision and grants
-	// nothing.
-	//
-	// One of: "billing", "manual".
-	SuspensionReason string    `json:"suspension_reason,omitempty"`
-	UpdatedAt        time.Time `json:"updated_at,omitempty"`
-}
-
-// OrganizationReference Organization UUID or crn:iam:::organization/<uuid>. Display names are
-// not accepted. Region and account must be empty. The signed-in user
-// must be a member.
+// OrganizationReference Organization UUID or crn:workspace:::organization/<uuid>. Display
+// names are not accepted. The signed-in user must be a member.
 type OrganizationReference = string
-
-type OrganizationUpdateRequest struct {
-	// CaptchaToken google reCAPTCHA token for bot protection
-	//
-	// Required.
-	CaptchaToken string  `json:"captcha_token"`
-	Description  *string `json:"description,omitempty"`
-	Name         *string `json:"name,omitempty"`
-}
-
-type OrganizationWithMembership struct {
-	CreatedAt   time.Time `json:"created_at,omitempty"`
-	Description string    `json:"description,omitempty"`
-	ID          string    `json:"id,omitempty"`
-	Name        string    `json:"name,omitempty"`
-
-	// OwnerID ID of the organization owner
-	OwnerID string `json:"owner_id,omitempty"`
-
-	// Status lifecycle state. A newly created organization is `pending` until its
-	// owner has verified a phone number and attached a payment method;
-	// until then every resource API refuses it with
-	// `ORGANIZATION_ONBOARDING_REQUIRED`. `suspended` is a billing or
-	// administrative hold, and `terminated` is irreversible.
-	//
-	// One of: "pending", "active", "suspended", "terminated".
-	Status string `json:"status,omitempty"`
-
-	// SuspensionReason why the organization is suspended; absent unless it is. The two are
-	// the same `status` but not the same situation — a `billing` hold is
-	// one the customer can clear by settling their account, and the
-	// platform still grants organization context for it so they can reach
-	// billing to do so. A `manual` hold is an operator decision and grants
-	// nothing.
-	//
-	// One of: "billing", "manual".
-	SuspensionReason string    `json:"suspension_reason,omitempty"`
-	UpdatedAt        time.Time `json:"updated_at,omitempty"`
-}
 
 type PermissionBoundary struct {
 	CreatedAt   time.Time `json:"created_at,omitempty"`
@@ -498,11 +309,17 @@ type PermissionBoundary struct {
 	PolicyName  string    `json:"policy_name,omitempty"`
 	PrincipalID string    `json:"principal_id,omitempty"`
 
-	// One of: "user", "service_account", "role".
+	// One of: "service_account", "role".
 	PrincipalType string `json:"principal_type,omitempty"`
 }
 
 type Policy struct {
+	// AccountHandle immutable handle of the owning account.
+	AccountHandle string `json:"account_handle,omitempty"`
+
+	// AccountID owning account UUID; absent for shared system policies.
+	AccountID string `json:"account_id,omitempty"`
+
 	// CreatedAt creation timestamp (not present for system policies)
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
@@ -582,12 +399,9 @@ type PolicyDocument struct {
 	Version string `json:"version"`
 }
 
-// PolicyReference Policy UUID, organization policy name, or CRN. Bare names and
-// crn:iam:::policy/<name> resolve first in the caller organization, then
-// in the platform namespace. An explicit crn:iam:::policy/<name> selects
-// only the caller organization; crn:iam::platform:policy/<name> selects
-// only the platform namespace. Region must be empty. CRNs select exactly
-// one namespace without fallback.
+// PolicyReference account policy UUID, immutable name in the selected account, or
+// account-qualified IAM CRN. Shared system policies use
+// crn:iam:::policy/<name>. CRNs select one namespace without fallback.
 type PolicyReference = string
 
 // PolicyStatement a single statement. The action set is named either positively
@@ -665,12 +479,20 @@ type RevokeSTSSessionRequest struct {
 }
 
 type Role struct {
+	// AccountHandle immutable handle of the owning account.
+	AccountHandle string `json:"account_handle,omitempty"`
+
+	// AccountID owning account UUID.
+	AccountID string    `json:"account_id,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
 	// CRN Cloud Resource Name
 	CRN         string `json:"crn,omitempty"`
 	Description string `json:"description,omitempty"`
 	ID          string `json:"id,omitempty"`
+
+	// IsSystem system roles cannot be changed or deleted.
+	IsSystem bool `json:"is_system,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -699,9 +521,10 @@ type RolePolicyAttachRequest struct {
 	Policy PolicyReference `json:"policy"`
 }
 
-// RoleReference Role UUID, immutable name, or crn:iam:::role/<name>, resolved only in
-// the selected organization. Region and account components must be
-// empty.
+// RoleReference account role UUID, immutable name in the selected account, or
+// crn:iam::<account-handle>:role/<name>. AssumeRole may use a qualified
+// CRN to target another account in the same organization. The resulting
+// session is bound to the target role account.
 type RoleReference = string
 
 // RoleUpdateRequest the resource name is immutable.
@@ -711,14 +534,20 @@ type RoleUpdateRequest struct {
 	TrustPolicy *TrustPolicy `json:"trust_policy,omitempty"`
 }
 
-// STSSession a set of temporary credentials, as returned by the STS session
-// listing. There is no "active" flag — a session is usable while
-// `revoked` is false and `expires_at` is in the future.
+// STSSession account-scoped temporary credentials, including assumed-role and
+// service-account OAuth sessions. Personal browser login sessions are
+// not listed here. A session is active when it is not revoked and its
+// expiration is in the future.
 type STSSession struct {
-	CreatedAt  time.Time `json:"created_at,omitempty"`
-	ExpiresAt  time.Time `json:"expires_at,omitempty"`
-	ID         string    `json:"id,omitempty"`
-	LastUsedAt time.Time `json:"last_used_at,omitempty"`
+	AccountHandle   string    `json:"account_handle,omitempty"`
+	AccountID       string    `json:"account_id,omitempty"`
+	CreatedAt       time.Time `json:"created_at,omitempty"`
+	CRN             string    `json:"crn,omitempty"`
+	ExpiresAt       time.Time `json:"expires_at,omitempty"`
+	GrantType       string    `json:"grant_type,omitempty"`
+	ID              string    `json:"id,omitempty"`
+	LastUsedAt      time.Time `json:"last_used_at,omitempty"`
+	ParentSessionID string    `json:"parent_session_id,omitempty"`
 
 	// PrincipalID ID of the principal assuming the role (the source identity)
 	PrincipalID string `json:"principal_id,omitempty"`
@@ -731,16 +560,18 @@ type STSSession struct {
 	RevokedAt     time.Time `json:"revoked_at,omitempty"`
 	RevokedReason string    `json:"revoked_reason,omitempty"`
 
-	// RoleID the role being assumed. Empty on a session minted by `POST
-	// /v1/session-token`, which is bound to the user directly and assumes
-	// no role.
+	// RoleID the assumed role UUID; absent on service-account OAuth sessions that
+	// do not assume a role.
 	RoleID string `json:"role_id,omitempty"`
 
 	// SessionName optional session identifier
-	SessionName string `json:"session_name,omitempty"`
+	SessionName     string `json:"session_name,omitempty"`
+	SourceAccountID string `json:"source_account_id,omitempty"`
 
 	// SourceIP IP address where the session was created
-	SourceIP string `json:"source_ip,omitempty"`
+	SourceIP            string `json:"source_ip,omitempty"`
+	SourcePrincipalCRN  string `json:"source_principal_crn,omitempty"`
+	SourcePrincipalType string `json:"source_principal_type,omitempty"`
 
 	// UserAgent User-Agent of the caller that created the session
 	UserAgent string `json:"user_agent,omitempty"`
@@ -748,7 +579,10 @@ type STSSession struct {
 
 // ServiceAccount An API-only identity for programmatic access, bound to an account
 type ServiceAccount struct {
-	// AccountID owning account (from X-Account-Id at create time)
+	// AccountHandle immutable handle of the owning account.
+	AccountHandle string `json:"account_handle,omitempty"`
+
+	// AccountID owning account UUID.
 	AccountID string    `json:"account_id,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
@@ -778,11 +612,6 @@ type ServiceAccountCreateRequest struct {
 	Tags Tags   `json:"tags,omitempty"`
 }
 
-type ServiceAccountGroupAddRequest struct {
-	// Required.
-	Group GroupReference `json:"group"`
-}
-
 type ServiceAccountUpdateRequest struct {
 	Description *string `json:"description,omitempty"`
 	Enabled     *bool   `json:"enabled,omitempty"`
@@ -791,8 +620,9 @@ type ServiceAccountUpdateRequest struct {
 
 // SessionPolicyDocument an inline policy that scopes down the credentials being minted. It
 // grants nothing on its own: every request made with the resulting
-// credentials must be allowed by the caller's identity policies *and* by
-// this document, so it can only narrow what the caller already has.
+// credentials must be allowed by the assumed role's effective policies
+// *and* by this document, so it can only narrow the permissions of the
+// assumed role.
 //
 // The document is validated on the way in and stored with the session
 // — an invalid one fails the call with `INVALID_INPUT` rather than
@@ -846,68 +676,16 @@ type TrustPolicy struct {
 	// Conditions optional conditions for role assumption
 	Conditions []*PolicyCondition `json:"conditions,omitempty"`
 
-	// Principals CRN patterns that identify who can assume this role. Supports
-	// wildcards (*) for matching multiple resources. IAM role, user, group
-	// and service-account CRN patterns match only principals in the
-	// organization that owns this role. A role presents
-	// `crn:iam:::role/<name>`; the same name in another organization never
-	// matches. There is no principal-organization condition key for
-	// granting a foreign organization access by these CRNs.
+	// Principals Qualified CRN patterns identifying who may assume this account role.
+	// Same-organization membership alone does not establish trust. The
+	// caller also needs iam:AssumeRole permission for the target role.
 	//
-	// These match the caller's own CRN: an instance presents
-	// `crn:compute:<region>:<account>:instance/<id>` to AssumeRole via
-	// IMDS, a service account presents `crn:iam:::service-account/<name>`.
-	//
-	// A federated caller is the exception. It has no CRN of its own, so a
-	// role that accepts one names the **provider** instead, as
-	// `crn:iam:::oidc-provider/<provider>`, and pins the individual
-	// identity with `conditions` on the token's claims. See `POST
-	// /v1/assume-role-with-web-identity`.
+	// Account roles and service accounts use
+	// crn:iam::<account-handle>:role/<name> and
+	// crn:iam::<account-handle>:service-account/<name>. Human users use
+	// organization-qualified Workspace CRNs. An instance presents its
+	// compute CRN through IMDS. A federated caller names the trusted
+	// provider as crn:iam:::oidc-provider/<provider> and uses conditions
+	// to restrict token claims.
 	Principals []string `json:"principals,omitempty"`
-}
-
-type UpdateAccountRequest struct {
-	Description *string `json:"description,omitempty"`
-	Name        *string `json:"name,omitempty"`
-}
-
-// User a platform user linked to this organization for IAM
-type User struct {
-	AddedAt time.Time `json:"added_at,omitempty"`
-
-	// CRN Cloud Resource Name
-	CRN   string `json:"crn,omitempty"`
-	Email string `json:"email,omitempty"`
-	ID    string `json:"id,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Tags  Tags   `json:"tags,omitempty"`
-}
-
-type UserAddRequest struct {
-	// Email of the user to add
-	//
-	// Required.
-	Email string `json:"email"`
-
-	// Groups to assign when the invitation is accepted. Each reference is
-	// validated in the caller organization before the invitation is
-	// created.
-	Groups []GroupReference `json:"groups,omitempty"`
-	Tags   Tags             `json:"tags,omitempty"`
-}
-
-type UserAddResponse struct {
-	Invitation *Invitation `json:"invitation"`
-
-	// Status always `invited` — adding a user always goes through an invitation
-	// the invitee has to accept, whether or not they already have a
-	// platform account.
-	//
-	// One of: "invited".
-	Status string `json:"status"`
-}
-
-type UserGroupAddRequest struct {
-	// Required.
-	Group GroupReference `json:"group"`
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/basaltic-sh/sdk-go/secrets"
 	"github.com/basaltic-sh/sdk-go/storage"
 	"github.com/basaltic-sh/sdk-go/telemetry"
+	"github.com/basaltic-sh/sdk-go/workspace"
 )
 
 // These tests walk every generated method by reflection and assert properties
@@ -117,6 +118,7 @@ func allClients(cfg *basaltic.Config) map[string]any {
 		"secrets":      secrets.New(cfg),
 		"storage":      storage.New(cfg),
 		"telemetry":    telemetry.New(cfg),
+		"workspace":    workspace.New(cfg),
 	}
 }
 

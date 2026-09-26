@@ -23,12 +23,12 @@ type ListAuditLogsParams struct {
 	// "iam.*")
 	Action string
 
-	// Actor filter by a canonical UUID or an exact historical IAM actor CRN
-	// (`user`, `service-account`, or `role`, with empty region and
-	// account). Matches identities stored with events in the current
-	// organization, including deleted actors. Bare names and wildcard CRNs
-	// are unsupported. Events without a stored CRN remain searchable by
-	// UUID.
+	// Actor filter by a canonical UUID or an exact event-time actor CRN,
+	// including Workspace users, account IAM identities, and retained
+	// historical CRNs. Matches identities stored with events in the
+	// current organization, including deleted actors. Bare names and
+	// wildcard CRNs are unsupported. Events without a stored CRN remain
+	// searchable by UUID.
 	Actor string
 
 	// ActorType filter by actor type

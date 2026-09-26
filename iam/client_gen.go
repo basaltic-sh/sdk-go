@@ -6,22 +6,21 @@
 
 // Package iam is the IAM API.
 //
-// Identity for the platform: organizations, accounts, users, groups,
-// service accounts, roles and policies, together with the sign-in flows
-// and the temporary STS credentials every other Basaltic API
-// authenticates against.
+// Account identity and access management: service accounts, roles,
+// account policies, and account-scoped temporary sessions.
+// Authentication and personal sign-in remain in IAM. Organizations,
+// accounts, users, groups, and organization policies are managed by the
+// Workspace API.
 //
-// Relationship inputs are classified once as CRN, UUID or name. A lookup
-// never falls back to another syntax. Policy, role and group names are
-// immutable. Their organization CRNs use empty region and account slots;
-// system policies use crn:iam::platform:policy/<name>. Bare policy names
-// select only organization policies. UUID path and response identity
-// fields retain their existing meaning.
+// Roles and custom policies belong to the selected account. Their global
+// CRNs use an empty region and the owning account handle. Shared system
+// policies use crn:iam:::policy/<name>. Relationship inputs are
+// classified once as CRN, UUID, or name, without syntax fallback.
 //
-// Every resource list accepts exact name and crn filters, combined with
-// AND before pagination. A mismatched or foreign CRN returns an empty
-// page. Organization-scoped CRNs resolve only in the authenticated
-// organization.
+// AssumeRole resolves the target role's owning account. The caller needs
+// source permission and the target role must trust the caller; the
+// resulting session uses only the target role's permissions, subject to
+// boundaries and session restrictions.
 //
 // Build a client from a shared [basaltic.Config]:
 //

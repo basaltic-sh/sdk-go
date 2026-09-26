@@ -4,18 +4,25 @@
 //
 //	go run ./internal/gen -spec /path/to/openapi
 
-// Package audit is the Audit API.
+// Package workspace is the Workspace API.
 //
-// Read-only access to the organization's audit trail across its accounts
-// and regions. Events retain actor and resource identities from event
-// time. Access requires an organization policy granting audit actions.
+// Organization management: organizations, accounts, human users,
+// users-only groups, and organization policies. Account IAM identities
+// may receive explicitly delegated organization policies through this
+// API. Personal authentication remains at the IAM endpoint.
+//
+// Organization resources are global and are resolved in the
+// authenticated organization. Canonical CRNs are
+// crn:workspace:::organization/<organization-uuid>/<type>/<name-or-uuid>.
+// Organization policies are separate from account policies; shared
+// system policies use crn:workspace:::policy/<name>.
 //
 // Build a client from a shared [basaltic.Config]:
 //
-//	c := audit.New(cfg)
+//	c := workspace.New(cfg)
 //
 // Clients are safe for concurrent use.
-package audit
+package workspace
 
 import (
 	basaltic "github.com/basaltic-sh/sdk-go"
@@ -23,22 +30,22 @@ import (
 
 // ServiceID is the short name the SDK addresses this service by. Use it
 // with [basaltic.WithServiceEndpoint] to point this one client elsewhere.
-const ServiceID = "audit"
+const ServiceID = "workspace"
 
 // endpointTemplate is the server URL this service's specification
 // declares. Any {region} in it is substituted per request.
-const endpointTemplate = "https://audit.basaltic.sh"
+const endpointTemplate = "https://workspace.basaltic.sh"
 
 func init() { basaltic.RegisterServiceEndpoint(ServiceID, endpointTemplate) }
 
-// Client calls the Audit API.
+// Client calls the Workspace API.
 //
 // Build one with [New]. It is safe for concurrent use.
 type Client struct {
 	rt *basaltic.Client
 }
 
-// New builds a audit client from a shared configuration.
+// New builds a workspace client from a shared configuration.
 //
 // Share one [basaltic.Config] across every service client: they then
 // share a token, so authenticating costs one exchange rather than one

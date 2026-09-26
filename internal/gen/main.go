@@ -48,6 +48,7 @@ var services = []string{
 	"secrets",
 	"storage",
 	"telemetry",
+	"workspace",
 }
 
 func main() {

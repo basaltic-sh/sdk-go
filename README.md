@@ -97,11 +97,11 @@ One package per service. Import only what you use.
 | `storage` | regional | `billing` | global |
 | `loadbalancer` | regional | `audit` | global |
 | `kms` | regional | `quota` | global |
-| `secrets` | regional | | |
+| `secrets` | regional | `workspace` | global |
 | `certificate` | regional | | |
 | `telemetry` | regional | | |
 
-Regional services need a region; global ones ignore it.
+Regional services need a region; global ones ignore it. Global endpoint scope is separate from resource ownership: IAM roles, policies, service accounts, and STS sessions belong to the account selected in the configuration. Workspace manages organizations, accounts, people, groups, and organization policies.
 
 **Object storage is not here.** The S3-compatible endpoint speaks AWS SigV4
 and nothing else, so use an AWS SDK against it with the same access key pair.
@@ -277,7 +277,7 @@ make generate SPEC=/path/to/openapi
 
 The hand-written half is the runtime in the root package: configuration,
 authentication, the request pipeline, retries, errors and pagination. The
-generated half is the 393 operations and their types, which are mechanical.
+generated half is the service operations and their types, which are mechanical.
 
 Generated files are committed, because `go get` has to work without anyone
 running the generator. Do not edit them; change the specification, or the
@@ -309,7 +309,7 @@ that `GetInstance` sends `GET /v1/instances/{instance_id}` would read its
 expectation from the same specification node the code was emitted from, so an
 emitter bug would produce a matching bug in the test.
 
-What the suite does instead is walk all 393 generated methods by reflection
+What the suite does instead is walk all generated methods by reflection
 and assert properties the specification cannot express: that no placeholder
 survives into a URL, that positional arguments reach it in the order they were
 passed, that a credential is attached unless the operation is one of the four

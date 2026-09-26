@@ -6,8 +6,9 @@
 
 // Package quota is the Quota API.
 //
-// The account's limits and its current consumption, per resource type
-// and region.
+// Organization quota limits and current consumption, per resource type
+// and region. Access requires an organization policy granting quota
+// actions.
 //
 // Build a client from a shared [basaltic.Config]:
 //
