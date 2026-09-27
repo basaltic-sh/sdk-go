@@ -287,16 +287,23 @@ type LoadBalancer struct {
 	FloatingIPID string `json:"floating_ip_id,omitempty"`
 	ID           string `json:"id"`
 
+	// InternalIPv4 Virtual IP for the load balancer; traffic is distributed to backends
+	// per connection.
+	InternalIPv4 string `json:"internal_ipv4,omitempty"`
+
+	// InternalIPv6 Internal IPv6 VIP (set when the subnet is dual-stack).
+	InternalIPv6 string `json:"internal_ipv6,omitempty"`
+
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
 	Name string `json:"name"`
 
-	// PublicVipV6 Public IPv6 GUA for the load balancer — the v6 analogue of a
+	// PublicIPv6 Public IPv6 GUA for the load balancer — the v6 analogue of a
 	// floating IP (IPv6 has no NAT, so this address is itself the public
 	// ingress, anycast-advertised). Set on an internet-facing LB in a
 	// dual-stack subnet.
-	PublicVipV6 string `json:"public_vip_v6,omitempty"`
+	PublicIPv6 string `json:"public_ipv6,omitempty"`
 
 	// ReplicaCount number of LB compute instances. >=2 for HA.
 	ReplicaCount int `json:"replica_count"`
@@ -313,13 +320,6 @@ type LoadBalancer struct {
 	// One of: "application", "network".
 	Type      string    `json:"type"`
 	UpdatedAt time.Time `json:"updated_at"`
-
-	// VipV4 Virtual IP for the load balancer; traffic is distributed to backends
-	// per connection.
-	VipV4 string `json:"vip_v4,omitempty"`
-
-	// VipV6 Internal IPv6 VIP (set when the subnet is dual-stack).
-	VipV6 string `json:"vip_v6,omitempty"`
 }
 
 // LoadBalancerReplica one compute instance backing the load balancer. The bookkeeping fields
@@ -422,16 +422,17 @@ type SessionAffinity struct {
 }
 
 type Subnet struct {
-	CIDR string `json:"cidr"`
+	CIDRIPv4 string `json:"cidr_ipv4"`
 
-	// CIDRV6 the dual-stack IPv6 /64, if the subnet is v6-enabled. Its presence
-	// (vs the v4 cidr) is how a client tells the subnet's families apart.
-	CIDRV6      string    `json:"cidr_v6,omitempty"`
+	// CIDRIPv6 the dual-stack IPv6 /64, if the subnet is v6-enabled. Its presence
+	// (vs the v4 cidr_ipv4) is how a client tells the subnet's families
+	// apart.
+	CIDRIPv6    string    `json:"cidr_ipv6,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	CRN         string    `json:"crn"`
 	Description string    `json:"description,omitempty"`
-	GatewayIP   string    `json:"gateway_ip"`
-	GatewayIPV6 string    `json:"gateway_ip_v6,omitempty"`
+	GatewayIPv4 string    `json:"gateway_ipv4"`
+	GatewayIPv6 string    `json:"gateway_ipv6,omitempty"`
 	ID          string    `json:"id"`
 
 	// Name resource names must not start with the literal crn: prefix or be
@@ -595,15 +596,13 @@ type UpdateTargetGroupRequest struct {
 }
 
 type VPC struct {
-	// CIDRV4 IPv4 CIDR block carved up by subnets. Must be private (RFC 1918):
+	// CIDRIPv4 IPv4 CIDR block carved up by subnets. Must be private (RFC 1918):
 	// within 10.0.0.0/8, 172.16.0.0/12 or 192.168.0.0/16. Immutable after
 	// create.
-	CIDRV4 string `json:"cidr_v4"`
+	CIDRIPv4 string `json:"cidr_ipv4"`
 
-	// CIDRV6 the globally-routable /60 delegated from the region's IPv6 pool when
-	// the VPC was created with assign_ipv6_cidr; null for v4-only VPCs.
-	// Immutable after create.
-	CIDRV6    string    `json:"cidr_v6,omitempty"`
+	// CIDRIPv6 associated regional GUA or private ULA prefix.
+	CIDRIPv6  string    `json:"cidr_ipv6,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 
 	// CRN Cloud Resource Name (name-based, region+account-scoped).

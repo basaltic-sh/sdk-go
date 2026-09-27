@@ -74,7 +74,7 @@ func ExampleClient_do_pagination() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(inst.Name, inst.PrimaryIP)
+		fmt.Println(inst.Name, inst.CurrentState)
 	}
 }
 

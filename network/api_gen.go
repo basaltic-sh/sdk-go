@@ -765,6 +765,42 @@ func (c *Client) CreateInterface(ctx context.Context, body *InterfaceCreateReque
 	return out.Interface, nil
 }
 
+// CreateInterfaceAddress creates interface address.
+func (c *Client) CreateInterfaceAddress(ctx context.Context, interfaceID string, body *AddressRequest, opts ...basaltic.RequestOption) (*InterfaceAddress, error) {
+	op := &basaltic.Operation{
+		ID:       "createInterfaceAddress",
+		Method:   "POST",
+		Path:     "/v1/interfaces/{interface_id}/addresses",
+		PathArgs: []string{interfaceID},
+		Body:     body,
+	}
+	var out struct {
+		Address *InterfaceAddress `json:"address"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Address, nil
+}
+
+// CreateInterfacePrefix creates interface prefix.
+func (c *Client) CreateInterfacePrefix(ctx context.Context, interfaceID string, body *CreateInterfacePrefixRequest, opts ...basaltic.RequestOption) ([]*RoutedPrefix, error) {
+	op := &basaltic.Operation{
+		ID:       "createInterfacePrefix",
+		Method:   "POST",
+		Path:     "/v1/interfaces/{interface_id}/prefixes",
+		PathArgs: []string{interfaceID},
+		Body:     body,
+	}
+	var out struct {
+		RoutedPrefixes []*RoutedPrefix `json:"routed_prefixes"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.RoutedPrefixes, nil
+}
+
 // CreateInternetGateway creates internet gateway.
 //
 // Creates an IGW in the detached state. Use POST /attach to hook it up
@@ -810,6 +846,24 @@ func (c *Client) CreateNATGateway(ctx context.Context, body *NATGatewayCreateReq
 		return nil, err
 	}
 	return out.NATGateway, nil
+}
+
+// CreatePrefixPool creates prefix pool.
+func (c *Client) CreatePrefixPool(ctx context.Context, vpcID string, body *CreatePrefixPoolRequest, opts ...basaltic.RequestOption) ([]*PrefixPool, error) {
+	op := &basaltic.Operation{
+		ID:       "createPrefixPool",
+		Method:   "POST",
+		Path:     "/v1/vpcs/{vpc_id}/prefix-pools",
+		PathArgs: []string{vpcID},
+		Body:     body,
+	}
+	var out struct {
+		PrefixPools []*PrefixPool `json:"prefix_pools"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.PrefixPools, nil
 }
 
 // CreateRoute creates route.
@@ -1000,6 +1054,34 @@ func (c *Client) DeleteInterface(ctx context.Context, interfaceID string, opts .
 	return nil
 }
 
+// DeleteInterfaceAddress deletes interface address.
+func (c *Client) DeleteInterfaceAddress(ctx context.Context, interfaceID string, addressID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "deleteInterfaceAddress",
+		Method:   "DELETE",
+		Path:     "/v1/interfaces/{interface_id}/addresses/{address_id}",
+		PathArgs: []string{interfaceID, addressID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteInterfacePrefix deletes interface prefix.
+func (c *Client) DeleteInterfacePrefix(ctx context.Context, interfaceID string, prefixID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "deleteInterfacePrefix",
+		Method:   "DELETE",
+		Path:     "/v1/interfaces/{interface_id}/prefixes/{prefix_id}",
+		PathArgs: []string{interfaceID, prefixID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
 // DeleteInternetGateway deletes internet gateway.
 //
 // Refuses if still attached or if any route references it.
@@ -1026,6 +1108,20 @@ func (c *Client) DeleteNATGateway(ctx context.Context, natGatewayID string, opts
 		Method:   "DELETE",
 		Path:     "/v1/nat-gateways/{nat_gateway_id}",
 		PathArgs: []string{natGatewayID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeletePrefixPool deletes prefix pool.
+func (c *Client) DeletePrefixPool(ctx context.Context, vpcID string, poolID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "deletePrefixPool",
+		Method:   "DELETE",
+		Path:     "/v1/vpcs/{vpc_id}/prefix-pools/{pool_id}",
+		PathArgs: []string{vpcID, poolID},
 	}
 	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
 		return err
@@ -1231,6 +1327,23 @@ func (c *Client) GetInterface(ctx context.Context, interfaceID string, opts ...b
 		return nil, err
 	}
 	return out.Interface, nil
+}
+
+// GetInterfaceAddress gets interface address.
+func (c *Client) GetInterfaceAddress(ctx context.Context, interfaceID string, addressID string, opts ...basaltic.RequestOption) (*InterfaceAddress, error) {
+	op := &basaltic.Operation{
+		ID:       "getInterfaceAddress",
+		Method:   "GET",
+		Path:     "/v1/interfaces/{interface_id}/addresses/{address_id}",
+		PathArgs: []string{interfaceID, addressID},
+	}
+	var out struct {
+		Address *InterfaceAddress `json:"address"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Address, nil
 }
 
 // GetInternetGateway gets internet gateway.
@@ -1477,6 +1590,40 @@ func (c *Client) ListFloatingIPsAll(ctx context.Context, params *ListFloatingIPs
 	})
 }
 
+// ListInterfaceAddresses lists interface addresses.
+func (c *Client) ListInterfaceAddresses(ctx context.Context, interfaceID string, opts ...basaltic.RequestOption) ([]*InterfaceAddress, error) {
+	op := &basaltic.Operation{
+		ID:       "listInterfaceAddresses",
+		Method:   "GET",
+		Path:     "/v1/interfaces/{interface_id}/addresses",
+		PathArgs: []string{interfaceID},
+	}
+	var out struct {
+		Addresses []*InterfaceAddress `json:"addresses"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Addresses, nil
+}
+
+// ListInterfacePrefixes lists interface prefixes.
+func (c *Client) ListInterfacePrefixes(ctx context.Context, interfaceID string, opts ...basaltic.RequestOption) ([]*RoutedPrefix, error) {
+	op := &basaltic.Operation{
+		ID:       "listInterfacePrefixes",
+		Method:   "GET",
+		Path:     "/v1/interfaces/{interface_id}/prefixes",
+		PathArgs: []string{interfaceID},
+	}
+	var out struct {
+		RoutedPrefixes []*RoutedPrefix `json:"routed_prefixes"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.RoutedPrefixes, nil
+}
+
 // ListInterfaceSecurityGroups lists interface security-group membership.
 func (c *Client) ListInterfaceSecurityGroups(ctx context.Context, interfaceID string, params *ListInterfaceSecurityGroupsParams, opts ...basaltic.RequestOption) (*basaltic.Page[string], error) {
 	op := &basaltic.Operation{
@@ -1661,6 +1808,23 @@ func (c *Client) ListNATGatewaysAll(ctx context.Context, params *ListNATGateways
 	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[NATGateway], error) {
 		return c.ListNATGateways(ctx, params.withMarker(marker), opts...)
 	})
+}
+
+// ListPrefixPools lists prefix pools.
+func (c *Client) ListPrefixPools(ctx context.Context, vpcID string, opts ...basaltic.RequestOption) ([]*PrefixPool, error) {
+	op := &basaltic.Operation{
+		ID:       "listPrefixPools",
+		Method:   "GET",
+		Path:     "/v1/vpcs/{vpc_id}/prefix-pools",
+		PathArgs: []string{vpcID},
+	}
+	var out struct {
+		PrefixPools []*PrefixPool `json:"prefix_pools"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.PrefixPools, nil
 }
 
 // ListRouteTables lists route tables.

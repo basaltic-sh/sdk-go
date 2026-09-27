@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "services": [
     {
       "name": "audit",
@@ -6218,6 +6218,13 @@
           "body_kind": "json",
           "body_fields": [
             {
+              "wire": "address_id",
+              "go_name": "AddressID",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true
+            },
+            {
               "wire": "interface",
               "go_name": "Interface",
               "go_type": "string",
@@ -6345,10 +6352,29 @@
               "doc": "An optional readiness check for the address's members"
             },
             {
+              "wire": "subnet",
+              "go_name": "Subnet",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "Required for private floating IPs; subnet UUID or CRN in this account"
+            },
+            {
               "wire": "tags",
               "go_name": "Tags",
               "go_type": "map[string]string",
               "flag_kind": "json"
+            },
+            {
+              "wire": "visibility",
+              "go_name": "Visibility",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "enum": [
+                "public",
+                "private"
+              ]
             }
           ],
           "result_kind": "value",
@@ -6367,19 +6393,18 @@
           "body_kind": "json",
           "body_fields": [
             {
+              "wire": "addresses",
+              "go_name": "Addresses",
+              "go_type": "[]*AddressRequest",
+              "flag_kind": "json",
+              "doc": "Omit to allocate the subnet enabled families"
+            },
+            {
               "wire": "description",
               "go_name": "Description",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
-            },
-            {
-              "wire": "ip_address",
-              "go_name": "IPAddress",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Defaults to the next free address in the subnet"
             },
             {
               "wire": "mac",
@@ -6415,6 +6440,74 @@
           "result_kind": "value",
           "result_type": "*Interface",
           "idempotent": true
+        },
+        {
+          "id": "createInterfaceAddress",
+          "go_name": "CreateInterfaceAddress",
+          "method": "POST",
+          "path": "/v1/interfaces/{interface_id}/addresses",
+          "summary": "Create interface address",
+          "resource": "interface",
+          "verb": "create-address",
+          "path_params": [
+            {
+              "wire": "interface_id",
+              "go_name": "interfaceID"
+            }
+          ],
+          "body_type": "*AddressRequest",
+          "body_kind": "json",
+          "body_fields": [
+            {
+              "wire": "address",
+              "go_name": "Address",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "Optional fixed IPv4 address"
+            },
+            {
+              "wire": "family",
+              "go_name": "Family",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true,
+              "enum": [
+                "ipv4",
+                "ipv6"
+              ]
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "*InterfaceAddress"
+        },
+        {
+          "id": "createInterfacePrefix",
+          "go_name": "CreateInterfacePrefix",
+          "method": "POST",
+          "path": "/v1/interfaces/{interface_id}/prefixes",
+          "summary": "Create interface prefix",
+          "resource": "interface",
+          "verb": "create-prefix",
+          "path_params": [
+            {
+              "wire": "interface_id",
+              "go_name": "interfaceID"
+            }
+          ],
+          "body_type": "*CreateInterfacePrefixRequest",
+          "body_kind": "json",
+          "body_fields": [
+            {
+              "wire": "pool_id",
+              "go_name": "PoolID",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "[]*RoutedPrefix"
         },
         {
           "id": "createInternetGateway",
@@ -6499,6 +6592,34 @@
           "idempotent": true
         },
         {
+          "id": "createPrefixPool",
+          "go_name": "CreatePrefixPool",
+          "method": "POST",
+          "path": "/v1/vpcs/{vpc_id}/prefix-pools",
+          "summary": "Create prefix pool",
+          "resource": "vpc",
+          "verb": "create-prefix-pool",
+          "path_params": [
+            {
+              "wire": "vpc_id",
+              "go_name": "vpcID"
+            }
+          ],
+          "body_type": "*CreatePrefixPoolRequest",
+          "body_kind": "json",
+          "body_fields": [
+            {
+              "wire": "cidr_ipv4",
+              "go_name": "CIDRIPv4",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "[]*PrefixPool"
+        },
+        {
           "id": "createRoute",
           "go_name": "CreateRoute",
           "method": "POST",
@@ -6524,11 +6645,19 @@
               "pointer": true
             },
             {
-              "wire": "destination",
-              "go_name": "Destination",
+              "wire": "destination_cidr",
+              "go_name": "DestinationCIDR",
               "go_type": "string",
               "flag_kind": "string",
               "required": true
+            },
+            {
+              "wire": "next_hop_ip",
+              "go_name": "NextHopIP",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "Unicast next hop inside this VPC's CIDR (same IP family as destination_cidr)"
             },
             {
               "wire": "tags",
@@ -6551,14 +6680,6 @@
               "flag_kind": "string",
               "pointer": true,
               "doc": "Gateway UUID, CRN or exact account-scoped name"
-            },
-            {
-              "wire": "target_ip",
-              "go_name": "TargetIP",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "Unicast next hop inside this VPC's CIDR (same IP family as destination)"
             },
             {
               "wire": "target_nat_gateway",
@@ -6730,8 +6851,8 @@
               ]
             },
             {
-              "wire": "source_cidr",
-              "go_name": "SourceCIDR",
+              "wire": "remote_cidr",
+              "go_name": "RemoteCIDR",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
@@ -6761,27 +6882,27 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "assign_ipv6_cidr",
-              "go_name": "AssignIPv6CIDR",
+              "wire": "allocate_cidr_ipv6",
+              "go_name": "AllocateCIDRIPv6",
               "go_type": "*bool",
               "flag_kind": "bool",
               "pointer": true,
-              "doc": "Allocate the lowest free IPv6 /64 inside the VPC's IPv6 CIDR"
+              "doc": "Allocate a free /64 from the VPC IPv6 range"
             },
             {
-              "wire": "cidr",
-              "go_name": "CIDR",
+              "wire": "cidr_ipv4",
+              "go_name": "CIDRIPv4",
               "go_type": "string",
               "flag_kind": "string",
               "required": true
             },
             {
-              "wire": "cidr_v6",
-              "go_name": "CIDRV6",
+              "wire": "cidr_ipv6",
+              "go_name": "CIDRIPv6",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Makes the subnet dual-stack"
+              "doc": "An aligned /64 inside the VPC IPv6 range"
             },
             {
               "wire": "description",
@@ -6791,8 +6912,8 @@
               "pointer": true
             },
             {
-              "wire": "gateway_ip",
-              "go_name": "GatewayIP",
+              "wire": "gateway_ipv4",
+              "go_name": "GatewayIPv4",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
@@ -6845,20 +6966,28 @@
           "body_kind": "json",
           "body_fields": [
             {
-              "wire": "assign_ipv6_cidr",
-              "go_name": "AssignIPv6CIDR",
+              "wire": "allocate_cidr_ipv6",
+              "go_name": "AllocateCIDRIPv6",
               "go_type": "*bool",
               "flag_kind": "bool",
               "pointer": true,
-              "doc": "Request a globally-routable /60 delegated from the region's IPv6 pool — the only way a VPC gets an IPv6 prefix; the region must have IPv6 enabled"
+              "doc": "Allocate a regional GUA /60"
             },
             {
-              "wire": "cidr_v4",
-              "go_name": "CIDRV4",
+              "wire": "cidr_ipv4",
+              "go_name": "CIDRIPv4",
               "go_type": "string",
               "flag_kind": "string",
               "required": true,
               "doc": "Must be private (RFC 1918): within 10.0.0.0/8, 172.16.0.0/12 or 192.168.0.0/16"
+            },
+            {
+              "wire": "cidr_ipv6",
+              "go_name": "CIDRIPv6",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "Optional aligned locally assigned ULA (fd00::/8), /48 through /60"
             },
             {
               "wire": "description",
@@ -6938,6 +7067,46 @@
           "result_kind": "none"
         },
         {
+          "id": "deleteInterfaceAddress",
+          "go_name": "DeleteInterfaceAddress",
+          "method": "DELETE",
+          "path": "/v1/interfaces/{interface_id}/addresses/{address_id}",
+          "summary": "Delete interface address",
+          "resource": "interface",
+          "verb": "delete-address",
+          "path_params": [
+            {
+              "wire": "interface_id",
+              "go_name": "interfaceID"
+            },
+            {
+              "wire": "address_id",
+              "go_name": "addressID"
+            }
+          ],
+          "result_kind": "none"
+        },
+        {
+          "id": "deleteInterfacePrefix",
+          "go_name": "DeleteInterfacePrefix",
+          "method": "DELETE",
+          "path": "/v1/interfaces/{interface_id}/prefixes/{prefix_id}",
+          "summary": "Delete interface prefix",
+          "resource": "interface",
+          "verb": "delete-prefix",
+          "path_params": [
+            {
+              "wire": "interface_id",
+              "go_name": "interfaceID"
+            },
+            {
+              "wire": "prefix_id",
+              "go_name": "prefixID"
+            }
+          ],
+          "result_kind": "none"
+        },
+        {
           "id": "deleteInternetGateway",
           "go_name": "DeleteInternetGateway",
           "method": "DELETE",
@@ -6967,6 +7136,26 @@
               "wire": "nat_gateway_id",
               "go_name": "natGatewayID",
               "doc": "NAT Gateway ID"
+            }
+          ],
+          "result_kind": "none"
+        },
+        {
+          "id": "deletePrefixPool",
+          "go_name": "DeletePrefixPool",
+          "method": "DELETE",
+          "path": "/v1/vpcs/{vpc_id}/prefix-pools/{pool_id}",
+          "summary": "Delete prefix pool",
+          "resource": "vpc",
+          "verb": "delete-prefix-pool",
+          "path_params": [
+            {
+              "wire": "vpc_id",
+              "go_name": "vpcID"
+            },
+            {
+              "wire": "pool_id",
+              "go_name": "poolID"
             }
           ],
           "result_kind": "none"
@@ -7229,6 +7418,27 @@
               }
             ]
           }
+        },
+        {
+          "id": "getInterfaceAddress",
+          "go_name": "GetInterfaceAddress",
+          "method": "GET",
+          "path": "/v1/interfaces/{interface_id}/addresses/{address_id}",
+          "summary": "Get interface address",
+          "resource": "interface",
+          "verb": "get-address",
+          "path_params": [
+            {
+              "wire": "interface_id",
+              "go_name": "interfaceID"
+            },
+            {
+              "wire": "address_id",
+              "go_name": "addressID"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "*InterfaceAddress"
         },
         {
           "id": "getInternetGateway",
@@ -7560,6 +7770,40 @@
           "paginated": true
         },
         {
+          "id": "listInterfaceAddresses",
+          "go_name": "ListInterfaceAddresses",
+          "method": "GET",
+          "path": "/v1/interfaces/{interface_id}/addresses",
+          "summary": "List interface addresses",
+          "resource": "interface",
+          "verb": "list-addresses",
+          "path_params": [
+            {
+              "wire": "interface_id",
+              "go_name": "interfaceID"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "[]*InterfaceAddress"
+        },
+        {
+          "id": "listInterfacePrefixes",
+          "go_name": "ListInterfacePrefixes",
+          "method": "GET",
+          "path": "/v1/interfaces/{interface_id}/prefixes",
+          "summary": "List interface prefixes",
+          "resource": "interface",
+          "verb": "list-prefixes",
+          "path_params": [
+            {
+              "wire": "interface_id",
+              "go_name": "interfaceID"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "[]*RoutedPrefix"
+        },
+        {
           "id": "listInterfaceSecurityGroups",
           "go_name": "ListInterfaceSecurityGroups",
           "method": "GET",
@@ -7751,6 +7995,23 @@
           "result_type": "*basaltic.Page[NATGateway]",
           "item_type": "NATGateway",
           "paginated": true
+        },
+        {
+          "id": "listPrefixPools",
+          "go_name": "ListPrefixPools",
+          "method": "GET",
+          "path": "/v1/vpcs/{vpc_id}/prefix-pools",
+          "summary": "List prefix pools",
+          "resource": "vpc",
+          "verb": "list-prefix-pools",
+          "path_params": [
+            {
+              "wire": "vpc_id",
+              "go_name": "vpcID"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "[]*PrefixPool"
         },
         {
           "id": "listRouteTables",
@@ -8381,6 +8642,22 @@
           "body_kind": "json",
           "body_fields": [
             {
+              "wire": "allocate_cidr_ipv6",
+              "go_name": "AllocateCIDRIPv6",
+              "go_type": "*bool",
+              "flag_kind": "bool",
+              "pointer": true,
+              "doc": "Allocate a free /64 from the VPC IPv6 range"
+            },
+            {
+              "wire": "cidr_ipv6",
+              "go_name": "CIDRIPv6",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "An aligned /64 inside the VPC IPv6 range"
+            },
+            {
               "wire": "description",
               "go_name": "Description",
               "go_type": "*string",
@@ -8423,6 +8700,22 @@
           "body_type": "*VPCUpdateRequest",
           "body_kind": "json",
           "body_fields": [
+            {
+              "wire": "allocate_cidr_ipv6",
+              "go_name": "AllocateCIDRIPv6",
+              "go_type": "*bool",
+              "flag_kind": "bool",
+              "pointer": true,
+              "doc": "Allocate a regional GUA /60"
+            },
+            {
+              "wire": "cidr_ipv6",
+              "go_name": "CIDRIPv6",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "Optional aligned locally assigned ULA (fd00::/8), /48 through /60"
+            },
             {
               "wire": "description",
               "go_name": "Description",

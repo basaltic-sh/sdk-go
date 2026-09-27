@@ -1361,14 +1361,9 @@ func (c *Client) ListImagesAll(ctx context.Context, params *ListImagesParams, op
 
 // ListInstanceNiCs lists the instance's network interfaces.
 //
-// Returns the instance's NIC bindings ordered by boot index (primary
-// first), each resolved with the interface's current MAC/IP/subnet
-// detail and with the floating IP attached to that interface.
-//
-// This is the read that answers "what are this instance's public
-// addresses". The instance's own `public_ip` reports the primary NIC
-// alone, so an address that `networks[].assign_public_ip` put on a
-// secondary NIC appears here and nowhere else.
+// List NICs in boot order. All directly attached addresses, routed
+// prefixes and floating IP identities are read here; instance objects
+// have no IP summary fields.
 func (c *Client) ListInstanceNiCs(ctx context.Context, instanceID string, params *ListInstanceNiCsParams, opts ...basaltic.RequestOption) ([]*ListInstanceNiCsNIC, error) {
 	op := &basaltic.Operation{
 		ID:       "listInstanceNICs",

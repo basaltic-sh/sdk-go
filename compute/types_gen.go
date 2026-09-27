@@ -10,15 +10,33 @@ import (
 	"time"
 )
 
+type AddressFloatingIP struct {
+	Address string `json:"address"`
+	CRN     string `json:"crn"`
+	ID      string `json:"id"`
+
+	// One of: "public", "private".
+	Visibility string `json:"visibility"`
+}
+
+type AddressRequest struct {
+	// Address optional fixed IPv4 address. Omit for IPv6; IPAM allocates an
+	// aligned /96.
+	Address string `json:"address,omitempty"`
+
+	// One of: "ipv4", "ipv6".
+	Family string `json:"family"`
+}
+
 type AttachInstanceNICAttachment struct {
-	BootIndex int `json:"boot_index,omitempty"`
+	Addresses []*InterfaceAddress `json:"addresses,omitempty"`
+	BootIndex int                 `json:"boot_index,omitempty"`
 
 	// External the attached interface existed before this call (interface was
 	// given). Detach unbinds it and leaves it standalone rather than
 	// destroying it.
 	External    bool   `json:"external,omitempty"`
 	InterfaceID string `json:"interface_id,omitempty"`
-	IP          string `json:"ip,omitempty"`
 	MAC         string `json:"mac,omitempty"`
 
 	// RestartRequired the guest does not carry the interface yet and a hard reboot is what
@@ -187,6 +205,9 @@ type Flavor struct {
 }
 
 type FloatingIP struct {
+	// Address allocated public or private address.
+	Address string `json:"address"`
+
 	// AttachedTo Canonical CRN of the bound interface, instance pool, or load
 	// balancer; null when unattached. A pool-owned address names its pool
 	// even when the pool has zero members. Only pool-owned addresses may
@@ -203,9 +224,6 @@ type FloatingIP struct {
 	// none is configured. See `FloatingIpHealthCheck`.
 	HealthCheck *FloatingIPHealthCheck `json:"health_check,omitempty"`
 	ID          string                 `json:"id"`
-
-	// IPAddress the public address, in the family it was allocated in.
-	IPAddress string `json:"ip_address"`
 
 	// Members the floating IP's bindings. A floating IP fronts 0 members
 	// (allocated, unattached), 1 member (the everyday case), or N members
@@ -238,9 +256,18 @@ type FloatingIP struct {
 	// replica whose image never contacts the metadata service is admitted
 	// anyway after a few minutes, so an unusual image delays traffic
 	// rather than never getting it.
-	Members   []*FloatingIPMember `json:"members"`
-	Tags      map[string]string   `json:"tags"`
-	UpdatedAt time.Time           `json:"updated_at"`
+	Members []*FloatingIPMember `json:"members"`
+
+	// SubnetID allocation subnet for private floating IPs.
+	SubnetID  string            `json:"subnet_id,omitempty"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
+
+	// One of: "public", "private".
+	Visibility string `json:"visibility"`
+
+	// VPCID Allocation VPC for private floating IPs.
+	VPCID string `json:"vpc_id,omitempty"`
 }
 
 // FloatingIPHealthCheck a readiness check for a shared (anycast) floating IP's members — the
@@ -286,6 +313,8 @@ type FloatingIPHealthCheck struct {
 
 // FloatingIPMember one binding of a floating IP.
 type FloatingIPMember struct {
+	// AddressID target child address on the member interface.
+	AddressID string    `json:"address_id,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 
 	// Health what the platform knows about this member.
@@ -562,26 +591,7 @@ type Instance struct {
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
 	Name string `json:"name,omitempty"`
-
-	// PrimaryIP the primary NIC's IPv4 address, resolved at read time.
-	PrimaryIP string `json:"primary_ip,omitempty"`
-
-	// PrimaryIPv6 the primary NIC's public IPv6 address, when dual-stack.
-	PrimaryIPv6 string `json:"primary_ipv6,omitempty"`
-
-	// PublicIP the floating IP attached to the PRIMARY NIC, when any.
-	//
-	// It reports that one interface, so it is empty for an instance whose
-	// public address sits on a secondary NIC — which is exactly what
-	// `networks[].assign_public_ip` makes possible. An empty `public_ip`
-	// is therefore not evidence that an instance has no public address,
-	// and polling this field will never surface one.
-	//
-	// `GET /v1/instances/{instance_id}/nics` is the read that covers every
-	// interface: each NIC carries its own `public_ip` and
-	// `floating_ip_id`.
-	PublicIP string `json:"public_ip,omitempty"`
-	Tags     Tags   `json:"tags,omitempty"`
+	Tags Tags   `json:"tags,omitempty"`
 
 	// TaskState in-flight transition, if any; null when settled.
 	TaskState    string    `json:"task_state,omitempty"`
@@ -983,6 +993,20 @@ type InstanceVolume struct {
 	VolumeType string `json:"volume_type,omitempty"`
 }
 
+type InterfaceAddress struct {
+	Address string `json:"address"`
+
+	// One of: "ipv4", "ipv6".
+	Family      string               `json:"family"`
+	FloatingIPs []*AddressFloatingIP `json:"floating_ips"`
+	ID          string               `json:"id"`
+
+	// Prefix owned allocation, not the guest netmask: IPv4 /32 or IPv6 /96.
+	// DHCPv6 configures the first /128.
+	Prefix  string `json:"prefix"`
+	Primary bool   `json:"primary"`
+}
+
 type Keypair struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
@@ -1015,29 +1039,20 @@ type KeypairCreateRequest struct {
 }
 
 type ListInstanceNiCsNIC struct {
-	BootIndex int `json:"boot_index,omitempty"`
+	Addresses []*InterfaceAddress `json:"addresses"`
+	BootIndex int                 `json:"boot_index"`
 
 	// External a customer-attached standalone interface — detach unbinds it
 	// instead of destroying it.
-	External bool `json:"external,omitempty"`
-
-	// FloatingIPID the floating IP resource behind `public_ip`, so detaching or
-	// releasing it needs no lookup.
-	FloatingIPID string `json:"floating_ip_id,omitempty"`
-	InterfaceID  string `json:"interface_id,omitempty"`
-	IPAddress    string `json:"ip_address,omitempty"`
-	IPv6Address  string `json:"ipv6_address,omitempty"`
-	MAC          string `json:"mac,omitempty"`
-	Name         string `json:"name,omitempty"`
+	External    bool   `json:"external"`
+	InterfaceID string `json:"interface_id"`
+	MAC         string `json:"mac,omitempty"`
+	Name        string `json:"name,omitempty"`
 
 	// Primary the lowest-boot-index NIC — the one carrying the guest's default
 	// and metadata routes.
-	Primary bool `json:"primary,omitempty"`
-
-	// PublicIP the floating IP NATed to THIS interface, absent when it has none. A
-	// floating IP fronting several NICs at once reports the same address
-	// on each of them.
-	PublicIP string `json:"public_ip,omitempty"`
+	Primary        bool            `json:"primary"`
+	RoutedPrefixes []*RoutedPrefix `json:"routed_prefixes"`
 
 	// Subnet placement; null when the referenced subnet no longer exists.
 	Subnet *Subnet `json:"subnet"`
@@ -1069,26 +1084,15 @@ type ListInstanceVolumesAttachment struct {
 type Metadata = map[string]string
 
 type NetworkConfig struct {
-	// AssignPublicIP allocate a floating IP and attach it to THIS interface once it
-	// exists. Per NIC, so a secondary interface can carry the public
-	// address while the primary stays private, and an instance with
-	// several public interfaces gets one address each.
-	//
-	// Each address is a separate floating-IP allocation: it counts against
-	// the account's floating_ips quota and is billed like any other. It is
-	// released when the instance is torn down — an address you allocated
-	// yourself and attached to the same NIC is not, and survives the
-	// instance.
-	//
-	// The interface's subnet must already route 0.0.0.0/0 to an internet
-	// gateway. Without that the address would be silently unreachable, so
-	// the launch fails instead.
-	AssignPublicIP *bool `json:"assign_public_ip,omitempty"`
+	Addresses []*AddressRequest `json:"addresses,omitempty"`
 
-	// IPAddress optional fixed IP. Must be in the subnet's CIDR and not currently
-	// allocated to another interface. An address is picked automatically
-	// when omitted.
-	IPAddress *string `json:"ip_address,omitempty"`
+	// FloatingIPAssignment allocate public floating IPs for this NIC at launch. Explicit
+	// families require matching guest addresses and internet routes.
+	// Detach leaves the FIP reserved. No ordinary public IPv4 mapping
+	// exists.
+	//
+	// One of: "none", "ipv4", "ipv6", "dual_stack", "auto".
+	FloatingIPAssignment *string `json:"floating_ip_assignment,omitempty"`
 
 	// MAC Optional MAC address. Must be locally-administered (`X2:`, `X6:`,
 	// `XA:`, `XE:` in the first octet). Generated when omitted.
@@ -1108,26 +1112,15 @@ type NetworkConfig struct {
 }
 
 type NetworkConfigResponse struct {
-	// AssignPublicIP allocate a floating IP and attach it to THIS interface once it
-	// exists. Per NIC, so a secondary interface can carry the public
-	// address while the primary stays private, and an instance with
-	// several public interfaces gets one address each.
-	//
-	// Each address is a separate floating-IP allocation: it counts against
-	// the account's floating_ips_v4 quota and is billed like any other. It
-	// is released when the instance is torn down — an address you
-	// allocated yourself and attached to the same NIC is not, and survives
-	// the instance.
-	//
-	// The interface's subnet must already route 0.0.0.0/0 to an internet
-	// gateway. Without that the address would be silently unreachable, so
-	// the launch fails instead.
-	AssignPublicIP bool `json:"assign_public_ip,omitempty"`
+	Addresses []*AddressRequest `json:"addresses,omitempty"`
 
-	// IPAddress optional fixed IP. Must be in the subnet's CIDR and not currently
-	// allocated to another interface. An address is picked automatically
-	// when omitted.
-	IPAddress string `json:"ip_address,omitempty"`
+	// FloatingIPAssignment allocate public floating IPs for this NIC at launch. Explicit
+	// families require matching guest addresses and internet routes.
+	// Detach leaves the FIP reserved. No ordinary public IPv4 mapping
+	// exists.
+	//
+	// One of: "none", "ipv4", "ipv6", "dual_stack", "auto".
+	FloatingIPAssignment string `json:"floating_ip_assignment,omitempty"`
 
 	// MAC Optional MAC address. Must be locally-administered (`X2:`, `X6:`,
 	// `XA:`, `XE:` in the first octet). Generated when omitted.
@@ -1177,6 +1170,16 @@ type RouteTableSummary struct {
 	Name string `json:"name"`
 }
 
+type RoutedPrefix struct {
+	// One of: "ipv4".
+	Family string `json:"family"`
+	ID     string `json:"id"`
+	PoolID string `json:"pool_id"`
+
+	// Prefix a routed /28 from a VPC prefix pool.
+	Prefix string `json:"prefix"`
+}
+
 // SerialConsoleTicket a one-shot credential for opening a serial console from a browser.
 // Pass `ticket` as a query parameter on the WebSocket upgrade.
 type SerialConsoleTicket struct {
@@ -1192,16 +1195,17 @@ type SerialConsoleTicket struct {
 }
 
 type Subnet struct {
-	CIDR string `json:"cidr"`
+	CIDRIPv4 string `json:"cidr_ipv4"`
 
-	// CIDRV6 the dual-stack IPv6 /64, if the subnet is v6-enabled. Its presence
-	// (vs the v4 cidr) is how a client tells the subnet's families apart.
-	CIDRV6      string    `json:"cidr_v6,omitempty"`
+	// CIDRIPv6 the dual-stack IPv6 /64, if the subnet is v6-enabled. Its presence
+	// (vs the v4 cidr_ipv4) is how a client tells the subnet's families
+	// apart.
+	CIDRIPv6    string    `json:"cidr_ipv6,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	CRN         string    `json:"crn"`
 	Description string    `json:"description,omitempty"`
-	GatewayIP   string    `json:"gateway_ip"`
-	GatewayIPV6 string    `json:"gateway_ip_v6,omitempty"`
+	GatewayIPv4 string    `json:"gateway_ipv4"`
+	GatewayIPv6 string    `json:"gateway_ipv6,omitempty"`
 	ID          string    `json:"id"`
 
 	// Name resource names must not start with the literal crn: prefix or be
@@ -1222,15 +1226,13 @@ type UpdateInstanceVolumeAttachmentRequest struct {
 }
 
 type VPC struct {
-	// CIDRV4 IPv4 CIDR block carved up by subnets. Must be private (RFC 1918):
+	// CIDRIPv4 IPv4 CIDR block carved up by subnets. Must be private (RFC 1918):
 	// within 10.0.0.0/8, 172.16.0.0/12 or 192.168.0.0/16. Immutable after
 	// create.
-	CIDRV4 string `json:"cidr_v4"`
+	CIDRIPv4 string `json:"cidr_ipv4"`
 
-	// CIDRV6 the globally-routable /60 delegated from the region's IPv6 pool when
-	// the VPC was created with assign_ipv6_cidr; null for v4-only VPCs.
-	// Immutable after create.
-	CIDRV6    string    `json:"cidr_v6,omitempty"`
+	// CIDRIPv6 associated regional GUA or private ULA prefix.
+	CIDRIPv6  string    `json:"cidr_ipv6,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 
 	// CRN Cloud Resource Name (name-based, region+account-scoped).
