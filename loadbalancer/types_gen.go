@@ -299,10 +299,9 @@ type LoadBalancer struct {
 	// case).
 	Name string `json:"name"`
 
-	// PublicIPv6 Public IPv6 GUA for the load balancer — the v6 analogue of a
-	// floating IP (IPv6 has no NAT, so this address is itself the public
-	// ingress, anycast-advertised). Set on an internet-facing LB in a
-	// dual-stack subnet.
+	// PublicIPv6 Public IPv6 address allocated from the regional pool and translated
+	// to the replica IPv6 addresses. Allocated best-effort for an
+	// internet-facing LB in a dual-stack subnet, including ULA subnets.
 	PublicIPv6 string `json:"public_ipv6,omitempty"`
 
 	// ReplicaCount number of LB compute instances. >=2 for HA.
