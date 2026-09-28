@@ -766,6 +766,10 @@ func (c *Client) CreateInterface(ctx context.Context, body *InterfaceCreateReque
 }
 
 // CreateInterfaceAddress creates interface address.
+//
+// Every enabled subnet family is assigned automatically. The current
+// one-address-per-family limit rejects additional addresses with 409;
+// IPv6 must first be enabled on the subnet.
 func (c *Client) CreateInterfaceAddress(ctx context.Context, interfaceID string, body *AddressRequest, opts ...basaltic.RequestOption) (*InterfaceAddress, error) {
 	op := &basaltic.Operation{
 		ID:       "createInterfaceAddress",
@@ -826,9 +830,14 @@ func (c *Client) CreateInternetGateway(ctx context.Context, body *InternetGatewa
 
 // CreateNATGateway creates NAT gateway.
 //
-// Allocates an EIP from the regional public pool and configures source
-// NAT for the VPC's private subnets through the internet gateway's
-// uplink. The target VPC must already have an Internet Gateway attached.
+// Allocates public IPv4 and, when the hosting subnet has IPv6, public
+// IPv6 from the regional tenant pool. Enabling IPv6 on the hosting
+// subnet later also assigns the gateway's public IPv6. Both addresses
+// are stable until gateway deletion and count against their family's
+// public IP quota. Allocation does not depend on routes. Subnets use the
+// gateway for shared source NAT by routing 0.0.0.0/0 or ::/0 to it. IPv6
+// source NAT supports ULA and global addresses. The target VPC must
+// already have an Internet Gateway attached.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -1055,6 +1064,9 @@ func (c *Client) DeleteInterface(ctx context.Context, interfaceID string, opts .
 }
 
 // DeleteInterfaceAddress deletes interface address.
+//
+// Primary IPv4 and IPv6 addresses required by the subnet cannot be
+// deleted individually (409).
 func (c *Client) DeleteInterfaceAddress(ctx context.Context, interfaceID string, addressID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "deleteInterfaceAddress",

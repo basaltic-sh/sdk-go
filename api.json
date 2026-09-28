@@ -6397,7 +6397,7 @@
               "go_name": "Addresses",
               "go_type": "[]*AddressRequest",
               "flag_kind": "json",
-              "doc": "Omit to allocate the subnet enabled families"
+              "doc": "Every enabled subnet family is allocated automatically"
             },
             {
               "wire": "description",
@@ -8658,11 +8658,34 @@
               "doc": "An aligned /64 inside the VPC IPv6 range"
             },
             {
+              "wire": "copy_ipv4_security_rules",
+              "go_name": "CopyIPv4SecurityRules",
+              "go_type": "*bool",
+              "flag_kind": "bool",
+              "pointer": true,
+              "doc": "When enabling IPv6, copy equivalent rules in security groups used by this subnet's interfaces"
+            },
+            {
               "wire": "description",
               "go_name": "Description",
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
+            },
+            {
+              "wire": "ipv6_routing",
+              "go_name": "IPv6Routing",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "enum": [
+                "match_ipv4",
+                "unchanged",
+                "internet_gateway",
+                "nat_gateway",
+                "egress_only_gateway"
+              ],
+              "doc": "When enabling IPv6, optionally add ::/0 to the subnet's route table"
             },
             {
               "wire": "route_table",

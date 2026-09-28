@@ -58,13 +58,13 @@ type DetachFloatingIPRequest struct {
 	Interface *string `json:"interface,omitempty"`
 }
 
-// EgressOnlyGateway The IPv6 analogue of a NAT gateway, and its inverse: a subnet whose
-// route table points ::/0 at one gets OUTBOUND v6 (plus the return
-// traffic of its own flows), but the internet can never initiate an
-// inbound connection — a platform-band drop enforces that regardless
-// of the tenant's security groups. It owns no address (v6 has no NAT)
-// and reuses the VPC's internet gateway for the L3 uplink, so the VPC
-// must have an IGW attached. One per VPC.
+// EgressOnlyGateway Native IPv6 egress without address translation: a subnet with global
+// IPv6 whose route table points ::/0 at one gets OUTBOUND v6 (plus the
+// return traffic of its own flows), but the internet can never initiate
+// an inbound connection — a platform-band drop enforces that
+// regardless of the tenant's security groups. It owns no address and
+// does not translate ULA sources and reuses the VPC's internet gateway
+// for the L3 uplink, so the VPC must have an IGW attached. One per VPC.
 type EgressOnlyGateway struct {
 	CreatedAt   time.Time `json:"created_at"`
 	CRN         string    `json:"crn"`
@@ -367,8 +367,9 @@ type InterfaceAddress struct {
 }
 
 type InterfaceCreateRequest struct {
-	// Addresses omit to allocate the subnet enabled families. An explicit list must
-	// include IPv4; at most one entry per family.
+	// Addresses every enabled subnet family is allocated automatically. Entries may
+	// request a fixed IPv4 address; omitting a family never disables it.
+	// At most one entry per family.
 	Addresses   []*AddressRequest `json:"addresses,omitempty"`
 	Description *string           `json:"description,omitempty"`
 
@@ -456,9 +457,16 @@ type NATGateway struct {
 	// case).
 	Name string `json:"name"`
 
-	// PublicIPv4 Public IP allocated from the regional pool. Stable for the NAT GW's
-	// lifetime.
-	PublicIPv4 string            `json:"public_ipv4"`
+	// PublicIPv4 Public IPv4 allocated from the regional pool at creation. Stable
+	// until gateway deletion.
+	PublicIPv4 string `json:"public_ipv4"`
+
+	// PublicIPv6 Public IPv6 allocated from the regional pool when the gateway's
+	// hosting subnet has IPv6. Assigned at gateway creation or when IPv6
+	// is enabled on that subnet, independently of routes. Stable until
+	// gateway deletion. Shared source NAT supports both global and ULA
+	// subnet addresses.
+	PublicIPv6 string            `json:"public_ipv6,omitempty"`
 	Subnet     *Subnet           `json:"subnet"`
 	Tags       map[string]string `json:"tags"`
 	UpdatedAt  time.Time         `json:"updated_at"`
@@ -516,7 +524,8 @@ type Route struct {
 	// TargetInternetGatewayID set when target_type=internet_gateway.
 	TargetInternetGatewayID string `json:"target_internet_gateway_id,omitempty"`
 
-	// TargetNATGatewayID set when target_type=nat_gateway.
+	// TargetNATGatewayID set when target_type=nat_gateway. Supports IPv4 and IPv6; IPv6
+	// requires an IPv6-enabled hosting subnet.
 	TargetNATGatewayID string          `json:"target_nat_gateway_id,omitempty"`
 	TargetType         RouteTargetType `json:"target_type"`
 	UpdatedAt          time.Time       `json:"updated_at"`
@@ -559,9 +568,9 @@ type RouteTable struct {
 	Description string    `json:"description,omitempty"`
 	ID          string    `json:"id"`
 
-	// IsMain true for the per-VPC default table. The main table is created
-	// automatically and can't be deleted. Subnets that don't specify a
-	// route_table_id at create time land here.
+	// IsMain true for the per-VPC default table, named <vpc-name>-private-rt. It
+	// is created automatically and can't be deleted. Subnets that don't
+	// specify a route_table at create time land here.
 	IsMain bool `json:"is_main"`
 
 	// Name resource names must not start with the literal crn: prefix or be
@@ -759,7 +768,10 @@ type Subnet struct {
 
 type SubnetCreateRequest struct {
 	// AllocateCIDRIPv6 allocate a free /64 from the VPC IPv6 range. Can be enabled after
-	// creation.
+	// creation. Every existing and new interface receives an IPv6 /96 and
+	// its first /128 automatically. NAT gateways hosted here also receive
+	// a public IPv6 address from the regional pool. Updating hosted
+	// gateways requires UpdateNATGateway permission and public IPv6 quota.
 	AllocateCIDRIPv6 *bool `json:"allocate_cidr_ipv6,omitempty"`
 
 	// Required.
@@ -783,7 +795,7 @@ type SubnetCreateRequest struct {
 
 	// RouteTable Route-table UUID, nested CRN or exact name within the subnet VPC. On
 	// PATCH the owned path subnet supplies the VPC. Omission on create
-	// selects main; an empty reference is invalid.
+	// selects the default table; an empty reference is invalid.
 	RouteTable *string           `json:"route_table,omitempty"`
 	Tags       map[string]string `json:"tags,omitempty"`
 
@@ -795,18 +807,46 @@ type SubnetCreateRequest struct {
 
 type SubnetUpdateRequest struct {
 	// AllocateCIDRIPv6 allocate a free /64 from the VPC IPv6 range. Can be enabled after
-	// creation.
+	// creation. Every existing and new interface receives an IPv6 /96 and
+	// its first /128 automatically. NAT gateways hosted here also receive
+	// a public IPv6 address from the regional pool. Updating hosted
+	// gateways requires UpdateNATGateway permission and public IPv6 quota.
 	AllocateCIDRIPv6 *bool `json:"allocate_cidr_ipv6,omitempty"`
 
 	// CIDRIPv6 an aligned /64 inside the VPC IPv6 range. Can be added later; cannot
 	// replace an existing range. Mutually exclusive with
 	// allocate_cidr_ipv6.
-	CIDRIPv6    *string `json:"cidr_ipv6,omitempty"`
-	Description *string `json:"description,omitempty"`
+	CIDRIPv6 *string `json:"cidr_ipv6,omitempty"`
+
+	// CopyIPv4SecurityRules when enabling IPv6, copy equivalent rules in security groups used by
+	// this subnet's interfaces. Copies 0.0.0.0/0 to ::/0 and
+	// security-group references, preserving protocol, ports and direction.
+	// Restricted IPv4 CIDRs are not widened. Existing IPv6 equivalents are
+	// not duplicated. Changes affect every interface sharing these groups.
+	// Requires CreateSecurityGroupRule permission and available rule
+	// quota. Only accepted with allocate_cidr_ipv6 or cidr_ipv6.
+	CopyIPv4SecurityRules *bool   `json:"copy_ipv4_security_rules,omitempty"`
+	Description           *string `json:"description,omitempty"`
+
+	// IPv6Routing when enabling IPv6, optionally add ::/0 to the subnet's route table.
+	// match_ipv4 follows an IPv4 internet-gateway or NAT-gateway default
+	// route, using the same target. A NAT gateway must already have IPv6
+	// enabled on its hosting subnet, or be hosted in the subnet being
+	// enabled. No IPv4 default route leaves IPv6 routing unchanged.
+	// Existing IPv6 default routes are always preserved. Egress-only
+	// gateways cannot provide ULA internet access; use a NAT gateway, or a
+	// public IPv6 floating IP with an internet-gateway route. Changes
+	// affect every subnet sharing the route table and require CreateRoute
+	// permission; creating an egress-only gateway also requires
+	// CreateEgressOnlyGateway permission. Only accepted with
+	// allocate_cidr_ipv6 or cidr_ipv6.
+	//
+	// One of: "match_ipv4", "unchanged", "internet_gateway", "nat_gateway", "egress_only_gateway".
+	IPv6Routing *string `json:"ipv6_routing,omitempty"`
 
 	// RouteTable Route-table UUID, nested CRN or exact name within the subnet VPC. On
 	// PATCH the owned path subnet supplies the VPC. Omission on create
-	// selects main; an empty reference is invalid.
+	// selects the default table; an empty reference is invalid.
 	RouteTable *string           `json:"route_table,omitempty"`
 	Tags       map[string]string `json:"tags,omitempty"`
 }
