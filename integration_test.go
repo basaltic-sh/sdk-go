@@ -21,6 +21,7 @@ import (
 	"time"
 
 	basaltic "github.com/basaltic-sh/sdk-go"
+	"github.com/basaltic-sh/sdk-go/catalog"
 	"github.com/basaltic-sh/sdk-go/compute"
 	"github.com/basaltic-sh/sdk-go/iam"
 	"github.com/basaltic-sh/sdk-go/network"
@@ -50,6 +51,35 @@ func liveContext(t *testing.T) context.Context {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	t.Cleanup(cancel)
 	return ctx
+}
+
+// Region discovery must work before a user has any credentials or account.
+func TestLivePublicRegions(t *testing.T) {
+	ctx := liveContext(t)
+	cfg, err := basaltic.NewConfig(ctx, basaltic.WithAnonymousAccess())
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := catalog.New(cfg)
+	list, err := client.ListRegions(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list.Regions) == 0 {
+		t.Fatal("no public regions returned")
+	}
+	for _, region := range list.Regions {
+		if region == nil {
+			t.Fatal("null region returned")
+		}
+		detail, err := client.GetRegion(ctx, region.Code)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if detail == nil || *detail != *region {
+			t.Fatalf("region %s differs between list and detail", region.Code)
+		}
+	}
 }
 
 // The client-credentials exchange against the real IAM token endpoint.

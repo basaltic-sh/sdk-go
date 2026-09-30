@@ -98,7 +98,7 @@ One package per service. Import only what you use.
 | `loadbalancer` | regional | `audit` | global |
 | `kms` | regional | `quota` | global |
 | `secrets` | regional | `workspace` | global |
-| `certificate` | regional | | |
+| `certificate` | regional | `catalog` | global |
 | `telemetry` | regional | | |
 
 Regional services need a region; global ones ignore it. Global endpoint scope is separate from resource ownership: IAM roles, policies, service accounts, and STS sessions belong to the account selected in the configuration. Workspace manages organizations, accounts, people, groups, and organization policies.
@@ -136,6 +136,17 @@ If something upstream already holds a token — an assumed-role session, or an
 in-VM agent reading one from instance metadata — pass it with
 `WithAccessToken`, or implement `TokenSource` for anything the SDK cannot mint
 itself.
+
+Region discovery is public. Use an anonymous configuration when no credentials
+are available; it refuses calls to operations that require authentication:
+
+```go
+cfg, err := basaltic.NewConfig(ctx, basaltic.WithAnonymousAccess())
+if err != nil {
+    return err
+}
+regions, err := catalog.New(cfg).ListRegions(ctx, nil)
+```
 
 ## Pagination
 
@@ -312,8 +323,8 @@ emitter bug would produce a matching bug in the test.
 What the suite does instead is walk all generated methods by reflection
 and assert properties the specification cannot express: that no placeholder
 survives into a URL, that positional arguments reach it in the order they were
-passed, that a credential is attached unless the operation is one of the four
-that deliberately has none, and that every paginator terminates. Those are
+passed, that a credential is attached unless the operation deliberately requires
+none, and that every paginator terminates. Those are
 checked against the SDK's own contract rather than against the specification,
 so they catch real emitter faults.
 
