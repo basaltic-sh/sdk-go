@@ -483,8 +483,15 @@ type Role struct {
 	AccountHandle string `json:"account_handle,omitempty"`
 
 	// AccountID owning account UUID.
-	AccountID string    `json:"account_id,omitempty"`
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	AccountID string `json:"account_id,omitempty"`
+
+	// BuiltinKind present on the account's built-in Administrator and ReadOnly roles.
+	// These assignable roles are created with the account, do not consume
+	// custom-role quota, and do not block account deletion.
+	//
+	// One of: "administrator", "readonly".
+	BuiltinKind string    `json:"builtin_kind,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
 
 	// CRN Cloud Resource Name
 	CRN         string `json:"crn,omitempty"`

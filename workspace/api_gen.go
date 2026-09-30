@@ -967,8 +967,8 @@ func (c *Client) AttachGroupPolicy(ctx context.Context, groupID string, body *Po
 //
 // Manage the organization policies delegated to this account identity.
 // The identity must belong to the authenticated organization. Changing
-// attachments requires organization policy-assignment permission and
-// authority to manage the target identity.
+// attachments requires organization policy-assignment permission on both
+// the policy and the receiving identity.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -990,8 +990,8 @@ func (c *Client) AttachRolePolicy(ctx context.Context, roleID string, body *Orga
 //
 // Manage the organization policies delegated to this account identity.
 // The identity must belong to the authenticated organization. Changing
-// attachments requires organization policy-assignment permission and
-// authority to manage the target identity.
+// attachments requires organization policy-assignment permission on both
+// the policy and the receiving identity.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -1227,8 +1227,8 @@ func (c *Client) DetachGroupPolicy(ctx context.Context, groupID string, policyID
 //
 // Manage the organization policies delegated to this account identity.
 // The identity must belong to the authenticated organization. Changing
-// attachments requires organization policy-assignment permission and
-// authority to manage the target identity.
+// attachments requires organization policy-assignment permission on both
+// the policy and the receiving identity.
 func (c *Client) DetachRolePolicy(ctx context.Context, roleID string, policyID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "detachRolePolicy",
@@ -1246,8 +1246,8 @@ func (c *Client) DetachRolePolicy(ctx context.Context, roleID string, policyID s
 //
 // Manage the organization policies delegated to this account identity.
 // The identity must belong to the authenticated organization. Changing
-// attachments requires organization policy-assignment permission and
-// authority to manage the target identity.
+// attachments requires organization policy-assignment permission on both
+// the policy and the receiving identity.
 func (c *Client) DetachServiceAccountPolicy(ctx context.Context, serviceAccountID string, policyID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "detachServiceAccountPolicy",
@@ -2108,8 +2108,8 @@ func (c *Client) ListPolicyUsersAll(ctx context.Context, policyID string, params
 //
 // Manage the organization policies delegated to this account identity.
 // The identity must belong to the authenticated organization. Changing
-// attachments requires organization policy-assignment permission and
-// authority to manage the target identity.
+// attachments requires organization policy-assignment permission on both
+// the policy and the receiving identity.
 func (c *Client) ListRolePolicies(ctx context.Context, roleID string, params *ListRolePoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Policy], error) {
 	op := &basaltic.Operation{
 		ID:       "listRolePolicies",
@@ -2132,8 +2132,8 @@ func (c *Client) ListRolePolicies(ctx context.Context, roleID string, params *Li
 //
 // Manage the organization policies delegated to this account identity.
 // The identity must belong to the authenticated organization. Changing
-// attachments requires organization policy-assignment permission and
-// authority to manage the target identity.
+// attachments requires organization policy-assignment permission on both
+// the policy and the receiving identity.
 func (c *Client) ListServiceAccountPolicies(ctx context.Context, serviceAccountID string, params *ListServiceAccountPoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Policy], error) {
 	op := &basaltic.Operation{
 		ID:       "listServiceAccountPolicies",
