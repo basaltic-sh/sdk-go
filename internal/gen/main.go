@@ -37,6 +37,7 @@ import (
 var services = []string{
 	"audit",
 	"billing",
+	"catalog",
 	"certificate",
 	"compute",
 	"dns",

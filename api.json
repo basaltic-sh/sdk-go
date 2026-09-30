@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.17.1",
+  "version": "0.18.0",
   "services": [
     {
       "name": "audit",
@@ -592,6 +592,62 @@
           ],
           "result_kind": "value",
           "result_type": "*BillingProfile"
+        }
+      ]
+    },
+    {
+      "name": "catalog",
+      "package": "catalog",
+      "title": "Basaltic Catalog API",
+      "description": "Public global platform discovery. Lifecycle is independent of live health, capacity, tenant authorization, and product placement.",
+      "endpoint_template": "https://catalog.basaltic.sh",
+      "regional": false,
+      "operations": [
+        {
+          "id": "getRegion",
+          "go_name": "GetRegion",
+          "method": "GET",
+          "path": "/v1/regions/{code}",
+          "summary": "Get a region",
+          "resource": "region",
+          "verb": "get",
+          "path_params": [
+            {
+              "wire": "code",
+              "go_name": "code",
+              "doc": "Immutable region code"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "*Region"
+        },
+        {
+          "id": "listRegions",
+          "go_name": "ListRegions",
+          "method": "GET",
+          "path": "/v1/regions",
+          "summary": "List regions",
+          "resource": "region",
+          "verb": "list",
+          "params_type": "ListRegionsParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact returned CRN, combined with name using AND before pagination"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name, combined with crn using AND before pagination"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "*ListRegionsResult"
         }
       ]
     },
@@ -4113,7 +4169,7 @@
           "go_name": "ListRegions",
           "method": "GET",
           "path": "/v1/regions",
-          "summary": "List regions",
+          "summary": "List regions (legacy IAM)",
           "resource": "region",
           "verb": "list",
           "params_type": "ListRegionsParams",

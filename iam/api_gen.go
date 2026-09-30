@@ -1332,11 +1332,13 @@ func (c *Client) ListPolicyServiceAccountsAll(ctx context.Context, policyID stri
 	})
 }
 
-// ListRegions lists regions.
+// ListRegions lists regions (legacy IAM).
 //
-// List all available regions. This endpoint is public and does not
-// require authentication. Returns all regions with their availability
-// status.
+// Legacy compatibility endpoint. New clients should use
+// catalog.basaltic.sh/v1/regions. This endpoint retains IAM-namespaced
+// region CRNs and its existing response shape. List all published
+// regions. This endpoint is public and does not require authentication.
+// Returns all regions with their availability status.
 //
 // Because it takes no credentials, requests are rate-limited per client
 // IP.
