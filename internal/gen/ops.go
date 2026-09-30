@@ -129,6 +129,9 @@ func (b *builder) buildOperations(spec map[string]any, specFile string) error {
 	for _, op := range b.ops {
 		op.Resource, op.Verb = res.resolve(op, op.xResource)
 	}
+	if err := validateCommandNames(b.service, b.ops); err != nil {
+		return err
+	}
 	b.deriveByReference()
 	return nil
 }

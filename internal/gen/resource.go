@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -48,6 +49,12 @@ var resourceOverrides = map[string]struct{ Resource, Verb string }{
 	// Reads as an action on the pool rather than a resource called "instance".
 	"listPoolInstances": {"instance-pool", "list-instances"},
 
+	// Gateway routes are a filtered view of route-table entries, not a second
+	// route collection with its own create/update/delete operations.
+	"listEgressOnlyGatewayRoutes": {"egress-only-gateway", "list-routes"},
+	"listInternetGatewayRoutes":   {"internet-gateway", "list-routes"},
+	"listNATGatewayRoutes":        {"nat-gateway", "list-routes"},
+
 	// Metric queries are facets of metrics; the POST forms differ only in how
 	// the query is carried.
 	"queryMetricsInstant":     {"metric", "query"},
@@ -88,6 +95,18 @@ var resourceOverrides = map[string]struct{ Resource, Verb string }{
 	"revokeOAuthToken":          {"token", "revoke"},
 	"assumeRole":                {"role", "assume"},
 	"assumeRoleWithWebIdentity": {"role", "assume-with-web-identity"},
+}
+
+func validateCommandNames(service string, ops []*operation) error {
+	seen := map[string]string{}
+	for _, op := range ops {
+		command := service + " " + op.Resource + " " + op.Verb
+		if previous, exists := seen[command]; exists {
+			return fmt.Errorf("command %q is shared by %s and %s; define distinct resource/verb mappings", command, previous, op.ID)
+		}
+		seen[command] = op.ID
+	}
+	return nil
 }
 
 // canonicalVerbs maps an operation id's leading word onto the CLI's verb.

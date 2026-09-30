@@ -1,6 +1,33 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestGatewayRoutesHaveDistinctCommands(t *testing.T) {
+	ops := []*operation{
+		{ID: "listEgressOnlyGatewayRoutes", Method: "GET", Path: "/v1/egress-only-gateways/{id}/routes", xResource: "Route"},
+		{ID: "listInternetGatewayRoutes", Method: "GET", Path: "/v1/internet-gateways/{id}/routes", xResource: "Route"},
+		{ID: "listNATGatewayRoutes", Method: "GET", Path: "/v1/nat-gateways/{id}/routes", xResource: "Route"},
+		{ID: "listRoutes", Method: "GET", Path: "/v1/route-tables/{id}/routes", xResource: "Route"},
+	}
+	want := []string{"egress-only-gateway list-routes", "internet-gateway list-routes", "nat-gateway list-routes", "route list"}
+	r := newResolver("network", ops)
+	for i, op := range ops {
+		op.Resource, op.Verb = r.resolve(op, op.xResource)
+		if got := op.Resource + " " + op.Verb; got != want[i] {
+			t.Errorf("%s: got %q, want %q", op.ID, got, want[i])
+		}
+	}
+	if err := validateCommandNames("network", ops); err != nil {
+		t.Fatal(err)
+	}
+	ops[0].Resource, ops[0].Verb = "route", "list"
+	if err := validateCommandNames("network", ops); err == nil || !strings.Contains(err.Error(), "listEgressOnlyGatewayRoutes and listRoutes") {
+		t.Fatalf("expected actionable collision error, got %v", err)
+	}
+}
 
 func TestSingular(t *testing.T) {
 	tests := []struct{ in, want string }{

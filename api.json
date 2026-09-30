@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "services": [
     {
       "name": "audit",
@@ -7891,8 +7891,8 @@
           "method": "GET",
           "path": "/v1/egress-only-gateways/{egress_only_gateway_id}/routes",
           "summary": "List egress-only gateway routes",
-          "resource": "route",
-          "verb": "list",
+          "resource": "egress-only-gateway",
+          "verb": "list-routes",
           "path_params": [
             {
               "wire": "egress_only_gateway_id",
@@ -8161,8 +8161,8 @@
           "method": "GET",
           "path": "/v1/internet-gateways/{internet_gateway_id}/routes",
           "summary": "List internet gateway routes",
-          "resource": "route",
-          "verb": "list",
+          "resource": "internet-gateway",
+          "verb": "list-routes",
           "path_params": [
             {
               "wire": "internet_gateway_id",
@@ -8254,8 +8254,8 @@
           "method": "GET",
           "path": "/v1/nat-gateways/{nat_gateway_id}/routes",
           "summary": "List NAT gateway routes",
-          "resource": "route",
-          "verb": "list",
+          "resource": "nat-gateway",
+          "verb": "list-routes",
           "path_params": [
             {
               "wire": "nat_gateway_id",
