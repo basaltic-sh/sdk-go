@@ -77,16 +77,30 @@ type CreateListenerRequest struct {
 // CreateLoadBalancerRequest relationships accept a UUID, CRN or exact immutable name, classified
 // by syntax. VPC, subnet, security groups and keypairs must belong to
 // the caller account in this region. Subnet names are scoped by vpc.
-// Flavor is a regional catalog reference. floating_ip accepts UUID or
-// CRN only. All references resolve before writes.
+// Flavor is a regional catalog reference. Floating IP references accept
+// UUID or CRN only. All references resolve before writes. Addresses are
+// fixed at creation; updates cannot replace them.
 type CreateLoadBalancerRequest struct {
 	// Flavor compute flavor for each LB instance.
 	//
 	// Required.
 	Flavor string `json:"flavor"`
 
-	// FloatingIP Optional FIP attached on create for public exposure.
+	// FloatingIP Public IPv4 shorthand. Cannot be combined with floating_ips. Does
+	// not allocate public IPv6.
 	FloatingIP *string `json:"floating_ip,omitempty"`
+
+	// FloatingIPs existing free floating IPs from this account and region, at most one
+	// per family and visibility (private/public, IPv4/IPv6). Private
+	// addresses must belong to the selected subnet. Missing private
+	// families are allocated automatically for each family enabled on that
+	// subnet. Public addresses are optional and require a matching-family
+	// default route to an internet gateway; NAT and egress-only gateways
+	// do not qualify. IPv6 requires an IPv6-enabled subnet. Pool-owned or
+	// attached addresses are unavailable. On deletion, supplied addresses
+	// are detached and retained; automatic private allocations are
+	// released. Cannot be combined with floating_ip.
+	FloatingIPs []string `json:"floating_ips,omitempty"`
 
 	// Keypairs platform-operator break-glass only. Stamps SSH keypairs onto the
 	// replica VMs, which run the platform's own envoy and lbaas-agent; a
@@ -206,20 +220,258 @@ type Fault struct {
 	Severity string `json:"severity"`
 }
 
-type HealthCheck struct {
-	HealthyThreshold int    `json:"healthy_threshold,omitempty"`
-	IntervalSec      int    `json:"interval_sec,omitempty"`
-	Matcher          string `json:"matcher,omitempty"`
-	Path             string `json:"path,omitempty"`
-	Port             int    `json:"port,omitempty"`
+type FloatingIP struct {
+	// Address allocated public or private address.
+	Address string `json:"address"`
 
-	// Protocol defaults to the target group protocol when omitted
+	// AttachedTo Canonical CRN of the bound interface, instance pool, or load
+	// balancer; null when unattached. A pool-owned address names its pool
+	// even when the pool has zero members. Only pool-owned addresses may
+	// have multiple NIC members. Manage their bindings through the
+	// instance pool floating IP endpoints; direct attach and detach are
+	// refused.
+	AttachedTo  string    `json:"attached_to"`
+	CreatedAt   time.Time `json:"created_at"`
+	CRN         string    `json:"crn"`
+	Description string    `json:"description,omitempty"`
+	Family      IPFamily  `json:"family"`
+
+	// HealthCheck the readiness check applied to this address's members. Absent when
+	// none is configured. See `FloatingIpHealthCheck`.
+	HealthCheck *FloatingIPHealthCheck `json:"health_check,omitempty"`
+	ID          string                 `json:"id"`
+
+	// Members the floating IP's bindings. A floating IP fronts 0 members
+	// (allocated, unattached), 1 member (the everyday case), or N members
+	// for an instance pool — an anycast floating IP, where one public IP
+	// is delivered to N VM NICs across hosts (each advertised as a /32
+	// from the host holding it).
 	//
-	// One of: "http", "https", "tcp", "udp".
-	Protocol           string `json:"protocol,omitempty"`
-	TimeoutSec         int    `json:"timeout_sec,omitempty"`
-	UnhealthyThreshold int    `json:"unhealthy_threshold,omitempty"`
+	// Members may share a hypervisor. Two of them on one host used to mean
+	// one served and the other was silently dark; a member's forwarding
+	// rule now names the member, and the host splits connections across
+	// the members it holds, so where the members sit is a capacity
+	// decision rather than a correctness one. An instance pool's address
+	// takes its members from the pool's live replicas — every one of
+	// them — so a scale-out joins and a scale-in leaves without a
+	// per-replica attach.
+	//
+	// With more than one member ONE member serves each connection, chosen
+	// by hashing the flow's addresses and ports, and every packet of that
+	// connection goes to the same one. The members are separate instances
+	// that share nothing, so this spreads connections and survives the
+	// loss of a host — it is not a load balancer: nothing checks whether
+	// the service inside the instance is up, and connections in progress
+	// to a member that goes away are not moved, they end.
+	//
+	// A POOL's address is the exception, and only for booting. A replica
+	// joins the address as soon as it is placed, but does not receive
+	// traffic until it has reached the instance metadata service —
+	// evidence that the guest booted, rather than that its virtual machine
+	// was started. Until then it is a member with `health` `unhealthy`. A
+	// replica whose image never contacts the metadata service is admitted
+	// anyway after a few minutes, so an unusual image delays traffic
+	// rather than never getting it.
+	Members []*FloatingIPMember `json:"members"`
+
+	// SubnetID allocation subnet for private floating IPs.
+	SubnetID  string            `json:"subnet_id,omitempty"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
+
+	// One of: "public", "private".
+	Visibility string `json:"visibility"`
+
+	// VPCID Allocation VPC for private floating IPs.
+	VPCID string `json:"vpc_id,omitempty"`
 }
+
+// FloatingIPHealthCheck a readiness check for a shared (anycast) floating IP's members — the
+// same vocabulary as a load balancer target group's health check, one
+// you already know. The platform checks each member's private address
+// within the VPC. A member that fails stops receiving traffic through
+// the floating IP and returns when it passes again. If EVERY member
+// fails, the whole address goes dark — a misconfigured check is a
+// visible outage you caused, not the platform quietly advertising
+// something it believes is down.
+//
+// The check is on the address, not per member: members are
+// interchangeable backends, and a pool derives them. An address with no
+// check behaves exactly as before — liveness only for pool members,
+// always-advertised for hand-attached ones.
+type FloatingIPHealthCheck struct {
+	// HealthyThreshold consecutive passes before a member flips healthy.
+	HealthyThreshold int `json:"healthy_threshold"`
+	IntervalSec      int `json:"interval_sec"`
+
+	// Matcher HTTP status or range that counts as passing; ignored for tcp.
+	Matcher string `json:"matcher,omitempty"`
+
+	// Path HTTP path probed; ignored for tcp.
+	Path string `json:"path,omitempty"`
+
+	// Port probed on the member.
+	Port int `json:"port"`
+
+	// Protocol `tcp` opens a connection; `http`/`https` issue a GET and match the
+	// status against `matcher`. There is no `udp`: a readiness probe needs
+	// an answer — check a udp service on a tcp health port instead.
+	//
+	// One of: "tcp", "http", "https".
+	Protocol string `json:"protocol"`
+
+	// TimeoutSec per-probe timeout; must be less than interval_sec.
+	TimeoutSec int `json:"timeout_sec"`
+
+	// UnhealthyThreshold consecutive failures before a member flips unhealthy.
+	UnhealthyThreshold int `json:"unhealthy_threshold"`
+}
+
+// FloatingIPMember one binding of a floating IP.
+type FloatingIPMember struct {
+	// AddressID target child address on the member interface.
+	AddressID string    `json:"address_id,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// Health what the platform knows about this member.
+	//
+	// `unknown` — nobody is checking. A member you attached yourself
+	// with no health check on the address reads this: you chose the moment
+	// of attach, and the platform has no signal about what runs inside the
+	// instance. It is advertised.
+	//
+	// `healthy` — the platform has evidence this member is up (and, if a
+	// health check is configured on the address, that the check is
+	// passing).
+	//
+	// `unhealthy` — the platform is waiting for that evidence and has
+	// not seen it, or a configured check is failing. The member keeps its
+	// place on the address and receives no traffic until it recovers.
+	//
+	// Without a health check this is liveness only — `healthy` means the
+	// guest came up, not that your service is listening. Configure
+	// `health_check` on the floating IP to add readiness on top of that.
+	//
+	// One of: "unknown", "healthy", "unhealthy".
+	Health string `json:"health"`
+
+	// Interface Bound NIC summary; null for a load balancer binding named by
+	// attached_to.
+	Interface *FloatingIPMemberInterface `json:"interface"`
+
+	// Reason why the member reads the `health` it does — so you can tell "your
+	// service is not answering" from "the guest has not booted yet".
+	//
+	// `unprobed` — nobody is checking (no health check, hand-attached).
+	// `booting` — the platform has not yet seen the guest come up.
+	// `probe_failed` — the configured health check is failing. `passing`
+	// — the guest is up and, if a check is configured, it passes.
+	//
+	// One of: "unprobed", "booting", "probe_failed", "passing".
+	Reason string `json:"reason"`
+}
+
+// FloatingIPMemberInterface Bound NIC summary; null for a load balancer binding named by
+// attached_to.
+type FloatingIPMemberInterface struct {
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Instance owning instance; null when the interface has no owning instance.
+	Instance *FloatingIPMemberInterfaceInstance `json:"instance"`
+}
+
+// FloatingIPMemberInterfaceInstance owning instance; null when the interface has no owning instance.
+type FloatingIPMemberInterfaceInstance struct {
+	CRN  string `json:"crn"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// HealthCheck active probes are enabled by default. Set enabled=false to stop probes
+// while retaining their configuration. An explicitly enabled HTTP/HTTPS
+// check requires a non-empty path starting with /. TCP checks connect to
+// the check port without an HTTP path. UDP groups default to TCP connect
+// probes.
+type HealthCheck struct {
+	Enabled bool `json:"enabled,omitempty"`
+
+	// HealthyThreshold zero uses the default.
+	HealthyThreshold int `json:"healthy_threshold,omitempty"`
+
+	// IntervalSec zero uses the default.
+	IntervalSec int `json:"interval_sec,omitempty"`
+
+	// Matcher HTTP status codes from 100 to 599; comma-separated codes or
+	// inclusive ranges. Empty uses 200.
+	Matcher string `json:"matcher,omitempty"`
+	Path    string `json:"path,omitempty"`
+	Port    int    `json:"port,omitempty"`
+
+	// Protocol omitted or empty uses the target group protocol. UDP uses a TCP
+	// connect probe. HTTPS probes use TLS.
+	//
+	// One of: "http", "https", "tcp", "udp", "".
+	Protocol string `json:"protocol,omitempty"`
+
+	// TimeoutSec zero uses the default.
+	TimeoutSec int `json:"timeout_sec,omitempty"`
+
+	// UnhealthyThreshold zero uses the default.
+	UnhealthyThreshold int `json:"unhealthy_threshold,omitempty"`
+}
+
+// HealthCheckPatch merge supplied fields into the existing check. Omitted fields are
+// preserved; null or an empty object leaves the check unchanged. Set
+// enabled=false to disable probes without clearing settings, and
+// enabled=true to enable the saved configuration. Set port=0 to use each
+// target's traffic port; zero timing/thresholds and an empty matcher
+// reset their defaults. An empty protocol inherits the target group
+// protocol. Clearing the path of an explicitly enabled HTTP/HTTPS check
+// is invalid.
+type HealthCheckPatch struct {
+	Enabled          *bool             `json:"enabled,omitempty"`
+	HealthyThreshold *HealthyThreshold `json:"healthy_threshold,omitempty"`
+	IntervalSec      *IntervalSec      `json:"interval_sec,omitempty"`
+	Matcher          *Matcher          `json:"matcher,omitempty"`
+	Path             *Path             `json:"path,omitempty"`
+
+	// Port zero removes the probe port override.
+	Port               *int                `json:"port,omitempty"`
+	Protocol           *Protocol           `json:"protocol,omitempty"`
+	TimeoutSec         *TimeoutSec         `json:"timeout_sec,omitempty"`
+	UnhealthyThreshold *UnhealthyThreshold `json:"unhealthy_threshold,omitempty"`
+}
+
+// HealthyThreshold zero uses the default.
+type HealthyThreshold = int
+
+// IPFamily The IP address family. Floating IPs support either family and may have
+// public or private visibility. Public floating IPs allocate from the
+// region's public address pool; private floating IPs allocate from their
+// selected subnet's range for that family.
+//
+// Attaching a floating IP to an interface requires an address of the
+// same family on that interface. IPv6 does not require IPv4 to be
+// enabled on the subnet. Internet reachability also depends on routes
+// and security rules.
+//
+// Attaching an IPv6 floating IP does not disable the interface's native
+// globally routable IPv6 address. Both addresses remain reachable when
+// routing and security rules permit, and replies to incoming connections
+// retain the address that received the connection. A private IPv6
+// address does not become directly internet-routable by attaching a
+// floating IP.
+type IPFamily string
+
+// Values IPFamily accepts.
+const (
+	IPFamilyIPv4 IPFamily = "ipv4"
+	IPFamilyIPv6 IPFamily = "ipv6"
+)
+
+// IntervalSec zero uses the default.
+type IntervalSec = int
 
 type Listener struct {
 	// Certificates HTTPS listeners only. One entry per attached certificate; the right
@@ -283,9 +535,13 @@ type LoadBalancer struct {
 	// loadbalancer-family flavor.
 	FlavorID string `json:"flavor_id"`
 
-	// FloatingIPID Optional FIP attached for public exposure. NULL ⇒ private-only LB.
+	// FloatingIPID optional public IPv4 floating IP. Public IPv6 is independent.
 	FloatingIPID string `json:"floating_ip_id,omitempty"`
-	ID           string `json:"id"`
+
+	// FloatingIPs all attached public and private floating IPs, including automatic
+	// private allocations.
+	FloatingIPs []*FloatingIP `json:"floating_ips"`
+	ID          string        `json:"id"`
 
 	// InternalIPv4 Virtual IP for the load balancer; traffic is distributed to backends
 	// per connection.
@@ -299,9 +555,8 @@ type LoadBalancer struct {
 	// case).
 	Name string `json:"name"`
 
-	// PublicIPv6 Public IPv6 address allocated from the regional pool and translated
-	// to the replica IPv6 addresses. Allocated best-effort for an
-	// internet-facing LB in a dual-stack subnet, including ULA subnets.
+	// PublicIPv6 explicitly selected public IPv6 floating IP, translated to replica
+	// IPv6 addresses in a GUA or ULA subnet.
 	PublicIPv6 string `json:"public_ipv6,omitempty"`
 
 	// ReplicaCount number of LB compute instances. >=2 for HA.
@@ -359,6 +614,25 @@ type LoadBalancerReplica struct {
 	// One of: "initializing", "healthy", "unhealthy".
 	Status string `json:"status"`
 }
+
+// Matcher HTTP status codes from 100 to 599; comma-separated codes or inclusive
+// ranges. Empty uses 200.
+type Matcher = string
+
+type Path = string
+
+// Protocol omitted or empty uses the target group protocol. UDP uses a TCP
+// connect probe. HTTPS probes use TLS.
+type Protocol string
+
+// Values Protocol accepts.
+const (
+	ProtocolHTTP  Protocol = "http"
+	ProtocolHTTPS Protocol = "https"
+	ProtocolTcp   Protocol = "tcp"
+	ProtocolUdp   Protocol = "udp"
+	ProtocolField Protocol = ""
+)
 
 // RouteTableSummary route table used by a subnet, without repeating its VPC. Null when the
 // non-owning lookup no longer resolves, for example during concurrent
@@ -503,6 +777,12 @@ type TargetGroup struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+// TimeoutSec zero uses the default.
+type TimeoutSec = int
+
+// UnhealthyThreshold zero uses the default.
+type UnhealthyThreshold = int
+
 // UpdateListenerRequest patch a listener.
 //
 // `certificate` accepts a CRN, UUID or exact account-scoped name and
@@ -582,7 +862,7 @@ type UpdateRuleRequest struct {
 // policies. Sending name in an update, including an unchanged, empty or
 // null value, returns a validation error.
 type UpdateTargetGroupRequest struct {
-	HealthCheck *HealthCheck `json:"health_check,omitempty"`
+	HealthCheck *HealthCheckPatch `json:"health_check,omitempty"`
 
 	// ProxyProtocol Toggle PROXY v2 framing on upstream connections. Omitting the field
 	// leaves the current setting; setting true/false flips it explicitly.

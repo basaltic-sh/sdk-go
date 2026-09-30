@@ -10,6 +10,54 @@ import (
 	"time"
 )
 
+// BillingProfile organization billing recipient. Incomplete drafts are saved; ready
+// becomes true only after all country-specific fields are valid. New
+// onboarding completes after this step.
+type BillingProfile struct {
+	City string `json:"city,omitempty"`
+
+	// CompanyName full legal name of the individual or company.
+	CompanyName string `json:"company_name,omitempty"`
+	Complement  string `json:"complement,omitempty"`
+
+	// Country ISO 3166-1 alpha-2 country code.
+	Country string `json:"country,omitempty"`
+
+	// One of: "", "individual", "company".
+	CustomerType string `json:"customer_type,omitempty"`
+
+	// Email billing email for fiscal invoice delivery. The onboarding form
+	// prefills this from the signed-in user's email.
+	Email string `json:"email,omitempty"`
+
+	// ForeignTaxID foreign identifier; not validated as a Brazilian document.
+	ForeignTaxID  string   `json:"foreign_tax_id,omitempty"`
+	MissingFields []string `json:"missing_fields,omitempty"`
+
+	// MunicipalityCode Seven-digit IBGE municipality code, required for a Brazilian
+	// recipient.
+	MunicipalityCode string `json:"municipality_code,omitempty"`
+	Neighborhood     string `json:"neighborhood,omitempty"`
+
+	// NoTaxIDReason required for a foreign recipient without a tax identifier.
+	NoTaxIDReason string `json:"no_tax_id_reason,omitempty"`
+	Phone         string `json:"phone,omitempty"`
+
+	// PostalCode Eight-digit CEP for Brazil; optional international postal code
+	// abroad.
+	PostalCode string `json:"postal_code,omitempty"`
+	Ready      bool   `json:"ready,omitempty"`
+
+	// State Two-letter UF for Brazil; free-form state/province abroad.
+	State        string `json:"state,omitempty"`
+	StreetName   string `json:"street_name,omitempty"`
+	StreetNumber string `json:"street_number,omitempty"`
+
+	// TaxID CPF for a Brazilian individual or CNPJ for a Brazilian company.
+	// Check digits are validated.
+	TaxID string `json:"tax_id,omitempty"`
+}
+
 type Credit struct {
 	Amount    string    `json:"amount"`
 	CreatedAt time.Time `json:"created_at"`
@@ -32,6 +80,43 @@ type CurrentUsage struct {
 	// Items Per-SKU breakdown, ordered by cost.
 	Items       []*UsageLine `json:"items"`
 	PeriodStart time.Time    `json:"period_start"`
+}
+
+// FiscalInvoice One NFS-e per confirmed provider payment, including partial payments
+// or credit top-ups. Consuming prepaid credit never issues the same
+// money twice. Recipient details and receipt amount are frozen before
+// submission.
+type FiscalInvoice struct {
+	// Amount actual amount received in BRL, not the billing invoice total.
+	Amount    string    `json:"amount"`
+	Attempts  int       `json:"attempts"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// EmailStatus separate delivery state. Queued means durably accepted by the
+	// internal email service; it does not assert recipient delivery.
+	//
+	// One of: "pending", "queued".
+	EmailStatus string    `json:"email_status"`
+	ID          string    `json:"id"`
+	InvoiceID   string    `json:"invoice_id,omitempty"`
+	IssuedAt    time.Time `json:"issued_at,omitempty"`
+
+	// LastError sanitized operational error or municipal rejection codes.
+	LastError      string `json:"last_error,omitempty"`
+	Number         string `json:"number,omitempty"`
+	OrganizationID string `json:"organization_id"`
+	PaymentID      string `json:"payment_id"`
+
+	// RequiresReview refunds preserve the fiscal document and require operator review;
+	// cancellation is never inferred automatically.
+	RequiresReview bool `json:"requires_review"`
+
+	// One of: "queued", "waiting_details", "retrying", "rejected", "issued", "review_required".
+	Status string `json:"status"`
+
+	// URL municipal view/print link available after issuance.
+	URL              string `json:"url,omitempty"`
+	VerificationCode string `json:"verification_code,omitempty"`
 }
 
 type Invoice struct {

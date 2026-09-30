@@ -191,9 +191,9 @@ func (b *builder) buildParams(op *operation, om map[string]any, base string) err
 		in := str(pm, "in")
 
 		if in == "header" {
-			// Idempotency-Key is the only header parameter in the platform,
-			// and it is a per-call concern rather than a signature one — the
-			// SDK carries it as basaltic.WithIdempotencyKey.
+			// Headers are per-call options rather than method arguments.
+			// Idempotency-Key has a dedicated WithIdempotencyKey helper;
+			// conditional writes use WithRequestHeader("If-Match", revision).
 			if wire == "Idempotency-Key" {
 				op.Idempotent = true
 			}

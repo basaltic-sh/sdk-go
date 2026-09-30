@@ -444,8 +444,10 @@ func (c *Client) CreateSnapshot(ctx context.Context, body *SnapshotCreateRequest
 
 // CreateSnapshotPolicy creates snapshot policy.
 //
-// Attach a snapshot schedule to a volume. A volume has at most one
-// policy; attaching a second is a 409.
+// Attach a snapshot schedule to a volume. A volume supports up to 16
+// independent policies, each with its own interval and retention.
+// Overlapping runs create separate snapshots and each counts against
+// quota.
 //
 // The first snapshot lands one `interval_minutes` from now — attaching
 // a schedule is not itself a request for a snapshot. Use POST
@@ -456,8 +458,10 @@ func (c *Client) CreateSnapshot(ctx context.Context, body *SnapshotCreateRequest
 // by hand is never reaped, and neither is one something depends on — a
 // snapshot a volume was created from, including a restore still running,
 // is skipped and looked at again later. Pausing the policy stops the
-// deleting as well as the taking, and deleting the policy keeps every
-// snapshot it already took.
+// deleting as well as the taking, and deleting the policy keeps its
+// existing snapshots. Work already claimed before a pause or deletion
+// can finish; no new retention deletions are claimed after that change.
+// Other policies continue independently.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -553,6 +557,11 @@ func (c *Client) DeleteBucketEncryption(ctx context.Context, bucket string, opts
 }
 
 // DeleteBucketLifecycle deletes bucket lifecycle configuration.
+//
+// Read the current configuration first, then supply its quoted revision
+// in If-Match. A concurrent change returns LIFECYCLE_CONFLICT (412);
+// reload and review before retrying. The S3-compatible API retains
+// unconditional lifecycle replacement.
 func (c *Client) DeleteBucketLifecycle(ctx context.Context, bucket string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "deleteBucketLifecycle",
@@ -754,20 +763,18 @@ func (c *Client) GetBucketEncryption(ctx context.Context, bucket string, opts ..
 }
 
 // GetBucketLifecycle gets bucket lifecycle configuration.
-func (c *Client) GetBucketLifecycle(ctx context.Context, bucket string, opts ...basaltic.RequestOption) (*LifecycleConfig, error) {
+func (c *Client) GetBucketLifecycle(ctx context.Context, bucket string, opts ...basaltic.RequestOption) (*BucketLifecycleResponse, error) {
 	op := &basaltic.Operation{
 		ID:       "getBucketLifecycle",
 		Method:   "GET",
 		Path:     "/v1/buckets/{bucket}/lifecycle",
 		PathArgs: []string{bucket},
 	}
-	var out struct {
-		Lifecycle *LifecycleConfig `json:"lifecycle"`
-	}
+	var out BucketLifecycleResponse
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.Lifecycle, nil
+	return &out, nil
 }
 
 // GetBucketObjectLock gets bucket object-lock configuration.
@@ -1351,6 +1358,11 @@ func (c *Client) PutBucketEncryption(ctx context.Context, bucket string, body *P
 }
 
 // PutBucketLifecycle puts bucket lifecycle configuration.
+//
+// Read the current configuration first, then supply its quoted revision
+// in If-Match. A concurrent change returns LIFECYCLE_CONFLICT (412);
+// reload and review before retrying. The S3-compatible API retains
+// unconditional lifecycle replacement.
 func (c *Client) PutBucketLifecycle(ctx context.Context, bucket string, body *PutBucketLifecycleRequest, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "putBucketLifecycle",

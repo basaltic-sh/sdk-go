@@ -158,8 +158,7 @@ type Zone struct {
 	// CRN Cloud Resource Name.
 	CRN string `json:"crn,omitempty"`
 
-	// Description free text set at creation. Read-only after that — `tags` are the
-	// mutable metadata and the only thing `PATCH` accepts.
+	// Description free-form description, editable with PATCH.
 	Description string      `json:"description,omitempty"`
 	DNSSEC      *ZoneDNSSEC `json:"dnssec,omitempty"`
 	ID          string      `json:"id,omitempty"`
@@ -193,8 +192,7 @@ type Zone struct {
 }
 
 type ZoneCreateRequest struct {
-	// Description free-form note stored with the zone. Not echoed back on the Zone
-	// object.
+	// Description free-form note stored with and returned on the zone.
 	Description *string `json:"description,omitempty"`
 
 	// DNSSEC sign the zone with DNSSEC. On unless you say otherwise, and almost
@@ -461,9 +459,10 @@ type ZoneRecordImport struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
-// ZoneUpdateRequest tags are the only mutable field on a zone: its name, visibility and
-// DNSSEC posture are fixed when it is created, and its records are their
-// own sub-resource.
+// ZoneUpdateRequest patches description and tags. The name, visibility and DNSSEC posture
+// are fixed at creation; records are their own sub-resource.
 type ZoneUpdateRequest struct {
-	Tags map[string]string `json:"tags,omitempty"`
+	// Description omit to preserve the description; send an empty string to clear it.
+	Description *string           `json:"description,omitempty"`
+	Tags        map[string]string `json:"tags,omitempty"`
 }

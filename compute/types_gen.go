@@ -20,8 +20,11 @@ type AddressFloatingIP struct {
 }
 
 type AddressRequest struct {
-	// Address optional fixed IPv4 address. Omit for IPv6; IPAM allocates an
-	// aligned /96.
+	// Address optional fixed address when creating an interface or instance NIC.
+	// For IPv6, use the first address of an aligned /96 inside the subnet
+	// /64 (last 32 bits zero); the first and last /96 ranges are reserved.
+	// Omit for automatic allocation. Managed database nodes and the
+	// add-address operation require automatic allocation.
 	Address string `json:"address,omitempty"`
 
 	// One of: "ipv4", "ipv6".
@@ -382,26 +385,22 @@ type GetConsoleOutputResult struct {
 	Truncated bool `json:"truncated"`
 }
 
-// IPFamily the address family of a public address. A floating IP is the same
-// resource in either family — allocated, attached to one or more
-// members, advertised from their chassis — and the family is a
-// property of the address rather than a different product. What changes
-// with it:
+// IPFamily The IP address family. Floating IPs support either family and may have
+// public or private visibility. Public floating IPs allocate from the
+// region's public address pool; private floating IPs allocate from their
+// selected subnet's range for that family.
 //
-//   - **Pool.** A `ipv4` address comes from the region's tenant IPv4 block,
-//     a `ipv6` one from its tenant IPv6 block.
-//   - **Attach.** A `ipv6` address can only be attached to an interface
-//     that has an IPv6 address — one on a dual-stack subnet — and the
-//     subnet needs a `::/0` route to an internet gateway, the way a
-//     `ipv4` one needs `0.0.0.0/0`. An interface holds at most one
-//     floating IP of each family; a v4 and a v6 on the same interface is
-//     fine.
-//   - **Identity.** While a `ipv6` floating IP is attached, it is the
-//     interface's public IPv6 identity: the interface's own address stops
-//     being reachable from the internet and comes back when the floating
-//     IP is detached. That is the same rule a `ipv4` floating IP has
-//     always had, applied to a family whose addresses are public to begin
-//     with.
+// Attaching a floating IP to an interface requires an address of the
+// same family on that interface. IPv6 does not require IPv4 to be
+// enabled on the subnet. Internet reachability also depends on routes
+// and security rules.
+//
+// Attaching an IPv6 floating IP does not disable the interface's native
+// globally routable IPv6 address. Both addresses remain reachable when
+// routing and security rules permit, and replies to incoming connections
+// retain the address that received the connection. A private IPv6
+// address does not become directly internet-routable by attaching a
+// floating IP.
 type IPFamily string
 
 // Values IPFamily accepts.
@@ -415,7 +414,15 @@ type Image struct {
 	Attributes   map[string]string `json:"attributes,omitempty"`
 	CreatedAt    time.Time         `json:"created_at"`
 	CRN          string            `json:"crn"`
-	Description  string            `json:"description,omitempty"`
+
+	// DeletionRetention present in owner list/detail responses while image deletion is
+	// waiting for existing instance, source-reservation, or instance-pool
+	// references. Counts include all referencing accounts without
+	// disclosing their identities. The backing data remains intact;
+	// cleanup resumes when references are gone. Independent faults may
+	// still set status to error.
+	DeletionRetention *ImageDeletionRetention `json:"deletion_retention,omitempty"`
+	Description       string                  `json:"description,omitempty"`
 
 	// EOLDate the day this image's OS release stops receiving free security
 	// updates for a default install. Absent when nobody has recorded one
@@ -519,6 +526,20 @@ type ImageCreateRequest struct {
 	// and the server stamps a UTC timestamp, so every build is addressable
 	// as `name:version` whether or not you labelled it.
 	Version *string `json:"version,omitempty"`
+}
+
+// ImageDeletionRetention present in owner list/detail responses while image deletion is waiting
+// for existing instance, source-reservation, or instance-pool
+// references. Counts include all referencing accounts without disclosing
+// their identities. The backing data remains intact; cleanup resumes
+// when references are gone. Independent faults may still set status to
+// error.
+type ImageDeletionRetention struct {
+	InstancePools int `json:"instance_pools"`
+	Instances     int `json:"instances"`
+
+	// One of: "in_use".
+	Reason string `json:"reason"`
 }
 
 type ImageUpdateRequest struct {
@@ -659,7 +680,37 @@ type InstanceCreateRequest struct {
 	//
 	// Omit the boot entry to take the image's minimum size and the
 	// region's default tier.
-	Volumes []*InstanceVolume `json:"volumes,omitempty"`
+	Volumes []*InstanceLaunchVolume `json:"volumes,omitempty"`
+}
+
+type InstanceLaunchVolume struct {
+	// Boot marks the boot disk. It takes no mount_path or fstype — both come
+	// from the image — and sending either is refused rather than
+	// ignored.
+	Boot *bool `json:"boot,omitempty"`
+
+	// DeleteOnTermination destroyed with the instance unless set false.
+	DeleteOnTermination *bool `json:"delete_on_termination,omitempty"`
+
+	// Fstype filesystem the in-guest agent formats the volume with.
+	Fstype    *string `json:"fstype,omitempty"`
+	MountPath *string `json:"mount_path,omitempty"`
+
+	// Required.
+	SizeGB int `json:"size_gb"`
+
+	// SnapshotSchedules optional independent schedules for this new volume. Names must be
+	// unique across the account, including the other volumes in this
+	// launch. Requires storage:CreateSnapshotPolicy. The provisioning
+	// workflow creates the full schedule set transactionally after binding
+	// the disks; retries keep the same policy IDs. Failed launch
+	// compensation removes these schedules while preserving any snapshots
+	// already dispatched. Existing volumes attached later keep their
+	// existing schedules.
+	SnapshotSchedules []*SnapshotScheduleSettings `json:"snapshot_schedules,omitempty"`
+
+	// VolumeType tier; omitted = the region default.
+	VolumeType *string `json:"volume_type,omitempty"`
 }
 
 // InstancePool a launch template plus a desired count. Creating a pool spawns
@@ -922,6 +973,10 @@ type InstancePoolTemplateRequest struct {
 // onto the current template with POST
 // /v1/instance-pools/{pool_id}/refresh.
 type InstancePoolUpdateRequest struct {
+	// Description customer note on the pool. Omit to preserve it; send an empty string
+	// to clear it. Changes no instances, sizing or launch configuration.
+	Description *string `json:"description,omitempty"`
+
 	// DesiredCount new target size, bounded by the resulting min_count/max_count and
 	// the hard platform cap of 100.
 	DesiredCount *int `json:"desired_count,omitempty"`
@@ -1192,6 +1247,51 @@ type SerialConsoleTicket struct {
 	// and one minute; mint a new one per connection rather than storing
 	// it.
 	Ticket string `json:"ticket"`
+}
+
+// SnapshotIntervalMinutes minutes between snapshots — a minimum gap, not an exact cadence. A
+// periodic pass takes whatever has come due and re-bases each policy's
+// next run off the moment it ran, so a snapshot lands at or after
+// `interval_minutes` and never before, and can land a minute or two
+// later when the pass is busy. A window the pass misses costs one
+// snapshot rather than producing a catch-up burst afterwards.
+//
+// The floor is one minute, because that pass is what evaluates the
+// schedule and nothing finer can be honoured; the ceiling is 30 days.
+// Sub-hourly intervals multiply snapshot churn and count against the
+// `snapshots` quota, so pick the largest interval that meets your
+// recovery point objective.
+type SnapshotIntervalMinutes = int
+
+// SnapshotRetentionCount how many of this policy's snapshots to keep. When a fire takes the
+// count past this, the oldest go first.
+type SnapshotRetentionCount = int
+
+// SnapshotRetentionDays optional age bound, applied on top of `retention_count`: a snapshot
+// outside EITHER window is reaped. 0 means no age bound. The single
+// newest snapshot is exempt from the age bound, so a volume that could
+// not be snapshotted for longer than the window never loses its whole
+// history.
+type SnapshotRetentionDays = int
+
+// SnapshotScheduleSettings schedule settings for a new instance volume.
+type SnapshotScheduleSettings struct {
+	Description *string `json:"description,omitempty"`
+	Enabled     *bool   `json:"enabled,omitempty"`
+
+	// Required.
+	IntervalMinutes SnapshotIntervalMinutes `json:"interval_minutes"`
+
+	// Name account-unique snapshot policy name, subject to resource-name
+	// validation.
+	//
+	// Required.
+	Name string `json:"name"`
+
+	// Required.
+	RetentionCount SnapshotRetentionCount `json:"retention_count"`
+	RetentionDays  *SnapshotRetentionDays `json:"retention_days,omitempty"`
+	Tags           Tags                   `json:"tags,omitempty"`
 }
 
 type Subnet struct {

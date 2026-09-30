@@ -20,8 +20,11 @@ type AddressFloatingIP struct {
 }
 
 type AddressRequest struct {
-	// Address optional fixed IPv4 address. Omit for IPv6; IPAM allocates an
-	// aligned /96.
+	// Address optional fixed address when creating an interface or instance NIC.
+	// For IPv6, use the first address of an aligned /96 inside the subnet
+	// /64 (last 32 bits zero); the first and last /96 ranges are reserved.
+	// Omit for automatic allocation. Managed database nodes and the
+	// add-address operation require automatic allocation.
 	Address *string `json:"address,omitempty"`
 
 	// One of: "ipv4", "ipv6".
@@ -301,26 +304,52 @@ type FloatingIPUpdateRequest struct {
 	Tags        map[string]string      `json:"tags,omitempty"`
 }
 
-// IPFamily the address family of a public address. A floating IP is the same
-// resource in either family — allocated, attached to one or more
-// members, advertised from their chassis — and the family is a
-// property of the address rather than a different product. What changes
-// with it:
+type GatewayRoute struct {
+	CreatedAt       time.Time `json:"created_at"`
+	CRN             string    `json:"crn"`
+	Description     string    `json:"description,omitempty"`
+	DestinationCIDR string    `json:"destination_cidr"`
+	ID              string    `json:"id"`
+
+	// NextHopIP set when target_type=ip. Mutex with the target_*_id fields. Must be
+	// a unicast address inside this VPC's CIDR (same IP family as
+	// destination_cidr); internet egress uses target_internet_gateway_id /
+	// target_nat_gateway_id.
+	NextHopIP    string             `json:"next_hop_ip,omitempty"`
+	RouteTable   *RouteTableSummary `json:"route_table"`
+	RouteTableID string             `json:"route_table_id"`
+	Tags         map[string]string  `json:"tags"`
+
+	// TargetEgressOnlyGatewayID set when target_type=egress_only_gateway (IPv6 only). Gives the
+	// subnet outbound v6 with the internet unable to initiate inbound.
+	TargetEgressOnlyGatewayID string `json:"target_egress_only_gateway_id,omitempty"`
+
+	// TargetInternetGatewayID set when target_type=internet_gateway.
+	TargetInternetGatewayID string `json:"target_internet_gateway_id,omitempty"`
+
+	// TargetNATGatewayID set when target_type=nat_gateway. Supports IPv4 and IPv6; IPv6
+	// requires an IPv6-enabled hosting subnet.
+	TargetNATGatewayID string          `json:"target_nat_gateway_id,omitempty"`
+	TargetType         RouteTargetType `json:"target_type"`
+	UpdatedAt          time.Time       `json:"updated_at"`
+}
+
+// IPFamily The IP address family. Floating IPs support either family and may have
+// public or private visibility. Public floating IPs allocate from the
+// region's public address pool; private floating IPs allocate from their
+// selected subnet's range for that family.
 //
-//   - **Pool.** A `ipv4` address comes from the region's tenant IPv4 block,
-//     a `ipv6` one from its tenant IPv6 block.
-//   - **Attach.** A `ipv6` address can only be attached to an interface
-//     that has an IPv6 address — one on a dual-stack subnet — and the
-//     subnet needs a `::/0` route to an internet gateway, the way a
-//     `ipv4` one needs `0.0.0.0/0`. An interface holds at most one
-//     floating IP of each family; a v4 and a v6 on the same interface is
-//     fine.
-//   - **Identity.** While a `ipv6` floating IP is attached, it is the
-//     interface's public IPv6 identity: the interface's own address stops
-//     being reachable from the internet and comes back when the floating
-//     IP is detached. That is the same rule a `ipv4` floating IP has
-//     always had, applied to a family whose addresses are public to begin
-//     with.
+// Attaching a floating IP to an interface requires an address of the
+// same family on that interface. IPv6 does not require IPv4 to be
+// enabled on the subnet. Internet reachability also depends on routes
+// and security rules.
+//
+// Attaching an IPv6 floating IP does not disable the interface's native
+// globally routable IPv6 address. Both addresses remain reachable when
+// routing and security rules permit, and replies to incoming connections
+// retain the address that received the connection. A private IPv6
+// address does not become directly internet-routable by attaching a
+// floating IP.
 type IPFamily string
 
 // Values IPFamily accepts.

@@ -50,6 +50,15 @@ type Bucket struct {
 	Versioning string `json:"versioning"`
 }
 
+type BucketLifecycleResponse struct {
+	Lifecycle *LifecycleConfig `json:"lifecycle"`
+
+	// Revision opaque configuration revision. Supply this value in double quotes as
+	// If-Match on PUT or DELETE. The empty configuration has revision
+	// none.
+	Revision string `json:"revision"`
+}
+
 // BucketPolicy pkg/policy.PolicyDocument serialization. See the IAM policy docs for
 // the statement shape; here we just declare it as an opaque object so
 // the spec doesn't have to track schema changes inside the policy
@@ -492,8 +501,8 @@ type SnapshotPolicy struct {
 	Tags           Tags                   `json:"tags,omitempty"`
 	UpdatedAt      time.Time              `json:"updated_at,omitempty"`
 
-	// VolumeID the volume this schedule is attached to. A volume has at most one
-	// policy.
+	// VolumeID the volume this schedule is attached to. A volume supports up to 16
+	// independent policies.
 	VolumeID string `json:"volume_id,omitempty"`
 }
 

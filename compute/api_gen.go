@@ -1921,20 +1921,24 @@ func (c *Client) UpdateInstance(ctx context.Context, instanceID string, body *In
 	return out.Instance, nil
 }
 
-// UpdateInstancePool updates an instance pool's size, tags or launch template.
+// UpdateInstancePool updates an instance pool's description, size, tags or launch template.
 //
-// Change desired_count, min_count, max_count, the pool's own tags,
-// and/or the launch template. Omitted bounds retain their current
-// values. The resulting bounds must satisfy 0 <= min_count <= max_count
-// <= 100. If desired_count is omitted, it is clamped into the new bounds
-// and the reconciler scales the live instance set to match. An explicit
-// desired_count must lie within the new bounds. Invalid sizing returns
-// 400 with nothing applied, including tags and template changes. Managed
-// pools remain read-only through the customer API.
+// Change description, desired_count, min_count, max_count, the pool's
+// own tags, and/or the launch template. Omitted bounds retain their
+// current values. The resulting bounds must satisfy 0 <= min_count <=
+// max_count <= 100. If desired_count is omitted, it is clamped into the
+// new bounds and the reconciler scales the live instance set to match.
+// An explicit desired_count must lie within the new bounds. Invalid
+// sizing returns 400 with nothing applied, including tags and template
+// changes. Managed pools remain read-only through the customer API.
 //
 // Lowering max_count to desired_count removes refresh surge headroom.
 // The refresh waits until headroom becomes available; normal scaling
 // continues.
+//
+// `description` changes only the pool's note. Omit it to preserve the
+// note, or send an empty string to clear it. This never rolls or resizes
+// instances.
 //
 // `tags` relabels the POOL and nothing else: it takes effect
 // immediately, no instance is touched, and the new set is what a later

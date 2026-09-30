@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "services": [
     {
       "name": "audit",
@@ -156,10 +156,21 @@
       "name": "billing",
       "package": "billing",
       "title": "Basaltic Billing API",
-      "description": "Prices, metered usage, invoices, payments and credits for the organization.\nThe price catalog (`/v1/prices`) is public; other operations require\norganization policy grants for billing actions.\n\nRead-only. Settling an invoice and managing payment methods happen in the\nconsole.",
+      "description": "Prices, metered usage, invoices, payments and credits for the organization.\nThe price catalog (`/v1/prices`) is public; other operations require\norganization policy grants for billing actions.\n\nIncludes editable billing profiles and fiscal invoice status/downloads.\nSettling an invoice and managing payment methods happen in the console.",
       "endpoint_template": "https://billing.basaltic.sh",
       "regional": false,
       "operations": [
+        {
+          "id": "getBillingProfile",
+          "go_name": "GetBillingProfile",
+          "method": "GET",
+          "path": "/v1/profile",
+          "summary": "Read the organization billing profile",
+          "resource": "profile",
+          "verb": "list",
+          "result_kind": "value",
+          "result_type": "*BillingProfile"
+        },
         {
           "id": "getCurrentUsage",
           "go_name": "GetCurrentUsage",
@@ -170,6 +181,23 @@
           "verb": "list",
           "result_kind": "value",
           "result_type": "*CurrentUsage"
+        },
+        {
+          "id": "getFiscalInvoiceXml",
+          "go_name": "GetFiscalInvoiceXml",
+          "method": "GET",
+          "path": "/v1/fiscal-invoices/{document_id}/xml",
+          "summary": "Download issued NFS-e XML",
+          "resource": "fiscal-invoice",
+          "verb": "get-xml",
+          "path_params": [
+            {
+              "wire": "document_id",
+              "go_name": "documentID"
+            }
+          ],
+          "result_kind": "stream",
+          "result_type": "io.ReadCloser"
         },
         {
           "id": "getInvoice",
@@ -247,6 +275,27 @@
           "result_type": "*basaltic.Page[Credit]",
           "item_type": "Credit",
           "paginated": true
+        },
+        {
+          "id": "listFiscalInvoices",
+          "go_name": "ListFiscalInvoices",
+          "method": "GET",
+          "path": "/v1/fiscal-invoices",
+          "summary": "List fiscal invoice issuance and delivery status",
+          "resource": "fiscal-invoice",
+          "verb": "list",
+          "params_type": "ListFiscalInvoicesParams",
+          "params": [
+            {
+              "wire": "invoice",
+              "go_name": "Invoice",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Canonical billing invoice CRN"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "[]*FiscalInvoice"
         },
         {
           "id": "listInvoices",
@@ -406,6 +455,143 @@
           "result_type": "*basaltic.Page[Transaction]",
           "item_type": "Transaction",
           "paginated": true
+        },
+        {
+          "id": "updateBillingProfile",
+          "go_name": "UpdateBillingProfile",
+          "method": "PUT",
+          "path": "/v1/profile",
+          "summary": "Save organization billing details",
+          "resource": "profile",
+          "verb": "update",
+          "body_type": "*BillingProfile",
+          "body_kind": "json",
+          "body_fields": [
+            {
+              "wire": "city",
+              "go_name": "City",
+              "go_type": "string",
+              "flag_kind": "string"
+            },
+            {
+              "wire": "company_name",
+              "go_name": "CompanyName",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Full legal name of the individual or company"
+            },
+            {
+              "wire": "complement",
+              "go_name": "Complement",
+              "go_type": "string",
+              "flag_kind": "string"
+            },
+            {
+              "wire": "country",
+              "go_name": "Country",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "ISO 3166-1 alpha-2 country code"
+            },
+            {
+              "wire": "customer_type",
+              "go_name": "CustomerType",
+              "go_type": "string",
+              "flag_kind": "string",
+              "enum": [
+                "",
+                "individual",
+                "company"
+              ]
+            },
+            {
+              "wire": "email",
+              "go_name": "Email",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Billing email for fiscal invoice delivery"
+            },
+            {
+              "wire": "foreign_tax_id",
+              "go_name": "ForeignTaxID",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Foreign identifier; not validated as a Brazilian document"
+            },
+            {
+              "wire": "missing_fields",
+              "go_name": "MissingFields",
+              "go_type": "[]string",
+              "flag_kind": "stringSlice"
+            },
+            {
+              "wire": "municipality_code",
+              "go_name": "MunicipalityCode",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Seven-digit IBGE municipality code, required for a Brazilian recipient"
+            },
+            {
+              "wire": "neighborhood",
+              "go_name": "Neighborhood",
+              "go_type": "string",
+              "flag_kind": "string"
+            },
+            {
+              "wire": "no_tax_id_reason",
+              "go_name": "NoTaxIDReason",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Required for a foreign recipient without a tax identifier"
+            },
+            {
+              "wire": "phone",
+              "go_name": "Phone",
+              "go_type": "string",
+              "flag_kind": "string"
+            },
+            {
+              "wire": "postal_code",
+              "go_name": "PostalCode",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Eight-digit CEP for Brazil; optional international postal code abroad"
+            },
+            {
+              "wire": "ready",
+              "go_name": "Ready",
+              "go_type": "bool",
+              "flag_kind": "bool"
+            },
+            {
+              "wire": "state",
+              "go_name": "State",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Two-letter UF for Brazil; free-form state/province abroad"
+            },
+            {
+              "wire": "street_name",
+              "go_name": "StreetName",
+              "go_type": "string",
+              "flag_kind": "string"
+            },
+            {
+              "wire": "street_number",
+              "go_name": "StreetNumber",
+              "go_type": "string",
+              "flag_kind": "string"
+            },
+            {
+              "wire": "tax_id",
+              "go_name": "TaxID",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "CPF for a Brazilian individual or CNPJ for a Brazilian company"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "*BillingProfile"
         }
       ]
     },
@@ -959,7 +1145,7 @@
             {
               "wire": "volumes",
               "go_name": "Volumes",
-              "go_type": "[]*InstanceVolume",
+              "go_type": "[]*InstanceLaunchVolume",
               "flag_kind": "json",
               "doc": "Disks created and bound with the instance, the boot disk included — mark it with boot: true"
             }
@@ -2225,7 +2411,7 @@
           "go_name": "UpdateInstancePool",
           "method": "PATCH",
           "path": "/v1/instance-pools/{pool_id}",
-          "summary": "Update an instance pool's size, tags or launch template",
+          "summary": "Update an instance pool's description, size, tags or launch template",
           "resource": "instance-pool",
           "verb": "update",
           "path_params": [
@@ -2237,6 +2423,14 @@
           "body_type": "*InstancePoolUpdateRequest",
           "body_kind": "json",
           "body_fields": [
+            {
+              "wire": "description",
+              "go_name": "Description",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "Customer note on the pool"
+            },
             {
               "wire": "desired_count",
               "go_name": "DesiredCount",
@@ -2460,7 +2654,7 @@
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Free-form note stored with the zone"
+              "doc": "Free-form note stored with and returned on the zone"
             },
             {
               "wire": "dnssec",
@@ -2916,6 +3110,14 @@
           "body_type": "*ZoneUpdateRequest",
           "body_kind": "json",
           "body_fields": [
+            {
+              "wire": "description",
+              "go_name": "Description",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "Omit to preserve the description; send an empty string to clear it"
+            },
             {
               "wire": "tags",
               "go_name": "Tags",
@@ -5260,7 +5462,14 @@
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Optional FIP attached on create for public exposure"
+              "doc": "Public IPv4 shorthand"
+            },
+            {
+              "wire": "floating_ips",
+              "go_name": "FloatingIPs",
+              "go_type": "[]string",
+              "flag_kind": "stringSlice",
+              "doc": "Existing free floating IPs from this account and region, at most one per family and visibility (private/public, IPv4/IPv6)"
             },
             {
               "wire": "keypairs",
@@ -6159,7 +6368,7 @@
             {
               "wire": "health_check",
               "go_name": "HealthCheck",
-              "go_type": "*HealthCheck",
+              "go_type": "*HealthCheckPatch",
               "flag_kind": "json",
               "pointer": true
             },
@@ -6464,7 +6673,7 @@
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true,
-              "doc": "Optional fixed IPv4 address"
+              "doc": "Optional fixed address when creating an interface or instance NIC"
             },
             {
               "wire": "family",
@@ -7677,6 +7886,56 @@
           }
         },
         {
+          "id": "listEgressOnlyGatewayRoutes",
+          "go_name": "ListEgressOnlyGatewayRoutes",
+          "method": "GET",
+          "path": "/v1/egress-only-gateways/{egress_only_gateway_id}/routes",
+          "summary": "List egress-only gateway routes",
+          "resource": "route",
+          "verb": "list",
+          "path_params": [
+            {
+              "wire": "egress_only_gateway_id",
+              "go_name": "egressOnlyGatewayID",
+              "doc": "Egress-only Gateway ID"
+            }
+          ],
+          "params_type": "ListEgressOnlyGatewayRoutesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
+              "wire": "limit",
+              "go_name": "Limit",
+              "go_type": "int",
+              "flag_kind": "int"
+            },
+            {
+              "wire": "marker",
+              "go_name": "Marker",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Resume token — the last id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name"
+            }
+          ],
+          "result_kind": "page",
+          "result_type": "*basaltic.Page[GatewayRoute]",
+          "item_type": "GatewayRoute",
+          "paginated": true
+        },
+        {
           "id": "listEgressOnlyGateways",
           "go_name": "ListEgressOnlyGateways",
           "method": "GET",
@@ -7897,6 +8156,56 @@
           "paginated": true
         },
         {
+          "id": "listInternetGatewayRoutes",
+          "go_name": "ListInternetGatewayRoutes",
+          "method": "GET",
+          "path": "/v1/internet-gateways/{internet_gateway_id}/routes",
+          "summary": "List internet gateway routes",
+          "resource": "route",
+          "verb": "list",
+          "path_params": [
+            {
+              "wire": "internet_gateway_id",
+              "go_name": "internetGatewayID",
+              "doc": "Internet Gateway ID"
+            }
+          ],
+          "params_type": "ListInternetGatewayRoutesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
+              "wire": "limit",
+              "go_name": "Limit",
+              "go_type": "int",
+              "flag_kind": "int"
+            },
+            {
+              "wire": "marker",
+              "go_name": "Marker",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Resume token — the last id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name"
+            }
+          ],
+          "result_kind": "page",
+          "result_type": "*basaltic.Page[GatewayRoute]",
+          "item_type": "GatewayRoute",
+          "paginated": true
+        },
+        {
           "id": "listInternetGateways",
           "go_name": "ListInternetGateways",
           "method": "GET",
@@ -7937,6 +8246,56 @@
           "result_kind": "page",
           "result_type": "*basaltic.Page[InternetGateway]",
           "item_type": "InternetGateway",
+          "paginated": true
+        },
+        {
+          "id": "listNATGatewayRoutes",
+          "go_name": "ListNATGatewayRoutes",
+          "method": "GET",
+          "path": "/v1/nat-gateways/{nat_gateway_id}/routes",
+          "summary": "List NAT gateway routes",
+          "resource": "route",
+          "verb": "list",
+          "path_params": [
+            {
+              "wire": "nat_gateway_id",
+              "go_name": "natGatewayID",
+              "doc": "NAT Gateway ID"
+            }
+          ],
+          "params_type": "ListNATGatewayRoutesParams",
+          "params": [
+            {
+              "wire": "crn",
+              "go_name": "CRN",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact CRN, validated against the endpoint type, region and caller account"
+            },
+            {
+              "wire": "limit",
+              "go_name": "Limit",
+              "go_type": "int",
+              "flag_kind": "int"
+            },
+            {
+              "wire": "marker",
+              "go_name": "Marker",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Resume token — the last id from the previous page"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "doc": "Exact resource name"
+            }
+          ],
+          "result_kind": "page",
+          "result_type": "*basaltic.Page[GatewayRoute]",
+          "item_type": "GatewayRoute",
           "paginated": true
         },
         {
@@ -9677,7 +10036,7 @@
             }
           ],
           "result_kind": "value",
-          "result_type": "*LifecycleConfig"
+          "result_type": "*BucketLifecycleResponse"
         },
         {
           "id": "getBucketObjectLock",

@@ -10,8 +10,9 @@
 // organization. The price catalog (`/v1/prices`) is public; other
 // operations require organization policy grants for billing actions.
 //
-// Read-only. Settling an invoice and managing payment methods happen in
-// the console.
+// Includes editable billing profiles and fiscal invoice
+// status/downloads. Settling an invoice and managing payment methods
+// happen in the console.
 //
 // Build a client from a shared [basaltic.Config]:
 //

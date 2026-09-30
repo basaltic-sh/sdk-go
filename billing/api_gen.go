@@ -67,6 +67,26 @@ func (p *ListCreditsParams) withMarker(marker string) *ListCreditsParams {
 	return &out
 }
 
+// ListFiscalInvoicesParams are the optional filters and pagination controls for
+// [Client.ListFiscalInvoices]. A nil *ListFiscalInvoicesParams sends none of them.
+type ListFiscalInvoicesParams struct {
+	// Invoice canonical billing invoice CRN.
+	Invoice string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListFiscalInvoicesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.Invoice != "" {
+		q.Set("invoice", p.Invoice)
+	}
+	return q
+}
+
 // ListInvoicesParams are the optional filters and pagination controls for
 // [Client.ListInvoices]. A nil *ListInvoicesParams sends none of them.
 type ListInvoicesParams struct {
@@ -261,6 +281,20 @@ func (p *ListTransactionsParams) withMarker(marker string) *ListTransactionsPara
 	return &out
 }
 
+// GetBillingProfile reads the organization billing profile.
+func (c *Client) GetBillingProfile(ctx context.Context, opts ...basaltic.RequestOption) (*BillingProfile, error) {
+	op := &basaltic.Operation{
+		ID:     "getBillingProfile",
+		Method: "GET",
+		Path:   "/v1/profile",
+	}
+	var out BillingProfile
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // GetCurrentUsage gets month-to-date usage total.
 func (c *Client) GetCurrentUsage(ctx context.Context, opts ...basaltic.RequestOption) (*CurrentUsage, error) {
 	op := &basaltic.Operation{
@@ -273,6 +307,23 @@ func (c *Client) GetCurrentUsage(ctx context.Context, opts ...basaltic.RequestOp
 		return nil, err
 	}
 	return &out, nil
+}
+
+// GetFiscalInvoiceXml downloads issued NFS-e XML.
+//
+// The caller must close the returned reader.
+func (c *Client) GetFiscalInvoiceXml(ctx context.Context, documentID string, opts ...basaltic.RequestOption) (io.ReadCloser, error) {
+	op := &basaltic.Operation{
+		ID:       "getFiscalInvoiceXml",
+		Method:   "GET",
+		Path:     "/v1/fiscal-invoices/{document_id}/xml",
+		PathArgs: []string{documentID},
+	}
+	stream, _, err := c.rt.DoStream(ctx, op, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return stream, nil
 }
 
 // GetInvoice gets an invoice with its line items.
@@ -361,6 +412,27 @@ func (c *Client) ListCreditsAll(ctx context.Context, params *ListCreditsParams, 
 	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[Credit], error) {
 		return c.ListCredits(ctx, params.withMarker(marker), opts...)
 	})
+}
+
+// ListFiscalInvoices lists fiscal invoice issuance and delivery status.
+//
+// Returns up to 200 recent fiscal records for the current organization.
+// Filter by invoice CRN to inspect documents for an older billing
+// invoice. Does not issue historical payments automatically.
+func (c *Client) ListFiscalInvoices(ctx context.Context, params *ListFiscalInvoicesParams, opts ...basaltic.RequestOption) ([]*FiscalInvoice, error) {
+	op := &basaltic.Operation{
+		ID:     "listFiscalInvoices",
+		Method: "GET",
+		Path:   "/v1/fiscal-invoices",
+	}
+	op.Query = params.query()
+	var out struct {
+		FiscalDocuments []*FiscalInvoice `json:"fiscal_documents"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.FiscalDocuments, nil
 }
 
 // ListInvoices lists invoices.
@@ -551,6 +623,26 @@ func (c *Client) ListTransactionsAll(ctx context.Context, params *ListTransactio
 	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[Transaction], error) {
 		return c.ListTransactions(ctx, params.withMarker(marker), opts...)
 	})
+}
+
+// UpdateBillingProfile — Save organization billing details.
+//
+// Replaces billing details for future fiscal documents. Existing
+// prepared or issued documents retain their recipient snapshot. A
+// complete profile finishes the billing-details onboarding step and
+// allows waiting fiscal workflows to proceed.
+func (c *Client) UpdateBillingProfile(ctx context.Context, body *BillingProfile, opts ...basaltic.RequestOption) (*BillingProfile, error) {
+	op := &basaltic.Operation{
+		ID:     "updateBillingProfile",
+		Method: "PUT",
+		Path:   "/v1/profile",
+		Body:   body,
+	}
+	var out BillingProfile
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // GetInvoiceByReference fetches one invoice by an id or a CRN.

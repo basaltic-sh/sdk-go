@@ -643,8 +643,9 @@ func (c *Client) UpdateRecord(ctx context.Context, zoneID string, recordID strin
 
 // UpdateZone updates zone.
 //
-// Updates a zone's tags. Omitted tags are left alone; a tags map
-// replaces the zone's tag set, so an empty object clears it.
+// Updates a zone's description and tags. Omit description to keep it or
+// send an empty string to clear it. Omitted tags are left alone; a tags
+// map replaces the zone's tag set, so an empty object clears it.
 //
 // Tags gate policy as well as label the zone, so this is authorized
 // against both the tags being requested and the tags the zone already

@@ -15,6 +15,56 @@ import (
 	basaltic "github.com/basaltic-sh/sdk-go"
 )
 
+// ListEgressOnlyGatewayRoutesParams are the optional filters and pagination controls for
+// [Client.ListEgressOnlyGatewayRoutes]. A nil *ListEgressOnlyGatewayRoutesParams sends none of them.
+type ListEgressOnlyGatewayRoutesParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
+	Limit int
+
+	// Marker resume token — the last id from the previous page.
+	Marker string
+
+	// Name exact resource name. This resource has no name, so a supplied name
+	// returns an empty result.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListEgressOnlyGatewayRoutesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListEgressOnlyGatewayRoutesParams) withMarker(marker string) *ListEgressOnlyGatewayRoutesParams {
+	var out ListEgressOnlyGatewayRoutesParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
 // ListEgressOnlyGatewaysParams are the optional filters and pagination controls for
 // [Client.ListEgressOnlyGateways]. A nil *ListEgressOnlyGatewaysParams sends none of them.
 type ListEgressOnlyGatewaysParams struct {
@@ -214,6 +264,56 @@ func (p *ListInterfacesParams) withMarker(marker string) *ListInterfacesParams {
 	return &out
 }
 
+// ListInternetGatewayRoutesParams are the optional filters and pagination controls for
+// [Client.ListInternetGatewayRoutes]. A nil *ListInternetGatewayRoutesParams sends none of them.
+type ListInternetGatewayRoutesParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
+	Limit int
+
+	// Marker resume token — the last id from the previous page.
+	Marker string
+
+	// Name exact resource name. This resource has no name, so a supplied name
+	// returns an empty result.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListInternetGatewayRoutesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListInternetGatewayRoutesParams) withMarker(marker string) *ListInternetGatewayRoutesParams {
+	var out ListInternetGatewayRoutesParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
 // ListInternetGatewaysParams are the optional filters and pagination controls for
 // [Client.ListInternetGateways]. A nil *ListInternetGatewaysParams sends none of them.
 type ListInternetGatewaysParams struct {
@@ -256,6 +356,56 @@ func (p *ListInternetGatewaysParams) query() url.Values {
 // caller's value untouched across pages.
 func (p *ListInternetGatewaysParams) withMarker(marker string) *ListInternetGatewaysParams {
 	var out ListInternetGatewaysParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
+// ListNATGatewayRoutesParams are the optional filters and pagination controls for
+// [Client.ListNATGatewayRoutes]. A nil *ListNATGatewayRoutesParams sends none of them.
+type ListNATGatewayRoutesParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
+	Limit int
+
+	// Marker resume token — the last id from the previous page.
+	Marker string
+
+	// Name exact resource name. This resource has no name, so a supplied name
+	// returns an empty result.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListNATGatewayRoutesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListNATGatewayRoutesParams) withMarker(marker string) *ListNATGatewayRoutesParams {
+	var out ListNATGatewayRoutesParams
 	if p != nil {
 		out = *p
 	}
@@ -1494,6 +1644,65 @@ func (c *Client) GetVPC(ctx context.Context, vpcID string, opts ...basaltic.Requ
 	return out.VPC, nil
 }
 
+// ListEgressOnlyGatewayRoutes lists egress-only gateway routes.
+//
+// List routes targeting this egress-only gateway, newest first, with
+// route-table identity. Requires read access to the gateway. Only routes
+// in tables where the caller has network:ListRoutes permission are
+// returned; pagination applies to those visible routes.
+//
+// Returns one page. Use ListEgressOnlyGatewayRoutesAll to walk every page.
+func (c *Client) ListEgressOnlyGatewayRoutes(ctx context.Context, egressOnlyGatewayID string, params *ListEgressOnlyGatewayRoutesParams, opts ...basaltic.RequestOption) (*basaltic.Page[GatewayRoute], error) {
+	op := &basaltic.Operation{
+		ID:       "listEgressOnlyGatewayRoutes",
+		Method:   "GET",
+		Path:     "/v1/egress-only-gateways/{egress_only_gateway_id}/routes",
+		PathArgs: []string{egressOnlyGatewayID},
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []GatewayRoute `json:"routes"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[GatewayRoute]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListEgressOnlyGatewayRoutesAll walks every page of
+// ListEgressOnlyGatewayRoutes, yielding one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListEgressOnlyGatewayRoutesAll(ctx, egressOnlyGatewayID, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListEgressOnlyGatewayRoutesAll(ctx context.Context, egressOnlyGatewayID string, params *ListEgressOnlyGatewayRoutesParams, opts ...basaltic.RequestOption) iter.Seq2[GatewayRoute, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[GatewayRoute], error) {
+		return c.ListEgressOnlyGatewayRoutes(ctx, egressOnlyGatewayID, params.withMarker(marker), opts...)
+	})
+}
+
 // ListEgressOnlyGateways lists egress-only gateways.
 //
 // Returns one page. Use ListEgressOnlyGatewaysAll to walk every page.
@@ -1712,6 +1921,65 @@ func (c *Client) ListInterfacesAll(ctx context.Context, params *ListInterfacesPa
 	})
 }
 
+// ListInternetGatewayRoutes lists internet gateway routes.
+//
+// List routes targeting this internet gateway, newest first, with
+// route-table identity. Requires read access to the gateway. Only routes
+// in tables where the caller has network:ListRoutes permission are
+// returned; pagination applies to those visible routes.
+//
+// Returns one page. Use ListInternetGatewayRoutesAll to walk every page.
+func (c *Client) ListInternetGatewayRoutes(ctx context.Context, internetGatewayID string, params *ListInternetGatewayRoutesParams, opts ...basaltic.RequestOption) (*basaltic.Page[GatewayRoute], error) {
+	op := &basaltic.Operation{
+		ID:       "listInternetGatewayRoutes",
+		Method:   "GET",
+		Path:     "/v1/internet-gateways/{internet_gateway_id}/routes",
+		PathArgs: []string{internetGatewayID},
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []GatewayRoute `json:"routes"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[GatewayRoute]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListInternetGatewayRoutesAll walks every page of
+// ListInternetGatewayRoutes, yielding one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListInternetGatewayRoutesAll(ctx, internetGatewayID, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListInternetGatewayRoutesAll(ctx context.Context, internetGatewayID string, params *ListInternetGatewayRoutesParams, opts ...basaltic.RequestOption) iter.Seq2[GatewayRoute, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[GatewayRoute], error) {
+		return c.ListInternetGatewayRoutes(ctx, internetGatewayID, params.withMarker(marker), opts...)
+	})
+}
+
 // ListInternetGateways lists internet gateways.
 //
 // Returns one page. Use ListInternetGatewaysAll to walk every page.
@@ -1762,6 +2030,65 @@ func (c *Client) ListInternetGateways(ctx context.Context, params *ListInternetG
 func (c *Client) ListInternetGatewaysAll(ctx context.Context, params *ListInternetGatewaysParams, opts ...basaltic.RequestOption) iter.Seq2[InternetGateway, error] {
 	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[InternetGateway], error) {
 		return c.ListInternetGateways(ctx, params.withMarker(marker), opts...)
+	})
+}
+
+// ListNATGatewayRoutes lists NAT gateway routes.
+//
+// List routes targeting this NAT gateway, newest first, with route-table
+// identity. Requires read access to the gateway. Only routes in tables
+// where the caller has network:ListRoutes permission are returned;
+// pagination applies to those visible routes.
+//
+// Returns one page. Use ListNATGatewayRoutesAll to walk every page.
+func (c *Client) ListNATGatewayRoutes(ctx context.Context, natGatewayID string, params *ListNATGatewayRoutesParams, opts ...basaltic.RequestOption) (*basaltic.Page[GatewayRoute], error) {
+	op := &basaltic.Operation{
+		ID:       "listNATGatewayRoutes",
+		Method:   "GET",
+		Path:     "/v1/nat-gateways/{nat_gateway_id}/routes",
+		PathArgs: []string{natGatewayID},
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []GatewayRoute `json:"routes"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[GatewayRoute]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListNATGatewayRoutesAll walks every page of ListNATGatewayRoutes,
+// yielding one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListNATGatewayRoutesAll(ctx, natGatewayID, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListNATGatewayRoutesAll(ctx context.Context, natGatewayID string, params *ListNATGatewayRoutesParams, opts ...basaltic.RequestOption) iter.Seq2[GatewayRoute, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[GatewayRoute], error) {
+		return c.ListNATGatewayRoutes(ctx, natGatewayID, params.withMarker(marker), opts...)
 	})
 }
 
