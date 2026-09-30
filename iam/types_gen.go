@@ -142,6 +142,15 @@ type InlinePolicy struct {
 	UpdatedAt     time.Time `json:"updated_at,omitempty"`
 }
 
+// LinuxIdentity stable platform-managed identity. Primary GID equals UID. Removing and
+// re-adding a membership allocates a new identity; retired IDs are never
+// reused.
+type LinuxIdentity struct {
+	GID      int32  `json:"gid"`
+	UID      int32  `json:"uid"`
+	Username string `json:"username"`
+}
+
 type ListRegionsResult struct {
 	// Default the default region code
 	Default string `json:"default"`
@@ -539,6 +548,42 @@ type RoleUpdateRequest struct {
 	Description *string      `json:"description,omitempty"`
 	Tags        Tags         `json:"tags,omitempty"`
 	TrustPolicy *TrustPolicy `json:"trust_policy,omitempty"`
+}
+
+type SSHKey struct {
+	Algorithm string    `json:"algorithm"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// CRN Identity-owned SSH credential CRN.
+	CRN string `json:"crn"`
+
+	// ExpiresAt optional expiry. Expired keys remain listed until revoked.
+	ExpiresAt time.Time `json:"expires_at,omitempty"`
+
+	// Fingerprint SHA-256 fingerprint in OpenSSH format.
+	Fingerprint string `json:"fingerprint"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+
+	// PublicKey Canonical OpenSSH public key without a comment or authorized_keys
+	// options.
+	PublicKey string `json:"public_key"`
+}
+
+type SSHKeyCreateRequest struct {
+	// ExpiresAt optional expiry at least one minute in the future. Rotation requires
+	// a new credential and revocation of the old one.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+
+	// Required.
+	Name string `json:"name"`
+
+	// PublicKey One OpenSSH public key. Ed25519, ECDSA, security-key variants, and
+	// RSA of at least 2048 bits are supported. Private keys, certificates,
+	// multiple keys and authorized_keys options are rejected.
+	//
+	// Required.
+	PublicKey string `json:"public_key"`
 }
 
 // STSSession account-scoped temporary credentials, including assumed-role and

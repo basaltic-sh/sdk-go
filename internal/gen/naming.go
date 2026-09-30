@@ -12,7 +12,7 @@ func sortStrings(s []string) { slices.Sort(s) }
 // reviewer would write by hand. Order matters only for readability here; the
 // matcher works on whole words.
 var initialisms = map[string]string{
-	"id": "ID", "ids": "IDs", "url": "URL", "urls": "URLs",
+	"id": "ID", "uid": "UID", "gid": "GID", "ids": "IDs", "url": "URL", "urls": "URLs",
 	"uri": "URI", "api": "API", "http": "HTTP", "https": "HTTPS",
 	"ip": "IP", "ips": "IPs", "cpu": "CPU", "ram": "RAM", "ttl": "TTL",
 	"dns": "DNS", "vpc": "VPC", "vpcs": "VPCs", "nat": "NAT", "acl": "ACL", "cidr": "CIDR",

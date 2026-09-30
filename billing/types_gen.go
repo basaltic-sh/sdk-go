@@ -124,12 +124,16 @@ type Invoice struct {
 	CreditsApplied string    `json:"credits_applied"`
 
 	// CRN global organization-scoped invoice identity.
-	CRN           string    `json:"crn"`
-	Currency      string    `json:"currency"`
-	DueAt         time.Time `json:"due_at,omitempty"`
-	ID            string    `json:"id"`
-	InvoiceNumber string    `json:"invoice_number"`
-	IssuedAt      time.Time `json:"issued_at,omitempty"`
+	CRN      string `json:"crn"`
+	Currency string `json:"currency"`
+
+	// DisputedAmount dispute principal withdrawn less funds reinstated; excludes provider
+	// fees.
+	DisputedAmount string    `json:"disputed_amount"`
+	DueAt          time.Time `json:"due_at,omitempty"`
+	ID             string    `json:"id"`
+	InvoiceNumber  string    `json:"invoice_number"`
+	IssuedAt       time.Time `json:"issued_at,omitempty"`
 
 	// Items line items; present only on the detail endpoint.
 	Items  []*InvoiceItem `json:"items,omitempty"`
@@ -145,6 +149,9 @@ type Invoice struct {
 
 	// PeriodStart first day of the billed UTC month.
 	PeriodStart string `json:"period_start"`
+
+	// RefundedAmount confirmed refunds less failed-refund reversals, in BRL.
+	RefundedAmount string `json:"refunded_amount"`
 
 	// One of: "open", "paid", "past_due", "uncollectible", "void".
 	Status   string `json:"status"`
@@ -175,11 +182,23 @@ type Payment struct {
 
 	// CRN global organization-scoped payment identity.
 	CRN string `json:"crn"`
-	ID  string `json:"id"`
+
+	// DisputedAmount dispute principal withdrawn less funds reinstated; excludes provider
+	// fees.
+	DisputedAmount string `json:"disputed_amount"`
+	ID             string `json:"id"`
 
 	// Invoice current invoice list shape, without items; null when the invoice has
 	// been deleted.
 	Invoice *Invoice `json:"invoice"`
+
+	// RefundedAmount confirmed refunds less failed-refund reversals, in BRL.
+	RefundedAmount string `json:"refunded_amount"`
+
+	// RetainedAmount settled receipt less refunds and disputed funds. Zero for an
+	// unsettled attempt; may be negative if the provider has withdrawn
+	// overlapping reversals. Does not change invoice collection status.
+	RetainedAmount string `json:"retained_amount"`
 
 	// One of: "pending", "processing", "succeeded", "failed", "refunded".
 	Status string `json:"status"`
@@ -244,7 +263,7 @@ type Transaction struct {
 
 	// Type ledger entry type.
 	//
-	// One of: "payment", "refund", "adjustment", "credit_grant", "credit_applied".
+	// One of: "payment", "refund", "refund_reversal", "dispute", "dispute_reversal", "adjustment", "credit_grant", "credit_applied".
 	Type string `json:"type"`
 }
 

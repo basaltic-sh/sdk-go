@@ -757,6 +757,29 @@ func (c *Client) AuthorizeOAuthClient(ctx context.Context, body *OAuthAuthorizeR
 	return &out, nil
 }
 
+// CreatePersonalSSHKey adds personal SSH key.
+//
+// Requires the signed-in human user. Personal keys apply to that user
+// across organization memberships; the organization selects only the
+// Linux identity. A key never carries a role or grants access to a VM by
+// itself. Linux names and numeric IDs are allocated by the platform and
+// do not change on key rotation or display-name changes.
+func (c *Client) CreatePersonalSSHKey(ctx context.Context, body *SSHKeyCreateRequest, opts ...basaltic.RequestOption) (*SSHKey, error) {
+	op := &basaltic.Operation{
+		ID:     "createPersonalSSHKey",
+		Method: "POST",
+		Path:   "/v1/auth/ssh-keys",
+		Body:   body,
+	}
+	var out struct {
+		SSHKey *SSHKey `json:"ssh_key"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.SSHKey, nil
+}
+
 // CreatePolicy creates policy.
 //
 // Create a new policy in the selected account.
@@ -842,6 +865,50 @@ func (c *Client) CreateServiceAccountCredential(ctx context.Context, serviceAcco
 		return nil, err
 	}
 	return &out, nil
+}
+
+// CreateServiceAccountSSHKey adds service-account SSH key.
+//
+// Requires the selected account and ordinary IAM authorization against
+// the service account, including tag conditions and explicit denies. A
+// key never carries a role or grants access to a VM by itself. Linux
+// names and numeric IDs are allocated by the platform and do not change
+// on key rotation or display-name changes.
+func (c *Client) CreateServiceAccountSSHKey(ctx context.Context, serviceAccountID string, body *SSHKeyCreateRequest, opts ...basaltic.RequestOption) (*SSHKey, error) {
+	op := &basaltic.Operation{
+		ID:       "createServiceAccountSSHKey",
+		Method:   "POST",
+		Path:     "/v1/service-accounts/{service_account_id}/ssh-keys",
+		PathArgs: []string{serviceAccountID},
+		Body:     body,
+	}
+	var out struct {
+		SSHKey *SSHKey `json:"ssh_key"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.SSHKey, nil
+}
+
+// DeletePersonalSSHKey revokes personal SSH key.
+//
+// Requires the signed-in human user. Personal keys apply to that user
+// across organization memberships; the organization selects only the
+// Linux identity. A key never carries a role or grants access to a VM by
+// itself. Linux names and numeric IDs are allocated by the platform and
+// do not change on key rotation or display-name changes.
+func (c *Client) DeletePersonalSSHKey(ctx context.Context, sshKeyID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "deletePersonalSSHKey",
+		Method:   "DELETE",
+		Path:     "/v1/auth/ssh-keys/{ssh_key_id}",
+		PathArgs: []string{sshKeyID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
 }
 
 // DeletePolicy deletes policy.
@@ -936,6 +1003,26 @@ func (c *Client) DeleteServiceAccountInlinePolicy(ctx context.Context, serviceAc
 	return nil
 }
 
+// DeleteServiceAccountSSHKey revokes service-account SSH key.
+//
+// Requires the selected account and ordinary IAM authorization against
+// the service account, including tag conditions and explicit denies. A
+// key never carries a role or grants access to a VM by itself. Linux
+// names and numeric IDs are allocated by the platform and do not change
+// on key rotation or display-name changes.
+func (c *Client) DeleteServiceAccountSSHKey(ctx context.Context, serviceAccountID string, sshKeyID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "deleteServiceAccountSSHKey",
+		Method:   "DELETE",
+		Path:     "/v1/service-accounts/{service_account_id}/ssh-keys/{ssh_key_id}",
+		PathArgs: []string{serviceAccountID, sshKeyID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
 // DetachRolePolicy detaches policy from role.
 //
 // Detach a policy from a role.
@@ -1018,6 +1105,28 @@ func (c *Client) GetOAuthToken(ctx context.Context, body *OAuthTokenRequest, opt
 		return nil, err
 	}
 	return &out, nil
+}
+
+// GetPersonalLinuxIdentity gets personal Linux identity.
+//
+// Requires the signed-in human user. Personal keys apply to that user
+// across organization memberships; the organization selects only the
+// Linux identity. A key never carries a role or grants access to a VM by
+// itself. Linux names and numeric IDs are allocated by the platform and
+// do not change on key rotation or display-name changes.
+func (c *Client) GetPersonalLinuxIdentity(ctx context.Context, opts ...basaltic.RequestOption) (*LinuxIdentity, error) {
+	op := &basaltic.Operation{
+		ID:     "getPersonalLinuxIdentity",
+		Method: "GET",
+		Path:   "/v1/auth/linux-identity",
+	}
+	var out struct {
+		LinuxIdentity *LinuxIdentity `json:"linux_identity"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.LinuxIdentity, nil
 }
 
 // GetPolicy gets policy.
@@ -1148,6 +1257,29 @@ func (c *Client) GetServiceAccountInlinePolicy(ctx context.Context, serviceAccou
 	return out.InlinePolicy, nil
 }
 
+// GetServiceAccountLinuxIdentity gets serviceaccount Linux identity.
+//
+// Requires the selected account and ordinary IAM authorization against
+// the service account, including tag conditions and explicit denies. A
+// key never carries a role or grants access to a VM by itself. Linux
+// names and numeric IDs are allocated by the platform and do not change
+// on key rotation or display-name changes.
+func (c *Client) GetServiceAccountLinuxIdentity(ctx context.Context, serviceAccountID string, opts ...basaltic.RequestOption) (*LinuxIdentity, error) {
+	op := &basaltic.Operation{
+		ID:       "getServiceAccountLinuxIdentity",
+		Method:   "GET",
+		Path:     "/v1/service-accounts/{service_account_id}/linux-identity",
+		PathArgs: []string{serviceAccountID},
+	}
+	var out struct {
+		LinuxIdentity *LinuxIdentity `json:"linux_identity"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.LinuxIdentity, nil
+}
+
 // GetServiceAccountPermissionBoundary gets a service account's permission boundary.
 func (c *Client) GetServiceAccountPermissionBoundary(ctx context.Context, serviceAccountID string, opts ...basaltic.RequestOption) (*PermissionBoundary, error) {
 	op := &basaltic.Operation{
@@ -1163,6 +1295,28 @@ func (c *Client) GetServiceAccountPermissionBoundary(ctx context.Context, servic
 		return nil, err
 	}
 	return out.PermissionBoundary, nil
+}
+
+// ListPersonalSSHKeys lists personal SSH keys.
+//
+// Requires the signed-in human user. Personal keys apply to that user
+// across organization memberships; the organization selects only the
+// Linux identity. A key never carries a role or grants access to a VM by
+// itself. Linux names and numeric IDs are allocated by the platform and
+// do not change on key rotation or display-name changes.
+func (c *Client) ListPersonalSSHKeys(ctx context.Context, opts ...basaltic.RequestOption) ([]*SSHKey, error) {
+	op := &basaltic.Operation{
+		ID:     "listPersonalSSHKeys",
+		Method: "GET",
+		Path:   "/v1/auth/ssh-keys",
+	}
+	var out struct {
+		SSHKeys []*SSHKey `json:"ssh_keys"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.SSHKeys, nil
 }
 
 // ListPolicies lists policies.
@@ -1570,6 +1724,29 @@ func (c *Client) ListServiceAccountPolicies(ctx context.Context, serviceAccountI
 	}
 	page := &basaltic.Page[Policy]{Items: out.Items}
 	return page, nil
+}
+
+// ListServiceAccountSSHKeys lists service-account SSH keys.
+//
+// Requires the selected account and ordinary IAM authorization against
+// the service account, including tag conditions and explicit denies. A
+// key never carries a role or grants access to a VM by itself. Linux
+// names and numeric IDs are allocated by the platform and do not change
+// on key rotation or display-name changes.
+func (c *Client) ListServiceAccountSSHKeys(ctx context.Context, serviceAccountID string, opts ...basaltic.RequestOption) ([]*SSHKey, error) {
+	op := &basaltic.Operation{
+		ID:       "listServiceAccountSSHKeys",
+		Method:   "GET",
+		Path:     "/v1/service-accounts/{service_account_id}/ssh-keys",
+		PathArgs: []string{serviceAccountID},
+	}
+	var out struct {
+		SSHKeys []*SSHKey `json:"ssh_keys"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.SSHKeys, nil
 }
 
 // ListServiceAccounts lists service accounts.

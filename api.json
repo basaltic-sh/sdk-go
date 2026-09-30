@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "services": [
     {
       "name": "audit",
@@ -3439,6 +3439,44 @@
           "result_type": "*OAuthAuthorizeResponse"
         },
         {
+          "id": "createPersonalSSHKey",
+          "go_name": "CreatePersonalSSHKey",
+          "method": "POST",
+          "path": "/v1/auth/ssh-keys",
+          "summary": "Add personal SSH key",
+          "resource": "ssh-key",
+          "verb": "create",
+          "body_type": "*SSHKeyCreateRequest",
+          "body_kind": "json",
+          "body_fields": [
+            {
+              "wire": "expires_at",
+              "go_name": "ExpiresAt",
+              "go_type": "*time.Time",
+              "flag_kind": "time",
+              "pointer": true,
+              "doc": "Optional expiry at least one minute in the future"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true
+            },
+            {
+              "wire": "public_key",
+              "go_name": "PublicKey",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true,
+              "doc": "One OpenSSH public key"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "*SSHKey"
+        },
+        {
           "id": "createPolicy",
           "go_name": "CreatePolicy",
           "method": "POST",
@@ -3602,6 +3640,68 @@
           "result_type": "*CredentialCreateResponse"
         },
         {
+          "id": "createServiceAccountSSHKey",
+          "go_name": "CreateServiceAccountSSHKey",
+          "method": "POST",
+          "path": "/v1/service-accounts/{service_account_id}/ssh-keys",
+          "summary": "Add service-account SSH key",
+          "resource": "service-account",
+          "verb": "create-ssh-key",
+          "path_params": [
+            {
+              "wire": "service_account_id",
+              "go_name": "serviceAccountID",
+              "doc": "Service Account ID"
+            }
+          ],
+          "body_type": "*SSHKeyCreateRequest",
+          "body_kind": "json",
+          "body_fields": [
+            {
+              "wire": "expires_at",
+              "go_name": "ExpiresAt",
+              "go_type": "*time.Time",
+              "flag_kind": "time",
+              "pointer": true,
+              "doc": "Optional expiry at least one minute in the future"
+            },
+            {
+              "wire": "name",
+              "go_name": "Name",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true
+            },
+            {
+              "wire": "public_key",
+              "go_name": "PublicKey",
+              "go_type": "string",
+              "flag_kind": "string",
+              "required": true,
+              "doc": "One OpenSSH public key"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "*SSHKey"
+        },
+        {
+          "id": "deletePersonalSSHKey",
+          "go_name": "DeletePersonalSSHKey",
+          "method": "DELETE",
+          "path": "/v1/auth/ssh-keys/{ssh_key_id}",
+          "summary": "Revoke personal SSH key",
+          "resource": "ssh-key",
+          "verb": "delete",
+          "path_params": [
+            {
+              "wire": "ssh_key_id",
+              "go_name": "sshKeyID",
+              "doc": "SSH credential UUID belonging to the selected identity"
+            }
+          ],
+          "result_kind": "none"
+        },
+        {
           "id": "deletePolicy",
           "go_name": "DeletePolicy",
           "method": "DELETE",
@@ -3710,6 +3810,28 @@
             {
               "wire": "policy_name",
               "go_name": "policyName"
+            }
+          ],
+          "result_kind": "none"
+        },
+        {
+          "id": "deleteServiceAccountSSHKey",
+          "go_name": "DeleteServiceAccountSSHKey",
+          "method": "DELETE",
+          "path": "/v1/service-accounts/{service_account_id}/ssh-keys/{ssh_key_id}",
+          "summary": "Revoke service-account SSH key",
+          "resource": "service-account",
+          "verb": "delete-ssh-key",
+          "path_params": [
+            {
+              "wire": "service_account_id",
+              "go_name": "serviceAccountID",
+              "doc": "Service Account ID"
+            },
+            {
+              "wire": "ssh_key_id",
+              "go_name": "sshKeyID",
+              "doc": "SSH credential UUID belonging to the selected identity"
             }
           ],
           "result_kind": "none"
@@ -3842,6 +3964,17 @@
           ],
           "result_kind": "value",
           "result_type": "*OAuthTokenResponse"
+        },
+        {
+          "id": "getPersonalLinuxIdentity",
+          "go_name": "GetPersonalLinuxIdentity",
+          "method": "GET",
+          "path": "/v1/auth/linux-identity",
+          "summary": "Get personal Linux identity",
+          "resource": "auth",
+          "verb": "get-linux-identity",
+          "result_kind": "value",
+          "result_type": "*LinuxIdentity"
         },
         {
           "id": "getPolicy",
@@ -4015,6 +4148,24 @@
           "result_type": "*InlinePolicy"
         },
         {
+          "id": "getServiceAccountLinuxIdentity",
+          "go_name": "GetServiceAccountLinuxIdentity",
+          "method": "GET",
+          "path": "/v1/service-accounts/{service_account_id}/linux-identity",
+          "summary": "Get serviceaccount Linux identity",
+          "resource": "service-account",
+          "verb": "get-linux-identity",
+          "path_params": [
+            {
+              "wire": "service_account_id",
+              "go_name": "serviceAccountID",
+              "doc": "Service Account ID"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "*LinuxIdentity"
+        },
+        {
           "id": "getServiceAccountPermissionBoundary",
           "go_name": "GetServiceAccountPermissionBoundary",
           "method": "GET",
@@ -4030,6 +4181,17 @@
           ],
           "result_kind": "value",
           "result_type": "*PermissionBoundary"
+        },
+        {
+          "id": "listPersonalSSHKeys",
+          "go_name": "ListPersonalSSHKeys",
+          "method": "GET",
+          "path": "/v1/auth/ssh-keys",
+          "summary": "List personal SSH keys",
+          "resource": "ssh-key",
+          "verb": "list",
+          "result_kind": "value",
+          "result_type": "[]*SSHKey"
         },
         {
           "id": "listPolicies",
@@ -4500,6 +4662,24 @@
           "result_kind": "page",
           "result_type": "*basaltic.Page[Policy]",
           "item_type": "Policy"
+        },
+        {
+          "id": "listServiceAccountSSHKeys",
+          "go_name": "ListServiceAccountSSHKeys",
+          "method": "GET",
+          "path": "/v1/service-accounts/{service_account_id}/ssh-keys",
+          "summary": "List service-account SSH keys",
+          "resource": "service-account",
+          "verb": "list-ssh-keys",
+          "path_params": [
+            {
+              "wire": "service_account_id",
+              "go_name": "serviceAccountID",
+              "doc": "Service Account ID"
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "[]*SSHKey"
         },
         {
           "id": "listServiceAccounts",
@@ -12776,7 +12956,7 @@
           "go_name": "ListAccountRoles",
           "method": "GET",
           "path": "/v1/account-roles",
-          "summary": "List available account roles",
+          "summary": "List assigned account roles",
           "resource": "account-role",
           "verb": "list",
           "result_kind": "page",

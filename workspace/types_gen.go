@@ -213,6 +213,15 @@ type InvitationInvitedBy struct {
 	Type string `json:"type,omitempty"`
 }
 
+// LinuxIdentity stable platform-managed identity. Primary GID equals UID. Removing and
+// re-adding a membership allocates a new identity; retired IDs are never
+// reused.
+type LinuxIdentity struct {
+	GID      int32  `json:"gid"`
+	UID      int32  `json:"uid"`
+	Username string `json:"username"`
+}
+
 type Organization struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
@@ -453,11 +462,12 @@ type User struct {
 	AddedAt time.Time `json:"added_at,omitempty"`
 
 	// CRN Cloud Resource Name
-	CRN   string `json:"crn,omitempty"`
-	Email string `json:"email,omitempty"`
-	ID    string `json:"id,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Tags  Tags   `json:"tags,omitempty"`
+	CRN           string         `json:"crn,omitempty"`
+	Email         string         `json:"email,omitempty"`
+	ID            string         `json:"id,omitempty"`
+	LinuxIdentity *LinuxIdentity `json:"linux_identity,omitempty"`
+	Name          string         `json:"name,omitempty"`
+	Tags          Tags           `json:"tags,omitempty"`
 }
 
 type UserAddRequest struct {

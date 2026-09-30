@@ -902,7 +902,9 @@ func (c *Client) AddUser(ctx context.Context, body *UserAddRequest, opts ...basa
 
 // AddUserToGroup adds user to group.
 //
-// Add a user to a group.
+// Add a user to a group. The change is rejected with
+// ACCOUNT_ROLE_CONFLICT (409) if the group would give the user a
+// different role in an account where they already have a role.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -925,7 +927,12 @@ func (c *Client) AddUserToGroup(ctx context.Context, userID string, body *UserGr
 // Assign an account role to a user or group in the organization. The
 // assignment grants permission to request role assumption, not direct
 // resource access. The role trust policy must independently authorize
-// the user. Changing a group assignment affects its human members.
+// the user. Each user has at most one effective role per account. Direct
+// and group grants may repeat the same role, but a different role is
+// rejected with ACCOUNT_ROLE_CONFLICT (409). Changing a group assignment
+// affects its human members; conflicting group membership changes are
+// rejected as well. Remove conflicting assignments before changing
+// access.
 func (c *Client) AssignAccountRole(ctx context.Context, accountID string, body *AccountRoleAssignmentCreateRequest, opts ...basaltic.RequestOption) (*AccountRoleAssignment, error) {
 	op := &basaltic.Operation{
 		ID:       "assignAccountRole",
@@ -1485,12 +1492,15 @@ func (c *Client) ListAccountRoleAssignments(ctx context.Context, accountID strin
 	return page, nil
 }
 
-// ListAccountRoles lists available account roles.
+// ListAccountRoles lists assigned account roles.
 //
 // List the signed-in human user's effective role assignments across
-// accounts in the current organization, including group assignments. A
-// listed role still requires successful trust evaluation when assumed.
-// Personal authentication is required.
+// accounts in the current organization, including group assignments.
+// Each account appears at most once, with the user's single effective
+// role. Duplicate grants of the same role are deduplicated. Conflicting
+// roles fail closed rather than choosing a role or combining
+// permissions. A listed role still requires successful trust evaluation
+// when assumed. Personal authentication is required.
 func (c *Client) ListAccountRoles(ctx context.Context, opts ...basaltic.RequestOption) (*basaltic.Page[AccountRole], error) {
 	op := &basaltic.Operation{
 		ID:     "listAccountRoles",
