@@ -96,6 +96,7 @@ type configBuilder struct {
 // BASALTIC_REGION and still override it for one call site. With neither an
 // option nor an environment variable supplying credentials, NewConfig fails —
 // an unauthenticated client would only fail later, one request at a time.
+// Use WithAnonymousAccess explicitly when calling only public endpoints.
 //
 // The environment variables are [EnvAccessKeyID], [EnvSecretAccessKey],
 // [EnvAccessToken], [EnvRegion], [EnvAccountID], [EnvDomain] and any
@@ -222,6 +223,13 @@ func WithTokenSource(ts TokenSource) Option {
 		b.cfg.TokenSource = ts
 		return nil
 	}
+}
+
+// WithAnonymousAccess builds a configuration for public discovery endpoints.
+// It never resolves credentials. Authenticated operations fail before sending
+// an HTTP request; public operations explicitly opt out of authentication.
+func WithAnonymousAccess() Option {
+	return WithTokenSource(anonymousTokenSource{})
 }
 
 // WithRegion sets the region regional services are addressed in, such as

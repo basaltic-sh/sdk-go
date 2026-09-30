@@ -38,11 +38,12 @@ type manifestService struct {
 }
 
 type manifestOp struct {
-	ID      string `json:"id"`
-	GoName  string `json:"go_name"`
-	Method  string `json:"method"`
-	Path    string `json:"path"`
-	Summary string `json:"summary,omitempty"`
+	Unauthenticated bool   `json:"unauthenticated,omitempty"`
+	ID              string `json:"id"`
+	GoName          string `json:"go_name"`
+	Method          string `json:"method"`
+	Path            string `json:"path"`
+	Summary         string `json:"summary,omitempty"`
 	// Resource is the noun this operation acts on, taken from x-resource
 	// where the specification sets it and derived from the path where it does
 	// not. Only two thirds of operations carry the extension, so the path is
@@ -167,19 +168,20 @@ func (b *builder) buildManifest(info map[string]any) manifestService {
 
 func (b *builder) manifestOp(op *operation) manifestOp {
 	m := manifestOp{
-		ID:         op.ID,
-		GoName:     op.GoName,
-		Method:     op.Method,
-		Path:       op.Path,
-		Summary:    op.Summary,
-		Resource:   op.Resource,
-		Verb:       op.Verb,
-		ParamsType: op.ParamsType,
-		BodyType:   op.BodyType,
-		ResultType: op.Result.Type,
-		ItemType:   op.Result.ItemType,
-		Paginated:  op.Paginated,
-		Idempotent: op.Idempotent,
+		Unauthenticated: op.Unauthenticated,
+		ID:              op.ID,
+		GoName:          op.GoName,
+		Method:          op.Method,
+		Path:            op.Path,
+		Summary:         op.Summary,
+		Resource:        op.Resource,
+		Verb:            op.Verb,
+		ParamsType:      op.ParamsType,
+		BodyType:        op.BodyType,
+		ResultType:      op.Result.Type,
+		ItemType:        op.Result.ItemType,
+		Paginated:       op.Paginated,
+		Idempotent:      op.Idempotent,
 	}
 	switch op.Result.Kind {
 	case resultNone:

@@ -31,11 +31,14 @@ func TestCatalogDiscoveryNeedsNoCredentials(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	cfg, err := basaltic.NewConfig(context.Background(), basaltic.WithServiceEndpoint("catalog", srv.URL), basaltic.WithAccessToken("must-not-be-sent"), basaltic.WithoutRetry())
+	cfg, err := basaltic.NewConfig(context.Background(), basaltic.WithServiceEndpoint("catalog", srv.URL), basaltic.WithAnonymousAccess(), basaltic.WithoutRetry())
 	if err != nil {
 		t.Fatal(err)
 	}
 	client := catalog.New(cfg)
+	if _, err := cfg.TokenSource.Token(context.Background()); err == nil {
+		t.Fatal("anonymous configuration permitted authenticated use")
+	}
 	rows, err := client.ListRegions(context.Background(), &catalog.ListRegionsParams{CRN: "crn:catalog::platform:region/sa-saopaulo-1"})
 	if err != nil {
 		t.Fatal(err)

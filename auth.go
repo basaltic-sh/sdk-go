@@ -280,3 +280,9 @@ func tokenExchangeError(status int, body []byte) error {
 	}
 	return e
 }
+
+type anonymousTokenSource struct{}
+
+func (anonymousTokenSource) Token(context.Context) (string, error) {
+	return "", fmt.Errorf("basaltic: this operation requires credentials; anonymous access is only for public endpoints")
+}

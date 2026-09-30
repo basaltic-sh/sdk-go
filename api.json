@@ -372,6 +372,7 @@
           "paginated": true
         },
         {
+          "unauthenticated": true,
           "id": "listPrices",
           "go_name": "ListPrices",
           "method": "GET",
@@ -604,6 +605,7 @@
       "regional": false,
       "operations": [
         {
+          "unauthenticated": true,
           "id": "getRegion",
           "go_name": "GetRegion",
           "method": "GET",
@@ -622,6 +624,7 @@
           "result_type": "*Region"
         },
         {
+          "unauthenticated": true,
           "id": "listRegions",
           "go_name": "ListRegions",
           "method": "GET",
@@ -3251,6 +3254,7 @@
           "result_type": "*AssumeRoleResponse"
         },
         {
+          "unauthenticated": true,
           "id": "assumeRoleWithWebIdentity",
           "go_name": "AssumeRoleWithWebIdentity",
           "method": "POST",
@@ -3747,6 +3751,7 @@
           "result_kind": "none"
         },
         {
+          "unauthenticated": true,
           "id": "getOAuthToken",
           "go_name": "GetOAuthToken",
           "method": "POST",
@@ -4165,6 +4170,7 @@
           "paginated": true
         },
         {
+          "unauthenticated": true,
           "id": "listRegions",
           "go_name": "ListRegions",
           "method": "GET",
