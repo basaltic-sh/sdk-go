@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "services": [
     {
       "name": "audit",
@@ -2448,6 +2448,14 @@
               "go_type": "*string",
               "flag_kind": "string",
               "pointer": true
+            },
+            {
+              "wire": "iam_role",
+              "go_name": "IAMRole",
+              "go_type": "*string",
+              "flag_kind": "string",
+              "pointer": true,
+              "doc": "Attach or replace the instance workload role using its ID, name, or CRN"
             },
             {
               "wire": "metadata",

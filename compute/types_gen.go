@@ -1022,9 +1022,21 @@ type InstanceRole struct {
 }
 
 type InstanceUpdateRequest struct {
-	Description *string  `json:"description,omitempty"`
-	Metadata    Metadata `json:"metadata,omitempty"`
-	Tags        Tags     `json:"tags,omitempty"`
+	Description *string `json:"description,omitempty"`
+
+	// IAMRole attach or replace the instance workload role using its ID, name, or
+	// CRN. Omit this field to keep the current role; send an empty string
+	// to detach it. Null is not accepted. Requires compute:UpdateInstance;
+	// attach/replace also require iam:PassRole and a role trust policy
+	// allowing this instance. Only running or stopped customer-managed
+	// instances with no operation in progress support role edits. Pool
+	// members use the pool launch template. New IMDS requests observe the
+	// committed association immediately. Previously issued credentials are
+	// not revoked and remain valid until expiry (up to one hour);
+	// in-flight requests may complete with their prior association.
+	IAMRole  *string  `json:"iam_role,omitempty"`
+	Metadata Metadata `json:"metadata,omitempty"`
+	Tags     Tags     `json:"tags,omitempty"`
 }
 
 // InstanceVolume one disk created with the instance. `boot: true` marks the one cloned

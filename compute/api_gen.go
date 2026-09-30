@@ -1903,7 +1903,12 @@ func (c *Client) UpdateImage(ctx context.Context, imageID string, body *ImageUpd
 
 // UpdateInstance updates instance.
 //
-// Update an instance's description or metadata. Its name is immutable.
+// Update an instance's description, metadata, tags, or workload IAM
+// role. Its name is immutable. Role replacement is atomic and needs no
+// restart. Omit iam_role to preserve it; send an empty string to detach.
+// Concurrent edits serialize in commit order, and repeating the current
+// association is a no-op. Existing STS credentials keep their expiry (up
+// to one hour).
 func (c *Client) UpdateInstance(ctx context.Context, instanceID string, body *InstanceUpdateRequest, opts ...basaltic.RequestOption) (*Instance, error) {
 	op := &basaltic.Operation{
 		ID:       "updateInstance",
