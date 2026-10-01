@@ -6,9 +6,9 @@
 
 // Package compute is the Compute API.
 //
-// Virtual machine instances, and the images, flavors, SSH keypairs and
-// instance pools they are built from. Covers the whole instance
-// lifecycle: start, stop, reboot, resize and reinstall.
+// Virtual machine instances, and the images, flavors and instance pools
+// they are built from. Covers the whole instance lifecycle: start, stop,
+// reboot, resize and reinstall.
 //
 // Build a client from a shared [basaltic.Config]:
 //

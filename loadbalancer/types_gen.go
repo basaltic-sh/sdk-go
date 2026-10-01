@@ -75,11 +75,11 @@ type CreateListenerRequest struct {
 }
 
 // CreateLoadBalancerRequest relationships accept a UUID, CRN or exact immutable name, classified
-// by syntax. VPC, subnet, security groups and keypairs must belong to
-// the caller account in this region. Subnet names are scoped by vpc.
-// Flavor is a regional catalog reference. Floating IP references accept
-// UUID or CRN only. All references resolve before writes. Addresses are
-// fixed at creation; updates cannot replace them.
+// by syntax. VPC, subnet and security groups must belong to the caller
+// account in this region. Subnet names are scoped by vpc. Flavor is a
+// regional catalog reference. Floating IP references accept UUID or CRN
+// only. All references resolve before writes. Addresses are fixed at
+// creation; updates cannot replace them.
 type CreateLoadBalancerRequest struct {
 	// Flavor compute flavor for each LB instance.
 	//
@@ -101,14 +101,6 @@ type CreateLoadBalancerRequest struct {
 	// are detached and retained; automatic private allocations are
 	// released. Cannot be combined with floating_ip.
 	FloatingIPs []string `json:"floating_ips,omitempty"`
-
-	// Keypairs platform-operator break-glass only. Stamps SSH keypairs onto the
-	// replica VMs, which run the platform's own envoy and lbaas-agent; a
-	// tenant reaches the load balancer over its VIP, never over SSH.
-	// Accepted only from the platform account and only with
-	// `loadbalancer:StampBreakGlassKeys` — any other account setting it
-	// is rejected with 400 `INVALID_INPUT`.
-	Keypairs []string `json:"keypairs,omitempty"`
 
 	// Name 1..127 chars of [A-Za-z0-9._-] Resource names must not start with
 	// the literal crn: prefix or be UUIDs (canonical, compact, braced, or

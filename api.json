@@ -1,6 +1,6 @@
 {
   "module": "github.com/basaltic-sh/sdk-go",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "services": [
     {
       "name": "audit",
@@ -876,7 +876,7 @@
       "name": "compute",
       "package": "compute",
       "title": "Basaltic Compute API",
-      "description": "Virtual machine instances, and the images, flavors, SSH keypairs and\ninstance pools they are built from. Covers the whole instance lifecycle:\nstart, stop, reboot, resize and reinstall.",
+      "description": "Virtual machine instances, and the images, flavors and\ninstance pools they are built from. Covers the whole instance lifecycle:\nstart, stop, reboot, resize and reinstall.",
       "endpoint_template": "https://compute.{region}.basaltic.sh",
       "regional": true,
       "operations": [
@@ -1161,12 +1161,6 @@
               "doc": "Image to clone the boot disk from (required if not booting from volume)"
             },
             {
-              "wire": "keypairs",
-              "go_name": "Keypairs",
-              "go_type": "[]string",
-              "flag_kind": "stringSlice"
-            },
-            {
               "wire": "metadata",
               "go_name": "Metadata",
               "go_type": "Metadata",
@@ -1282,44 +1276,6 @@
           "idempotent": true
         },
         {
-          "id": "createKeypair",
-          "go_name": "CreateKeypair",
-          "method": "POST",
-          "path": "/v1/keypairs",
-          "summary": "Create keypair",
-          "resource": "keypair",
-          "verb": "create",
-          "body_type": "*KeypairCreateRequest",
-          "body_kind": "json",
-          "body_fields": [
-            {
-              "wire": "name",
-              "go_name": "Name",
-              "go_type": "string",
-              "flag_kind": "string",
-              "required": true,
-              "doc": "Resource names must not start with the literal crn: prefix or be UUIDs (canonical, compact, braced, or urn:uuid: forms, in either case)"
-            },
-            {
-              "wire": "public_key",
-              "go_name": "PublicKey",
-              "go_type": "*string",
-              "flag_kind": "string",
-              "pointer": true,
-              "doc": "SSH public key (if not provided, a new keypair will be generated)"
-            },
-            {
-              "wire": "tags",
-              "go_name": "Tags",
-              "go_type": "Tags",
-              "flag_kind": "json"
-            }
-          ],
-          "result_kind": "value",
-          "result_type": "*CreateKeypairKeypair",
-          "idempotent": true
-        },
-        {
           "id": "createSerialConsoleTicket",
           "go_name": "CreateSerialConsoleTicket",
           "method": "POST",
@@ -1384,23 +1340,6 @@
             {
               "wire": "pool_id",
               "go_name": "poolID"
-            }
-          ],
-          "result_kind": "none"
-        },
-        {
-          "id": "deleteKeypair",
-          "go_name": "DeleteKeypair",
-          "method": "DELETE",
-          "path": "/v1/keypairs/{keypair_id}",
-          "summary": "Delete keypair",
-          "resource": "keypair",
-          "verb": "delete",
-          "path_params": [
-            {
-              "wire": "keypair_id",
-              "go_name": "keypairID",
-              "doc": "Keypair ID"
             }
           ],
           "result_kind": "none"
@@ -1621,30 +1560,6 @@
             "go_name": "GetInstancePoolByReference",
             "list_operation_id": "listInstancePools",
             "scope_type": "ListInstancePoolsParams",
-            "has_name": true
-          }
-        },
-        {
-          "id": "getKeypair",
-          "go_name": "GetKeypair",
-          "method": "GET",
-          "path": "/v1/keypairs/{keypair_id}",
-          "summary": "Get keypair",
-          "resource": "keypair",
-          "verb": "get",
-          "path_params": [
-            {
-              "wire": "keypair_id",
-              "go_name": "keypairID",
-              "doc": "Keypair ID"
-            }
-          ],
-          "result_kind": "value",
-          "result_type": "*Keypair",
-          "by_reference": {
-            "go_name": "GetKeypairByReference",
-            "list_operation_id": "listKeypairs",
-            "scope_type": "ListKeypairsParams",
             "has_name": true
           }
         },
@@ -2045,50 +1960,6 @@
           "result_kind": "page",
           "result_type": "*basaltic.Page[Instance]",
           "item_type": "Instance",
-          "paginated": true
-        },
-        {
-          "id": "listKeypairs",
-          "go_name": "ListKeypairs",
-          "method": "GET",
-          "path": "/v1/keypairs",
-          "summary": "List keypairs",
-          "resource": "keypair",
-          "verb": "list",
-          "params_type": "ListKeypairsParams",
-          "params": [
-            {
-              "wire": "crn",
-              "go_name": "CRN",
-              "go_type": "string",
-              "flag_kind": "string",
-              "doc": "Exact resource CRN, intersected with all other filters before pagination"
-            },
-            {
-              "wire": "limit",
-              "go_name": "Limit",
-              "go_type": "int",
-              "flag_kind": "int",
-              "doc": "Maximum number of items to return"
-            },
-            {
-              "wire": "marker",
-              "go_name": "Marker",
-              "go_type": "string",
-              "flag_kind": "string",
-              "doc": "Opaque pagination cursor"
-            },
-            {
-              "wire": "name",
-              "go_name": "Name",
-              "go_type": "string",
-              "flag_kind": "string",
-              "doc": "Exact, case-sensitive name"
-            }
-          ],
-          "result_kind": "page",
-          "result_type": "*basaltic.Page[Keypair]",
-          "item_type": "Keypair",
           "paginated": true
         },
         {
@@ -3584,6 +3455,13 @@
               "pointer": true
             },
             {
+              "wire": "linux_username",
+              "go_name": "LinuxUsername",
+              "go_type": "*CustomLinuxUsername",
+              "flag_kind": "string",
+              "pointer": true
+            },
+            {
               "wire": "name",
               "go_name": "Name",
               "go_type": "string",
@@ -5054,6 +4932,13 @@
               "pointer": true
             },
             {
+              "wire": "linux_username",
+              "go_name": "LinuxUsername",
+              "go_type": "*CustomLinuxUsername",
+              "flag_kind": "string",
+              "pointer": true
+            },
+            {
               "wire": "tags",
               "go_name": "Tags",
               "go_type": "Tags",
@@ -5720,13 +5605,6 @@
               "go_type": "[]string",
               "flag_kind": "stringSlice",
               "doc": "Existing free floating IPs from this account and region, at most one per family and visibility (private/public, IPv4/IPv6)"
-            },
-            {
-              "wire": "keypairs",
-              "go_name": "Keypairs",
-              "go_type": "[]string",
-              "flag_kind": "stringSlice",
-              "doc": "Platform-operator break-glass only"
             },
             {
               "wire": "name",
@@ -12190,6 +12068,13 @@
               "doc": "Groups to assign when the invitation is accepted"
             },
             {
+              "wire": "linux_username",
+              "go_name": "LinuxUsername",
+              "go_type": "*CustomLinuxUsername",
+              "flag_kind": "string",
+              "pointer": true
+            },
+            {
               "wire": "tags",
               "go_name": "Tags",
               "go_type": "Tags",
@@ -14049,6 +13934,35 @@
           ],
           "result_kind": "value",
           "result_type": "*Policy"
+        },
+        {
+          "id": "updateUser",
+          "go_name": "UpdateUser",
+          "method": "PATCH",
+          "path": "/v1/users/{user_id}",
+          "summary": "Update user Linux username",
+          "resource": "user",
+          "verb": "update",
+          "path_params": [
+            {
+              "wire": "user_id",
+              "go_name": "userID",
+              "doc": "User ID"
+            }
+          ],
+          "body_type": "*UserUpdateRequest",
+          "body_kind": "json",
+          "body_fields": [
+            {
+              "wire": "linux_username",
+              "go_name": "LinuxUsername",
+              "go_type": "CustomLinuxUsername",
+              "flag_kind": "string",
+              "required": true
+            }
+          ],
+          "result_kind": "value",
+          "result_type": "*User"
         }
       ]
     }

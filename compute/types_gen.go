@@ -105,27 +105,6 @@ type CatalogImage struct {
 	OSVersion    string `json:"os_version,omitempty"`
 }
 
-type CreateKeypairKeypair struct {
-	CreatedAt time.Time `json:"created_at,omitempty"`
-
-	// CRN Cloud Resource Name
-	CRN         string `json:"crn,omitempty"`
-	Fingerprint string `json:"fingerprint,omitempty"`
-	ID          string `json:"id,omitempty"`
-
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	Name string `json:"name,omitempty"`
-
-	// PrivateKey private key (only returned when keypair is generated)
-	PrivateKey string `json:"private_key,omitempty"`
-
-	// PublicKey SSH public key
-	PublicKey string `json:"public_key,omitempty"`
-	Tags      Tags   `json:"tags,omitempty"`
-}
-
 // CurrentState where an instance actually is. The transitional states live here, not
 // on desired_state — nobody asks for `stopping`.
 type CurrentState string
@@ -599,14 +578,9 @@ type Instance struct {
 
 	// Image resolved source image the instance booted from. Omitted for a
 	// volume-only boot or if the referenced image row is gone.
-	Image *Image `json:"image,omitempty"`
-
-	// Keypairs SSH keypairs baked into the instance at launch. These are embedded
-	// — unlike attached volumes, NICs, and security groups, which each
-	// have their own list endpoint and so are not duplicated here.
-	Keypairs   []*Keypair `json:"keypairs,omitempty"`
-	LaunchedAt time.Time  `json:"launched_at,omitempty"`
-	Metadata   Metadata   `json:"metadata,omitempty"`
+	Image      *Image    `json:"image,omitempty"`
+	LaunchedAt time.Time `json:"launched_at,omitempty"`
+	Metadata   Metadata  `json:"metadata,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -653,7 +627,6 @@ type InstanceCreateRequest struct {
 	// another reference kind; responses and stored templates retain the
 	// resolved image UUID.
 	Image    *string  `json:"image,omitempty"`
-	Keypairs []string `json:"keypairs,omitempty"`
 	Metadata Metadata `json:"metadata,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
@@ -849,9 +822,9 @@ type InstancePoolFloatingIPAttachRequest struct {
 
 // InstancePoolTemplate stored launch configuration with canonical UUID relationship
 // identities. Convert these identities to the request fields in
-// InstancePoolTemplateRequest when replacing the template. The image and
-// keypair identities are pinned; later name reuse or a new current image
-// version does not change them.
+// InstancePoolTemplateRequest when replacing the template. The image
+// identity is pinned; later name reuse or a new current image version
+// does not change them.
 type InstancePoolTemplate struct {
 	FlavorID string `json:"flavor_id,omitempty"`
 
@@ -864,7 +837,6 @@ type InstancePoolTemplate struct {
 	// ImageID resolved image UUID pinned for every replica until template
 	// replacement.
 	ImageID  string   `json:"image_id,omitempty"`
-	KeyNames []string `json:"key_names,omitempty"`
 	Metadata Metadata `json:"metadata,omitempty"`
 
 	// Networks per-replica interfaces. Index 0 is the primary NIC and is required;
@@ -923,7 +895,6 @@ type InstancePoolTemplateRequest struct {
 	// primitive breaking silently. To move a pool to a new build, change
 	// the template.
 	Image    *string  `json:"image,omitempty"`
-	Keypairs []string `json:"keypairs,omitempty"`
 	Metadata Metadata `json:"metadata,omitempty"`
 
 	// Networks per-replica interfaces. Index 0 is the primary NIC and is required;
@@ -1072,37 +1043,6 @@ type InterfaceAddress struct {
 	// DHCPv6 configures the first /128.
 	Prefix  string `json:"prefix"`
 	Primary bool   `json:"primary"`
-}
-
-type Keypair struct {
-	CreatedAt time.Time `json:"created_at,omitempty"`
-
-	// CRN Cloud Resource Name
-	CRN         string `json:"crn,omitempty"`
-	Fingerprint string `json:"fingerprint,omitempty"`
-	ID          string `json:"id,omitempty"`
-
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	Name string `json:"name,omitempty"`
-
-	// PublicKey SSH public key
-	PublicKey string `json:"public_key,omitempty"`
-	Tags      Tags   `json:"tags,omitempty"`
-}
-
-type KeypairCreateRequest struct {
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	//
-	// Required.
-	Name string `json:"name"`
-
-	// PublicKey SSH public key (if not provided, a new keypair will be generated)
-	PublicKey *string `json:"public_key,omitempty"`
-	Tags      Tags    `json:"tags,omitempty"`
 }
 
 type ListInstanceNiCsNIC struct {

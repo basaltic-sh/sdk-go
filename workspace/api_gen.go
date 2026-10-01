@@ -2484,6 +2484,27 @@ func (c *Client) UpdatePolicy(ctx context.Context, policyID string, body *Policy
 	return out.Policy, nil
 }
 
+// UpdateUser updates user Linux username.
+//
+// Change the organization-scoped Linux username without changing UID,
+// GID or home directory.
+func (c *Client) UpdateUser(ctx context.Context, userID string, body *UserUpdateRequest, opts ...basaltic.RequestOption) (*User, error) {
+	op := &basaltic.Operation{
+		ID:       "updateUser",
+		Method:   "PATCH",
+		Path:     "/v1/users/{user_id}",
+		PathArgs: []string{userID},
+		Body:     body,
+	}
+	var out struct {
+		User *User `json:"user"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.User, nil
+}
+
 // GetAccountByReference fetches one account by an id, a CRN or a name.
 //
 // The reference is classified by its syntax alone, exactly as the

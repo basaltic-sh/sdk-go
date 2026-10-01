@@ -123,6 +123,13 @@ type CredentialCreateResponse struct {
 	SecretAccessKey string `json:"secret_access_key,omitempty"`
 }
 
+// CustomLinuxUsername optional custom Linux login name, unique across users, service
+// accounts and pending invitations in the organization. Reserved system
+// names and the bsu_/bsa_ prefixes cannot be chosen. Omit on creation to
+// generate a name. Renaming preserves UID, GID and home directory;
+// existing sessions are not disconnected.
+type CustomLinuxUsername = string
+
 type InlinePolicy struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
@@ -146,9 +153,13 @@ type InlinePolicy struct {
 // re-adding a membership allocates a new identity; retired IDs are never
 // reused.
 type LinuxIdentity struct {
-	GID      int32  `json:"gid"`
-	UID      int32  `json:"uid"`
-	Username string `json:"username"`
+	GID int32 `json:"gid"`
+
+	// HomeDirectory stable home path derived from the immutable numeric identity,
+	// unchanged by username edits.
+	HomeDirectory string `json:"home_directory"`
+	UID           int32  `json:"uid"`
+	Username      string `json:"username"`
 }
 
 type ListRegionsResult struct {
@@ -639,10 +650,11 @@ type ServiceAccount struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
 	// CRN Cloud Resource Name
-	CRN         string `json:"crn,omitempty"`
-	Description string `json:"description,omitempty"`
-	Enabled     bool   `json:"enabled,omitempty"`
-	ID          string `json:"id,omitempty"`
+	CRN           string         `json:"crn,omitempty"`
+	Description   string         `json:"description,omitempty"`
+	Enabled       bool           `json:"enabled,omitempty"`
+	ID            string         `json:"id,omitempty"`
+	LinuxIdentity *LinuxIdentity `json:"linux_identity,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -653,7 +665,8 @@ type ServiceAccount struct {
 }
 
 type ServiceAccountCreateRequest struct {
-	Description *string `json:"description,omitempty"`
+	Description   *string              `json:"description,omitempty"`
+	LinuxUsername *CustomLinuxUsername `json:"linux_username,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -665,9 +678,10 @@ type ServiceAccountCreateRequest struct {
 }
 
 type ServiceAccountUpdateRequest struct {
-	Description *string `json:"description,omitempty"`
-	Enabled     *bool   `json:"enabled,omitempty"`
-	Tags        Tags    `json:"tags,omitempty"`
+	Description   *string              `json:"description,omitempty"`
+	Enabled       *bool                `json:"enabled,omitempty"`
+	LinuxUsername *CustomLinuxUsername `json:"linux_username,omitempty"`
+	Tags          Tags                 `json:"tags,omitempty"`
 }
 
 // SessionPolicyDocument an inline policy that scopes down the credentials being minted. It

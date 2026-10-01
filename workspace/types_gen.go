@@ -98,6 +98,13 @@ type CreateAccountRequest struct {
 	Name string `json:"name"`
 }
 
+// CustomLinuxUsername optional custom Linux login name, unique across users, service
+// accounts and pending invitations in the organization. Reserved system
+// names and the bsu_/bsa_ prefixes cannot be chosen. Omit on creation to
+// generate a name. Renaming preserves UID, GID and home directory;
+// existing sessions are not disconnected.
+type CustomLinuxUsername = string
+
 type Group struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
@@ -184,9 +191,10 @@ type Invitation struct {
 	ExpiresAt time.Time `json:"expires_at,omitempty"`
 
 	// Groups the user will be added to upon accepting
-	Groups    []*GroupSummary      `json:"groups,omitempty"`
-	ID        string               `json:"id,omitempty"`
-	InvitedBy *InvitationInvitedBy `json:"invited_by,omitempty"`
+	Groups        []*GroupSummary      `json:"groups,omitempty"`
+	ID            string               `json:"id,omitempty"`
+	InvitedBy     *InvitationInvitedBy `json:"invited_by,omitempty"`
+	LinuxUsername CustomLinuxUsername  `json:"linux_username,omitempty"`
 
 	// One of: "pending", "accepted", "expired", "cancelled".
 	Status string `json:"status,omitempty"`
@@ -217,9 +225,13 @@ type InvitationInvitedBy struct {
 // re-adding a membership allocates a new identity; retired IDs are never
 // reused.
 type LinuxIdentity struct {
-	GID      int32  `json:"gid"`
-	UID      int32  `json:"uid"`
-	Username string `json:"username"`
+	GID int32 `json:"gid"`
+
+	// HomeDirectory stable home path derived from the immutable numeric identity,
+	// unchanged by username edits.
+	HomeDirectory string `json:"home_directory"`
+	UID           int32  `json:"uid"`
+	Username      string `json:"username"`
 }
 
 type Organization struct {
@@ -479,8 +491,9 @@ type UserAddRequest struct {
 	// Groups to assign when the invitation is accepted. Each reference is
 	// validated in the caller organization before the invitation is
 	// created.
-	Groups []GroupReference `json:"groups,omitempty"`
-	Tags   Tags             `json:"tags,omitempty"`
+	Groups        []GroupReference     `json:"groups,omitempty"`
+	LinuxUsername *CustomLinuxUsername `json:"linux_username,omitempty"`
+	Tags          Tags                 `json:"tags,omitempty"`
 }
 
 type UserAddResponse struct {
@@ -497,4 +510,9 @@ type UserAddResponse struct {
 type UserGroupAddRequest struct {
 	// Required.
 	Group GroupReference `json:"group"`
+}
+
+type UserUpdateRequest struct {
+	// Required.
+	LinuxUsername CustomLinuxUsername `json:"linux_username"`
 }

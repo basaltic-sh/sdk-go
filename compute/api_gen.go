@@ -473,67 +473,6 @@ func (p *ListInstancesParams) withMarker(marker string) *ListInstancesParams {
 	return &out
 }
 
-// ListKeypairsParams are the optional filters and pagination controls for
-// [Client.ListKeypairs]. A nil *ListKeypairsParams sends none of them.
-type ListKeypairsParams struct {
-	// CRN exact resource CRN, intersected with all other filters before
-	// pagination. A foreign or mismatched CRN returns an empty page;
-	// malformed or empty CRNs return 400. Nested attachment lists filter
-	// the represented resource, not the binding.
-	CRN string
-
-	// Limit maximum number of items to return. A value above the maximum is
-	// clamped to it rather than rejected, so a page shorter than the one
-	// you asked for is normal — page until `meta.has_more` is false, not
-	// until a page looks short.
-	Limit int
-
-	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
-	// previous page to fetch the next one; do not construct or parse it.
-	// The token's internal form varies by endpoint (a resource ID, a
-	// timestamp, …) and is not guaranteed stable across releases.
-	Marker string
-
-	// Name exact, case-sensitive name. Empty values match no named resources.
-	// Instance NIC lists match interface names within the instance
-	// bindings; multiple interfaces with the same name may match. Floating
-	// IPs have no name identity and return an empty list for this filter.
-	Name string
-}
-
-// query renders the parameters that are set. A zero value means "no
-// filter", which is what leaving one out asks for.
-func (p *ListKeypairsParams) query() url.Values {
-	q := url.Values{}
-	if p == nil {
-		return q
-	}
-	if p.CRN != "" {
-		q.Set("crn", p.CRN)
-	}
-	if p.Limit != 0 {
-		q.Set("limit", strconv.Itoa(int(p.Limit)))
-	}
-	if p.Marker != "" {
-		q.Set("marker", p.Marker)
-	}
-	if p.Name != "" {
-		q.Set("name", p.Name)
-	}
-	return q
-}
-
-// withMarker copies p with the pagination cursor replaced, leaving the
-// caller's value untouched across pages.
-func (p *ListKeypairsParams) withMarker(marker string) *ListKeypairsParams {
-	var out ListKeypairsParams
-	if p != nil {
-		out = *p
-	}
-	out.Marker = marker
-	return &out
-}
-
 // ListPoolInstancesParams are the optional filters and pagination controls for
 // [Client.ListPoolInstances]. A nil *ListPoolInstancesParams sends none of them.
 type ListPoolInstancesParams struct {
@@ -851,30 +790,6 @@ func (c *Client) CreateInstancePool(ctx context.Context, body *InstancePoolCreat
 	return out.InstancePool, nil
 }
 
-// CreateKeypair creates keypair.
-//
-// Create a new SSH keypair. If `public_key` is provided, it will be
-// imported. If not provided, a new keypair will be generated and the
-// private key returned.
-//
-// Accepts basaltic.WithIdempotencyKey, which makes the call
-// replay-safe and therefore retryable.
-func (c *Client) CreateKeypair(ctx context.Context, body *KeypairCreateRequest, opts ...basaltic.RequestOption) (*CreateKeypairKeypair, error) {
-	op := &basaltic.Operation{
-		ID:     "createKeypair",
-		Method: "POST",
-		Path:   "/v1/keypairs",
-		Body:   body,
-	}
-	var out struct {
-		Keypair *CreateKeypairKeypair `json:"keypair"`
-	}
-	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return nil, err
-	}
-	return out.Keypair, nil
-}
-
 // CreateSerialConsoleTicket — Mint a ticket for the serial console.
 //
 // Mint a short-lived, single-instance credential for opening the serial
@@ -975,22 +890,6 @@ func (c *Client) DeleteInstancePool(ctx context.Context, poolID string, opts ...
 		Method:   "DELETE",
 		Path:     "/v1/instance-pools/{pool_id}",
 		PathArgs: []string{poolID},
-	}
-	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
-		return err
-	}
-	return nil
-}
-
-// DeleteKeypair deletes keypair.
-//
-// Delete a keypair.
-func (c *Client) DeleteKeypair(ctx context.Context, keypairID string, opts ...basaltic.RequestOption) error {
-	op := &basaltic.Operation{
-		ID:       "deleteKeypair",
-		Method:   "DELETE",
-		Path:     "/v1/keypairs/{keypair_id}",
-		PathArgs: []string{keypairID},
 	}
 	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
 		return err
@@ -1182,25 +1081,6 @@ func (c *Client) GetInstancePool(ctx context.Context, poolID string, opts ...bas
 		return nil, err
 	}
 	return out.InstancePool, nil
-}
-
-// GetKeypair gets keypair.
-//
-// Get details of a specific keypair.
-func (c *Client) GetKeypair(ctx context.Context, keypairID string, opts ...basaltic.RequestOption) (*Keypair, error) {
-	op := &basaltic.Operation{
-		ID:       "getKeypair",
-		Method:   "GET",
-		Path:     "/v1/keypairs/{keypair_id}",
-		PathArgs: []string{keypairID},
-	}
-	var out struct {
-		Keypair *Keypair `json:"keypair"`
-	}
-	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return nil, err
-	}
-	return out.Keypair, nil
 }
 
 // ListFlavors lists flavors.
@@ -1575,61 +1455,6 @@ func (c *Client) ListInstancesAll(ctx context.Context, params *ListInstancesPara
 	})
 }
 
-// ListKeypairs lists keypairs.
-//
-// List all SSH keypairs.
-//
-// Returns one page. Use ListKeypairsAll to walk every page.
-func (c *Client) ListKeypairs(ctx context.Context, params *ListKeypairsParams, opts ...basaltic.RequestOption) (*basaltic.Page[Keypair], error) {
-	op := &basaltic.Operation{
-		ID:     "listKeypairs",
-		Method: "GET",
-		Path:   "/v1/keypairs",
-	}
-	op.Query = params.query()
-	var out struct {
-		Items []Keypair `json:"keypairs"`
-		Meta  *struct {
-			Total   int    `json:"total"`
-			Limit   int    `json:"limit"`
-			Marker  string `json:"marker"`
-			HasMore bool   `json:"has_more"`
-		} `json:"meta"`
-	}
-	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return nil, err
-	}
-	page := &basaltic.Page[Keypair]{Items: out.Items}
-	if out.Meta != nil {
-		page.Total = out.Meta.Total
-		page.Limit = out.Meta.Limit
-		page.Marker = out.Meta.Marker
-		page.HasMore = out.Meta.HasMore
-	}
-	return page, nil
-}
-
-// ListKeypairsAll walks every page of ListKeypairs, yielding one item at
-// a time.
-//
-// The iterator stops at the first error, yielding it alongside a zero
-// value, so check err on every step:
-//
-//	for item, err := range c.ListKeypairsAll(ctx, nil) {
-//		if err != nil {
-//			return err
-//		}
-//		...
-//	}
-//
-// Breaking out of the loop stops the walk; no further requests are made.
-// Any Marker on params is overwritten as the walk advances.
-func (c *Client) ListKeypairsAll(ctx context.Context, params *ListKeypairsParams, opts ...basaltic.RequestOption) iter.Seq2[Keypair, error] {
-	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[Keypair], error) {
-		return c.ListKeypairs(ctx, params.withMarker(marker), opts...)
-	})
-}
-
 // ListPoolInstances lists a pool's instances.
 //
 // List full instances scoped to this pool, with the same filters,
@@ -1750,11 +1575,10 @@ func (c *Client) RefreshInstancePool(ctx context.Context, poolID string, opts ..
 //
 // Re-image a STOPPED instance's boot volume from an image (the current
 // one, or a new image), keeping the instance's identity — id, name,
-// IPs, keypairs, and cloud-init seed. The replacement is sized and
-// tiered by size_gb and volume_type, defaulting to the image's
-// min_disk_gb on the region default tier. The old boot volume is
-// deleted; attached data volumes are untouched. The new OS is applied on
-// the next start.
+// IPs, and cloud-init seed. The replacement is sized and tiered by
+// size_gb and volume_type, defaulting to the image's min_disk_gb on the
+// region default tier. The old boot volume is deleted; attached data
+// volumes are untouched. The new OS is applied on the next start.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -2097,31 +1921,5 @@ func (c *Client) GetInstancePoolByReference(ctx context.Context, ref string, sco
 			p.CRN = refCRN
 			p.Limit = 2
 			return c.ListInstancePools(ctx, &p, opts...)
-		})
-}
-
-// GetKeypairByReference fetches one keypair by an id, a CRN or a name.
-//
-// The reference is classified by its syntax alone, exactly as the
-// platform does (see [basaltic.ParseReference]): an id is fetched with
-// [Client.GetKeypair]; a CRN or a name goes to [Client.ListKeypairs] as
-// an exact filter, together with any filters already set on scope, which
-// may be nil. A miss is a not-found error for the kind the string was
-// read as — no other kind is tried — and more than one match is a
-// [basaltic.AmbiguousReferenceError].
-func (c *Client) GetKeypairByReference(ctx context.Context, ref string, scope *ListKeypairsParams, opts ...basaltic.RequestOption) (*Keypair, error) {
-	return basaltic.ResolveByReference(ctx, ref, "keypair", "listKeypairs", true,
-		func(ctx context.Context, refID string) (*Keypair, error) {
-			return c.GetKeypair(ctx, refID, opts...)
-		},
-		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Keypair], error) {
-			var p ListKeypairsParams
-			if scope != nil {
-				p = *scope
-			}
-			p.Name = refName
-			p.CRN = refCRN
-			p.Limit = 2
-			return c.ListKeypairs(ctx, &p, opts...)
 		})
 }
