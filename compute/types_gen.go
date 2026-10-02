@@ -462,6 +462,10 @@ type ImageCatalogCategory struct {
 }
 
 type ImageCreateRequest struct {
+	// Architecture CPU architecture of the source image. Only amd64 (x86-64) is
+	// supported.
+	//
+	// One of: "amd64".
 	Architecture *string           `json:"architecture,omitempty"`
 	Attributes   map[string]string `json:"attributes,omitempty"`
 
@@ -485,7 +489,12 @@ type ImageCreateRequest struct {
 	// urn:uuid: forms, in either case).
 	//
 	// Required.
-	Name      string  `json:"name"`
+	Name string `json:"name"`
+
+	// OS operating system distribution. Use linux for another or generic
+	// Linux distribution; os_version specifies the release separately.
+	//
+	// One of: "almalinux", "alpine", "arch", "centos", "debian", "fedora", "opensuse", "rhel", "rocky", "ubuntu", "linux".
 	OS        *string `json:"os,omitempty"`
 	OSVersion *string `json:"os_version,omitempty"`
 
