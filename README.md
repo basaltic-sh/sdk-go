@@ -283,30 +283,12 @@ inst, err := c.CreateInstance(ctx, req,
 
 ## Generated code
 
-The service packages are generated from the platform's OpenAPI
-specifications, which live in their own repository and are the single source
-of truth. Nothing is vendored here — the generator reads them from a local
-path:
+The service operations and types are generated internally from the platform's
+OpenAPI specifications. This snapshot includes the generated Go source and the
+runtime for configuration, authentication, requests, retries, errors and
+pagination. Building and testing do not require the generator or specifications.
 
-```bash
-make generate SPEC=/path/to/openapi
-```
-
-The hand-written half is the runtime in the root package: configuration,
-authentication, the request pipeline, retries, errors and pagination. The
-generated half is the service operations and their types, which are mechanical.
-
-Generated files are committed, because `go get` has to work without anyone
-running the generator. Do not edit them; change the specification, or the
-generator, and regenerate. `make check-generated` fails when the committed
-output no longer matches the specs.
-
-## Releasing
-
-Versions are git tags; there is nothing to bump in the repository. The bump
-itself is derived from the exported API rather than from commit messages —
-`scripts/apidiff.sh` compares against the last tag and says what changed and
-what it implies, and GitLab CI runs it on every merge request.
+## Releases
 
 The SDK is v0.x while the surface settles, so it carries no compatibility
 promise yet. From v2 onward Go changes the module path, so a major version is a deliberate
@@ -320,9 +302,12 @@ new public history starts with a new version.
 ## Tests
 
 ```bash
-make test          # unit tests, plus the generator's own
-make integration   # read-only, against a live region; needs credentials
-make apidiff       # what this change does to the exported API
+go build ./...
+go vet ./...
+go test -race ./...
+
+# Optional read-only tests against a live region; requires credentials.
+go test -tags integration -v .
 ```
 
 There are no generated per-operation tests, deliberately. A test asserting
