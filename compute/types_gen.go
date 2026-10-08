@@ -1,0 +1,1404 @@
+// Code generated from the Basaltic OpenAPI specifications. DO NOT EDIT.
+//
+// Regenerate with:
+//
+//	go run ./internal/gen -spec /path/to/openapi
+
+package compute
+
+import (
+	"time"
+)
+
+type AddressFloatingIP struct {
+	Address string `json:"address"`
+	CRN     string `json:"crn"`
+	ID      string `json:"id"`
+
+	// One of: "public", "private".
+	Visibility string `json:"visibility"`
+}
+
+type AddressRequest struct {
+	// Address optional fixed address when creating an interface or instance NIC.
+	// For IPv6, use the first address of an aligned /96 inside the subnet
+	// /64 (last 32 bits zero); the first and last /96 ranges are reserved.
+	// Omit for automatic allocation. Managed database nodes and the
+	// add-address operation require automatic allocation.
+	Address string `json:"address,omitempty"`
+
+	// One of: "ipv4", "ipv6".
+	Family string `json:"family"`
+}
+
+type AttachInstanceNICAttachment struct {
+	Addresses []*InterfaceAddress `json:"addresses,omitempty"`
+	BootIndex int                 `json:"boot_index,omitempty"`
+
+	// External the attached interface existed before this call (interface was
+	// given). Detach unbinds it and leaves it standalone rather than
+	// destroying it.
+	External    bool   `json:"external,omitempty"`
+	InterfaceID string `json:"interface_id,omitempty"`
+	MAC         string `json:"mac,omitempty"`
+
+	// RestartRequired the guest does not carry the interface yet and a hard reboot is what
+	// delivers it — an interface past the first is a network on the
+	// instance's launcher, and a launcher's networks are fixed for its
+	// lifetime. Set when the instance was running in a region that cannot
+	// attach to a running guest. Absent for a stopped instance, which
+	// comes up with the device, and absent where the region attaches live,
+	// where the running guest is given the device without a restart.
+	RestartRequired bool `json:"restart_required,omitempty"`
+}
+
+type AttachInstanceNICRequest struct {
+	// Interface existing standalone interface UUID or complete VPC/subnet/interface
+	// CRN. Bare names lack the subnet parent and are rejected. It keeps
+	// its address, MAC, and security groups; detach returns it to
+	// standalone instead of destroying it.
+	//
+	// Required.
+	Interface string `json:"interface"`
+}
+
+type AttachInstanceVolumeAttachment struct {
+	Device     string `json:"device,omitempty"`
+	InstanceID string `json:"instance_id,omitempty"`
+	VolumeID   string `json:"volume_id,omitempty"`
+}
+
+type AttachInstanceVolumeRequest struct {
+	// Device optional device-name override; auto-picks the next free slot
+	// (vdb/vdc/…) when omitted.
+	Device *string `json:"device,omitempty"`
+
+	// Fstype filesystem the in-guest agent formats the disk with, and only when
+	// `mount_path` is set and the disk is blank. Rejected with 400 if it
+	// is neither value.
+	//
+	// One of: "ext4", "xfs".
+	Fstype *string `json:"fstype,omitempty"`
+
+	// MountPath when set, the in-guest agent formats the disk (only if blank) and
+	// mounts it at this path. Empty attaches the block device only.
+	MountPath *string `json:"mount_path,omitempty"`
+
+	// Volume account-scoped volume reference (UUID, CRN or exact name).
+	//
+	// Required.
+	Volume string `json:"volume"`
+}
+
+// CatalogImage launch metadata for the current active build of an image name and
+// architecture. No tags, build history, or operational metadata are
+// exposed.
+type CatalogImage struct {
+	Architecture string `json:"architecture"`
+	CRN          string `json:"crn"`
+	EOLDate      string `json:"eol_date,omitempty"`
+	ID           string `json:"id"`
+	MinDiskGB    int    `json:"min_disk_gb"`
+	MinRAMMB     int    `json:"min_ram_mb"`
+	Name         string `json:"name"`
+	OS           string `json:"os,omitempty"`
+	OSVersion    string `json:"os_version,omitempty"`
+}
+
+// CurrentState where an instance actually is. The transitional states live here, not
+// on desired_state — nobody asks for `stopping`.
+type CurrentState string
+
+// Values CurrentState accepts.
+const (
+	CurrentStatePending   CurrentState = "pending"
+	CurrentStateBuilding  CurrentState = "building"
+	CurrentStateRunning   CurrentState = "running"
+	CurrentStateStopping  CurrentState = "stopping"
+	CurrentStateStopped   CurrentState = "stopped"
+	CurrentStateRebooting CurrentState = "rebooting"
+	CurrentStateMigrating CurrentState = "migrating"
+	CurrentStateDeleting  CurrentState = "deleting"
+	CurrentStateDeleted   CurrentState = "deleted"
+	CurrentStateError     CurrentState = "error"
+	CurrentStateCrashed   CurrentState = "crashed"
+	CurrentStatePaused    CurrentState = "paused"
+	CurrentStateSuspended CurrentState = "suspended"
+)
+
+type Fault struct {
+	// Code stable machine-readable code owned by the reporting operation.
+	Code string `json:"code"`
+
+	// Details structured context; legacy strings are preserved in legacy_text.
+	Details map[string]any `json:"details"`
+
+	// FirstAt first observation in this active occurrence series.
+	FirstAt time.Time `json:"first_at"`
+
+	// LastAt latest observation in this active occurrence series.
+	LastAt      time.Time `json:"last_at"`
+	Message     string    `json:"message"`
+	Occurrences int       `json:"occurrences"`
+
+	// One of: "error", "warning".
+	Severity string `json:"severity"`
+}
+
+// Flavor a compute size (vCPU + RAM). A flavor carries no disk size — the
+// boot disk is a customer volume sized at launch, floored by the image's
+// min_disk_gb.
+type Flavor struct {
+	// Class host-pool routing. "shared" oversubscribes CPU for higher density;
+	// "dedicated" pins each vCPU 1:1 to a physical core.
+	//
+	// One of: "shared", "dedicated".
+	Class     string    `json:"class,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+
+	// CRN Cloud Resource Name
+	CRN         string `json:"crn,omitempty"`
+	Description string `json:"description,omitempty"`
+
+	// Family which product can book the flavor. "general" flavors are for regular
+	// instances and instance pools; "loadbalancer" and "database" flavors
+	// are reserved for the managed products (their nodes are platform-
+	// operated and priced accordingly) and cannot be used for regular
+	// instances.
+	//
+	// One of: "general", "loadbalancer", "database".
+	Family string `json:"family,omitempty"`
+	ID     string `json:"id,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
+
+	// RAMMB RAM in MB
+	RAMMB int `json:"ram_mb,omitempty"`
+
+	// One of: "active", "disabled".
+	Status    string    `json:"status,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+
+	// Vcpus number of virtual CPUs
+	Vcpus int `json:"vcpus,omitempty"`
+}
+
+type FloatingIP struct {
+	// Address allocated public or private address.
+	Address string `json:"address"`
+
+	// AttachedTo Canonical CRN of the bound interface, instance pool, or load
+	// balancer; null when unattached. A pool-owned address names its pool
+	// even when the pool has zero members. Only pool-owned addresses may
+	// have multiple NIC members. Manage their bindings through the
+	// instance pool floating IP endpoints; direct attach and detach are
+	// refused.
+	AttachedTo  string    `json:"attached_to"`
+	CreatedAt   time.Time `json:"created_at"`
+	CRN         string    `json:"crn"`
+	Description string    `json:"description,omitempty"`
+	Family      IPFamily  `json:"family"`
+
+	// HealthCheck the readiness check applied to this address's members. Absent when
+	// none is configured. See `FloatingIpHealthCheck`.
+	HealthCheck *FloatingIPHealthCheck `json:"health_check,omitempty"`
+	ID          string                 `json:"id"`
+
+	// Members the floating IP's bindings. A floating IP fronts 0 members
+	// (allocated, unattached), 1 member (the everyday case), or N members
+	// for an instance pool — an anycast floating IP, where one public IP
+	// is delivered to N VM NICs across hosts (each advertised as a /32
+	// from the host holding it).
+	//
+	// Members may share a hypervisor. Two of them on one host used to mean
+	// one served and the other was silently dark; a member's forwarding
+	// rule now names the member, and the host splits connections across
+	// the members it holds, so where the members sit is a capacity
+	// decision rather than a correctness one. An instance pool's address
+	// takes its members from the pool's live replicas — every one of
+	// them — so a scale-out joins and a scale-in leaves without a
+	// per-replica attach.
+	//
+	// With more than one member ONE member serves each connection, chosen
+	// by hashing the flow's addresses and ports, and every packet of that
+	// connection goes to the same one. The members are separate instances
+	// that share nothing, so this spreads connections and survives the
+	// loss of a host — it is not a load balancer: nothing checks whether
+	// the service inside the instance is up, and connections in progress
+	// to a member that goes away are not moved, they end.
+	//
+	// A POOL's address is the exception, and only for booting. A replica
+	// joins the address as soon as it is placed, but does not receive
+	// traffic until it has reached the instance metadata service —
+	// evidence that the guest booted, rather than that its virtual machine
+	// was started. Until then it is a member with `health` `unhealthy`. A
+	// replica whose image never contacts the metadata service is admitted
+	// anyway after a few minutes, so an unusual image delays traffic
+	// rather than never getting it.
+	Members []*FloatingIPMember `json:"members"`
+
+	// SubnetID allocation subnet for private floating IPs.
+	SubnetID  string            `json:"subnet_id,omitempty"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
+
+	// One of: "public", "private".
+	Visibility string `json:"visibility"`
+
+	// VPCID Allocation VPC for private floating IPs.
+	VPCID string `json:"vpc_id,omitempty"`
+}
+
+// FloatingIPHealthCheck a readiness check for a shared (anycast) floating IP's members — the
+// same vocabulary as a load balancer target group's health check, one
+// you already know. The platform checks each member's private address
+// within the VPC. A member that fails stops receiving traffic through
+// the floating IP and returns when it passes again. If EVERY member
+// fails, the whole address goes dark — a misconfigured check is a
+// visible outage you caused, not the platform quietly advertising
+// something it believes is down.
+//
+// The check is on the address, not per member: members are
+// interchangeable backends, and a pool derives them. An address with no
+// check behaves exactly as before — liveness only for pool members,
+// always-advertised for hand-attached ones.
+type FloatingIPHealthCheck struct {
+	// HealthyThreshold consecutive passes before a member flips healthy.
+	HealthyThreshold int `json:"healthy_threshold"`
+	IntervalSec      int `json:"interval_sec"`
+
+	// Matcher HTTP status or range that counts as passing; ignored for tcp.
+	Matcher string `json:"matcher,omitempty"`
+
+	// Path HTTP path probed; ignored for tcp.
+	Path string `json:"path,omitempty"`
+
+	// Port probed on the member.
+	Port int `json:"port"`
+
+	// Protocol `tcp` opens a connection; `http`/`https` issue a GET and match the
+	// status against `matcher`. There is no `udp`: a readiness probe needs
+	// an answer — check a udp service on a tcp health port instead.
+	//
+	// One of: "tcp", "http", "https".
+	Protocol string `json:"protocol"`
+
+	// TimeoutSec per-probe timeout; must be less than interval_sec.
+	TimeoutSec int `json:"timeout_sec"`
+
+	// UnhealthyThreshold consecutive failures before a member flips unhealthy.
+	UnhealthyThreshold int `json:"unhealthy_threshold"`
+}
+
+// FloatingIPMember one binding of a floating IP.
+type FloatingIPMember struct {
+	// AddressID target child address on the member interface.
+	AddressID string    `json:"address_id,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// Health what the platform knows about this member.
+	//
+	// `unknown` — nobody is checking. A member you attached yourself
+	// with no health check on the address reads this: you chose the moment
+	// of attach, and the platform has no signal about what runs inside the
+	// instance. It is advertised.
+	//
+	// `healthy` — the platform has evidence this member is up (and, if a
+	// health check is configured on the address, that the check is
+	// passing).
+	//
+	// `unhealthy` — the platform is waiting for that evidence and has
+	// not seen it, or a configured check is failing. The member keeps its
+	// place on the address and receives no traffic until it recovers.
+	//
+	// Without a health check this is liveness only — `healthy` means the
+	// guest came up, not that your service is listening. Configure
+	// `health_check` on the floating IP to add readiness on top of that.
+	//
+	// One of: "unknown", "healthy", "unhealthy".
+	Health string `json:"health"`
+
+	// Interface Bound NIC summary; null for a load balancer binding named by
+	// attached_to.
+	Interface *FloatingIPMemberInterface `json:"interface"`
+
+	// Reason why the member reads the `health` it does — so you can tell "your
+	// service is not answering" from "the guest has not booted yet".
+	//
+	// `unprobed` — nobody is checking (no health check, hand-attached).
+	// `booting` — the platform has not yet seen the guest come up.
+	// `probe_failed` — the configured health check is failing. `passing`
+	// — the guest is up and, if a check is configured, it passes.
+	//
+	// One of: "unprobed", "booting", "probe_failed", "passing".
+	Reason string `json:"reason"`
+}
+
+// FloatingIPMemberInterface Bound NIC summary; null for a load balancer binding named by
+// attached_to.
+type FloatingIPMemberInterface struct {
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Instance owning instance; null when the interface has no owning instance.
+	Instance *FloatingIPMemberInterfaceInstance `json:"instance"`
+}
+
+// FloatingIPMemberInterfaceInstance owning instance; null when the interface has no owning instance.
+type FloatingIPMemberInterfaceInstance struct {
+	CRN  string `json:"crn"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type GetConsoleOutputResult struct {
+	// Output the transcript as plain text, newlines included. Empty when the
+	// instance has not booted yet.
+	Output string `json:"output"`
+
+	// Truncated true when the transcript was longer than the requested size and its
+	// BEGINNING was dropped to fit. The end is always kept.
+	Truncated bool `json:"truncated"`
+}
+
+// IPFamily The IP address family. Floating IPs support either family and may have
+// public or private visibility. Public floating IPs allocate from the
+// region's public address pool; private floating IPs allocate from their
+// selected subnet's range for that family.
+//
+// Attaching a floating IP to an interface requires an address of the
+// same family on that interface. IPv6 does not require IPv4 to be
+// enabled on the subnet. Internet reachability also depends on routes
+// and security rules.
+//
+// Attaching an IPv6 floating IP does not disable the interface's native
+// globally routable IPv6 address. Both addresses remain reachable when
+// routing and security rules permit, and replies to incoming connections
+// retain the address that received the connection. A private IPv6
+// address does not become directly internet-routable by attaching a
+// floating IP.
+type IPFamily string
+
+// Values IPFamily accepts.
+const (
+	IPFamilyIPv4 IPFamily = "ipv4"
+	IPFamilyIPv6 IPFamily = "ipv6"
+)
+
+type Image struct {
+	Architecture string            `json:"architecture"`
+	Attributes   map[string]string `json:"attributes,omitempty"`
+	CreatedAt    time.Time         `json:"created_at"`
+	CRN          string            `json:"crn"`
+
+	// DeletionRetention present in owner list/detail responses while image deletion is
+	// waiting for existing instance, source-reservation, or instance-pool
+	// references. Counts include all referencing accounts without
+	// disclosing their identities. The backing data remains intact;
+	// cleanup resumes when references are gone. Independent faults may
+	// still set status to error.
+	DeletionRetention *ImageDeletionRetention `json:"deletion_retention,omitempty"`
+	Description       string                  `json:"description,omitempty"`
+
+	// EOLDate the day this image's OS release stops receiving free security
+	// updates for a default install. Absent when nobody has recorded one
+	// — which means unknown, not "supported indefinitely".
+	//
+	// Platform images are withdrawn from the catalog a grace period after
+	// this date. They stay bootable by id until then, and the date is
+	// published well ahead of it so you can plan the move.
+	EOLDate string `json:"eol_date,omitempty"`
+
+	// Faults active faults, newest first. Empty for a healthy image. Error faults
+	// set status to error without disabling an eligible import or cleanup
+	// retry.
+	Faults []*Fault `json:"faults"`
+	ID     string   `json:"id"`
+
+	// IsCurrent whether this is the version resolve-by-name returns for its (name,
+	// architecture) — i.e. the name's current tag target.
+	IsCurrent bool `json:"is_current,omitempty"`
+	MinDiskGB int  `json:"min_disk_gb,omitempty"`
+	MinRAMMB  int  `json:"min_ram_mb,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name      string `json:"name"`
+	OS        string `json:"os,omitempty"`
+	OSVersion string `json:"os_version,omitempty"`
+	SizeBytes int64  `json:"size_bytes,omitempty"`
+
+	// Status error exactly while an active error fault exists; import and
+	// deletion progress remain independently retryable.
+	//
+	// One of: "pending", "importing", "active", "error", "deleting", "withdrawn".
+	Status    string    `json:"status"`
+	Tags      Tags      `json:"tags,omitempty"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Version the build's identity within its name. Unique there: a name is a
+	// movable tag, so it can't also be what tells two builds apart.
+	// Stamped as a UTC timestamp when the uploader didn't choose one.
+	Version string `json:"version"`
+
+	// WithdrawalReason why this image was withdrawn. Present for withdrawn images,
+	// including those with an independent error fault: end_of_life for
+	// platform release withdrawal (see eol_date), or legacy for a migrated
+	// withdrawal whose original reason is unknown. Withdrawn images retain
+	// their data but cannot be launched.
+	WithdrawalReason string `json:"withdrawal_reason,omitempty"`
+}
+
+type ImageCatalogCategory struct {
+	Images []*CatalogImage `json:"images"`
+
+	// Name catalog category. Currently platform or account; future categories
+	// may include apps.
+	Name string `json:"name"`
+}
+
+type ImageCreateRequest struct {
+	// Architecture CPU architecture of the source image. Only amd64 (x86-64) is
+	// supported.
+	//
+	// One of: "amd64".
+	Architecture *string           `json:"architecture,omitempty"`
+	Attributes   map[string]string `json:"attributes,omitempty"`
+
+	// Current make this the current version for its (name, architecture) once
+	// active.
+	Current     *bool   `json:"current,omitempty"`
+	Description *string `json:"description,omitempty"`
+
+	// EOLDate the day this release stops receiving free security updates. Omit it
+	// and the image inherits the date the name's current version carries,
+	// so re-publishing a tag can't quietly stop tracking its release.
+	EOLDate   *string `json:"eol_date,omitempty"`
+	MinDiskGB *int    `json:"min_disk_gb,omitempty"`
+	MinRAMMB  *int    `json:"min_ram_mb,omitempty"`
+
+	// Name immutable image name (e.g. debian-13) whose current-version pointer
+	// can move; the new image becomes its current version. Names are
+	// shared across a tag's builds — one build is identified by owner,
+	// name, architecture and version. Resource names must not start with
+	// the literal crn: prefix or be UUIDs (canonical, compact, braced, or
+	// urn:uuid: forms, in either case).
+	//
+	// Required.
+	Name string `json:"name"`
+
+	// OS operating system distribution. Use linux for another or generic
+	// Linux distribution; os_version specifies the release separately.
+	//
+	// One of: "almalinux", "alpine", "arch", "centos", "debian", "fedora", "opensuse", "rhel", "rocky", "ubuntu", "linux".
+	OS        *string `json:"os,omitempty"`
+	OSVersion *string `json:"os_version,omitempty"`
+
+	// SourceURL presigned https GET URL to the disk in an object store you control.
+	// Fetched once by the import worker (which rejects private/link-local
+	// targets). The worker detects qcow2, raw, vmdk, vhd, vhdx or vdi and
+	// converts it to raw storage. Unreadable or unsupported sources and
+	// images declaring backing files fail asynchronously with status error
+	// and an active conversion fault. Not retained after import.
+	//
+	// Required.
+	SourceURL string `json:"source_url"`
+	Tags      Tags   `json:"tags,omitempty"`
+
+	// Version identifies this build within `name`, and must be unique there —
+	// re-publishing a version that a tag already carries is a 409. Omit it
+	// and the server stamps a UTC timestamp, so every build is addressable
+	// as `name:version` whether or not you labelled it.
+	Version *string `json:"version,omitempty"`
+}
+
+// ImageDeletionRetention present in owner list/detail responses while image deletion is waiting
+// for existing instance, source-reservation, or instance-pool
+// references. Counts include all referencing accounts without disclosing
+// their identities. The backing data remains intact; cleanup resumes
+// when references are gone. Independent faults may still set status to
+// error.
+type ImageDeletionRetention struct {
+	InstancePools int `json:"instance_pools"`
+	Instances     int `json:"instances"`
+
+	// One of: "in_use".
+	Reason string `json:"reason"`
+}
+
+type ImageUpdateRequest struct {
+	Attributes map[string]string `json:"attributes,omitempty"`
+
+	// Current switch the resolve-by-name pointer for this image's name. true
+	// promotes this version to current (the switch / rollback action) and
+	// demotes whatever else was current for the same (name, architecture);
+	// false clears the pointer. Only active images can be made current.
+	Current     *bool   `json:"current,omitempty"`
+	Description *string `json:"description,omitempty"`
+
+	// EOLDate set the release's end-of-life date. An explicit null clears it;
+	// omitting the field leaves it unchanged. Clearing matters because the
+	// catalog withdraws platform images on this date — one recorded by
+	// mistake has to be removable.
+	EOLDate *string `json:"eol_date,omitempty"`
+	Tags    Tags    `json:"tags,omitempty"`
+}
+
+type Instance struct {
+	CreatedAt time.Time `json:"created_at,omitempty"`
+
+	// CRN Cloud Resource Name
+	CRN string `json:"crn,omitempty"`
+
+	// CurrentState where the instance actually is. Read this one to answer "is it up"
+	// — the transitional states live here, not on desired_state, because
+	// nobody asks for `stopping`.
+	//
+	// desired_state=running with current_state=stopped is an instance that
+	// was asked to start and has not come up yet.
+	CurrentState CurrentState `json:"current_state,omitempty"`
+	Description  string       `json:"description,omitempty"`
+
+	// DesiredState what was asked for. Only three values, because there are only three
+	// things you can ask an instance to be: Create/Start/Reboot ask for
+	// running, Stop for stopped, Delete for deleted.
+	//
+	// One of: "running", "stopped", "deleted".
+	DesiredState string `json:"desired_state,omitempty"`
+
+	// Faults active faults ordered by last_at descending, then internal history
+	// id descending for a stable tie-breaker. Healthy resources return [].
+	Faults []*Fault `json:"faults"`
+
+	// Flavor resolved flavor (compute size) the instance runs on. Omitted if the
+	// referenced flavor row has been retired.
+	Flavor *Flavor `json:"flavor,omitempty"`
+
+	// IAMRole summary of the attached IAM role, visible with instance read access
+	// without iam:GetRole. Omitted when no role is attached, the role was
+	// deleted, or it belongs to another account. Sensitive role fields
+	// remain available only through the IAM API.
+	IAMRole *InstanceRole `json:"iam_role,omitempty"`
+	ID      string        `json:"id,omitempty"`
+
+	// Image resolved source image the instance booted from. Omitted for a
+	// volume-only boot or if the referenced image row is gone.
+	Image      *Image    `json:"image,omitempty"`
+	LaunchedAt time.Time `json:"launched_at,omitempty"`
+	Metadata   Metadata  `json:"metadata,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
+	Tags Tags   `json:"tags,omitempty"`
+
+	// TaskState in-flight transition, if any; null when settled.
+	TaskState    string    `json:"task_state,omitempty"`
+	TerminatedAt time.Time `json:"terminated_at,omitempty"`
+	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+
+	// UserData base64-encoded cloud-init user-data supplied at launch.
+	UserData string `json:"user_data,omitempty"`
+}
+
+type InstanceCreateRequest struct {
+	// Architecture for image names and name:version tags (default amd64);
+	// a CRN pins its own architecture and version.
+	Architecture *string `json:"architecture,omitempty"`
+	Description  *string `json:"description,omitempty"`
+
+	// Flavor regional flavor reference (UUID, CRN or exact name)
+	//
+	// Required.
+	Flavor string `json:"flavor"`
+
+	// IAMRole attach an IAM role from the same account by UUID, CRN or exact name.
+	// The role's trust policy must permit `crn:compute:*:*:instance/*` (or
+	// the specific instance CRN). The instance's IMDS endpoint
+	// (169.254.169.254) mints short-lived STS credentials for this role
+	// from inside the VM.
+	IAMRole *string `json:"iam_role,omitempty"`
+
+	// Image to clone the boot disk from. Required unless volumes contains
+	// an existing boot volume; cannot be combined with an existing boot
+	// volume. Four forms are accepted: a complete
+	// image/name/architecture/arch/version/version CRN; an image id;
+	// `name:version`, which pins one build and is how you opt out of the
+	// tag moving under you; or a bare `name`, which follows the tag to
+	// whichever build is current when the instance is created. Names
+	// prefer a usable caller-owned build over a tagged platform catalog
+	// build for the requested architecture (default amd64). A CRN pins
+	// owner, name, architecture and version. Resolution never retries
+	// another reference kind; responses and stored templates retain the
+	// resolved image UUID.
+	Image    *string  `json:"image,omitempty"`
+	Metadata Metadata `json:"metadata,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
+	// Required.
+	Name string `json:"name"`
+
+	// Networks interfaces to attach, at least one. index 0 is the primary NIC.
+	//
+	// Required because an instance with no interface boots with no network
+	// at all, and nothing inside it can add one afterwards.
+	//
+	// Required.
+	Networks []*NetworkConfig `json:"networks"`
+	Tags     Tags             `json:"tags,omitempty"`
+
+	// UserData base64-encoded user data (cloud-init)
+	UserData []byte `json:"user_data,omitempty"`
+
+	// Volumes new or existing disks bound with the instance, the boot disk
+	// included — mark it with `boot: true`. At most one entry may.
+	//
+	// Omit the boot entry to take the image's minimum size and the
+	// region's default tier.
+	Volumes []*InstanceLaunchVolume `json:"volumes,omitempty"`
+}
+
+// InstanceLaunchVolume create a new disk, optionally with provisioned performance, or attach
+// an existing available volume in this account and region using
+// `volume`. Existing volumes keep their contents, performance, and
+// snapshot schedules; they are retained after failed launch or instance
+// deletion. Requires compute:AttachVolume for existing disks. A volume
+// may only occur once. An existing boot disk must be bootable and
+// replaces the top-level image.
+type InstanceLaunchVolume struct {
+	// Boot select the one boot disk. Boot disks cannot specify mount_path or
+	// fstype.
+	Boot *bool `json:"boot,omitempty"`
+
+	// DeleteOnTermination defaults true for new disks. Existing disks require false or
+	// omission and are retained.
+	DeleteOnTermination *bool `json:"delete_on_termination,omitempty"`
+
+	// Fstype optional filesystem for blank data disks; defaults to ext4.
+	Fstype *string `json:"fstype,omitempty"`
+
+	// MountPath optional data disk mount path. The guest agent formats only blank
+	// disks.
+	MountPath   *string                   `json:"mount_path,omitempty"`
+	Performance *VolumePerformanceRequest `json:"performance,omitempty"`
+
+	// SizeGB new disk capacity. Required for new data disks; boot disks default
+	// to the image minimum.
+	SizeGB *int `json:"size_gb,omitempty"`
+
+	// SnapshotSchedules independent schedules for a new disk. Names must be unique across
+	// the account and this launch. Requires storage:CreateSnapshotPolicy.
+	// Existing disks keep their schedules and cannot specify this field.
+	SnapshotSchedules []*SnapshotScheduleSettings `json:"snapshot_schedules,omitempty"`
+
+	// Volume existing available volume UUID, name, or CRN. Mutually exclusive
+	// with new-disk settings.
+	Volume *string `json:"volume,omitempty"`
+
+	// VolumeType new disk tier; omitted uses the region default.
+	//
+	// One of: "ssd", "nvme".
+	VolumeType *string `json:"volume_type,omitempty"`
+}
+
+// InstancePool a launch template plus a desired count. Creating a pool spawns
+// desired_count instances; a reconciler converges member_count toward
+// desired_count as it changes. member_count is how many members the pool
+// holds; live_count is how many of them are running. A pool carries two
+// tag sets and they answer different questions. `tags` labels the pool
+// resource — that is what an IAM condition reads as
+// `basalt:ResourceTag/<key>` and what a cost report groups by, and it
+// reaches no instance. `template.tags` is the set stamped on every
+// replica the pool launches.
+type InstancePool struct {
+	// CRN Cloud Resource Name. This is the value an IAM policy statement must
+	// name to scope a permission to this pool alone; a policy written
+	// against anything else will not match.
+	CRN          string `json:"crn,omitempty"`
+	Description  string `json:"description,omitempty"`
+	DesiredCount int    `json:"desired_count,omitempty"`
+
+	// Faults active faults, newest first. Empty for a healthy pool. Recovery
+	// resolves only the successful operation's codes.
+	Faults []*Fault `json:"faults"`
+	ID     string   `json:"id,omitempty"`
+
+	// LiveCount how many members are UP — bound instances whose current_state is
+	// `running`.
+	LiveCount int    `json:"live_count,omitempty"`
+	ManagedBy string `json:"managed_by,omitempty"`
+
+	// MaxCount a value of 0 means the pool holds no members until max_count is
+	// raised.
+	MaxCount int `json:"max_count,omitempty"`
+
+	// MemberCount how many instances the pool holds, running or not. This is what the
+	// reconciler converges toward desired_count and what `status`
+	// reflects, so member_count == desired_count with live_count below it
+	// means the pool has the members it was asked for and some of them are
+	// not up.
+	MemberCount int `json:"member_count,omitempty"`
+	MinCount    int `json:"min_count,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
+
+	// RefreshInProgress true while a rolling replacement requested through POST
+	// /v1/instance-pools/{pool_id}/refresh is still running. It clears
+	// itself once every member is on the current template. The pool reads
+	// `scaling` for the duration, since it runs one instance over its
+	// target while a replacement comes up.
+	RefreshInProgress bool `json:"refresh_in_progress,omitempty"`
+
+	// StaleInstanceCount how many members were launched from a template other than the pool's
+	// current one — that is, how many a refresh would replace. Non-zero
+	// after editing `template` and before refreshing, which is the signal
+	// that a template change has not been rolled out yet.
+	StaleInstanceCount int `json:"stale_instance_count,omitempty"`
+
+	// Status where the pool is against its target.
+	//
+	// `active` means member_count == desired_count — the pool holds the
+	// members it was asked for. It is not a claim that all of them are up;
+	// read live_count for that.
+	//
+	// `scaling` means it does not, and the reconciler is converging it:
+	// after a create, after a desired_count change, and for the length of
+	// an instance refresh, which runs the pool one instance over its
+	// target while a replacement comes up.
+	//
+	// `error` means an active error fault exists. Capacity failures remain
+	// eligible for reconciliation; failed deletion retains its teardown
+	// intent and never recreates members. `deleting` is teardown without
+	// an active error.
+	//
+	// One of: "active", "scaling", "error", "deleting".
+	Status string `json:"status,omitempty"`
+
+	// Tags labels on the POOL itself, for IAM conditions
+	// (`basalt:ResourceTag/<key>`) and cost attribution. They are attached
+	// to nothing else: no instance the pool launches carries them. The
+	// tags a replica is launched with are `template.tags`. Unlike the
+	// other top-level fields beside this one, `tags` is not a projection
+	// of the launch template — it is the pool's own set, and PATCHable
+	// on its own.
+	Tags Tags `json:"tags,omitempty"`
+
+	// Template the pool's launch config, in the shape instance create takes. The
+	// only place it appears: a flat copy of it beside this was two
+	// spellings of one thing, and two spellings drift.
+	Template *InstancePoolTemplate `json:"template,omitempty"`
+}
+
+// InstancePoolCreateRequest `template` is the launch config — the same fields instance create
+// takes. The pool's own fields — description, tags, sizing — stay at
+// the top level, because they describe the pool rather than the
+// instances in it. A flavor and a primary subnet are required, as
+// `template.flavor` + `template.networks[0].subnet`. On create only,
+// omitted min_count and max_count default to desired_count.
+type InstancePoolCreateRequest struct {
+	Description  *string `json:"description,omitempty"`
+	DesiredCount *int    `json:"desired_count,omitempty"`
+
+	// MaxCount a value of 0 means the pool holds no members until max_count is
+	// raised.
+	MaxCount *int `json:"max_count,omitempty"`
+	MinCount *int `json:"min_count,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
+	// Required.
+	Name string `json:"name"`
+
+	// Tags labels on the pool resource, for IAM conditions
+	// (`basalt:RequestTag/<key>` here, `basalt:ResourceTag/<key>` on later
+	// operations) and cost attribution. They are not propagated to the
+	// instances the pool launches; `template.tags` is that set. A pool
+	// field, sent beside `template`. Replica tags are only reachable
+	// through `template.tags`.
+	Tags Tags `json:"tags,omitempty"`
+
+	// Required.
+	Template *InstancePoolTemplateRequest `json:"template"`
+}
+
+type InstancePoolFloatingIPAttachRequest struct {
+	// FloatingIP an account-scoped floating IP UUID or CRN (bare names are not
+	// accepted), currently attached to nothing. This binds it to the pool;
+	// it does not allocate one.
+	//
+	// Required.
+	FloatingIP string `json:"floating_ip"`
+}
+
+// InstancePoolTemplate stored launch configuration with canonical UUID relationship
+// identities. Convert these identities to the request fields in
+// InstancePoolTemplateRequest when replacing the template. The image
+// identity is pinned; later name reuse or a new current image version
+// does not change them.
+type InstancePoolTemplate struct {
+	FlavorID string `json:"flavor_id,omitempty"`
+
+	// IAMRole summary of the IAM role attached to every replica, visible with pool
+	// read access without iam:GetRole. Omitted when no role is attached,
+	// the role was deleted, or it belongs to another account. Sensitive
+	// role fields remain available only through the IAM API.
+	IAMRole *InstanceRole `json:"iam_role,omitempty"`
+
+	// ImageID resolved image UUID pinned for every replica until template
+	// replacement.
+	ImageID  string   `json:"image_id,omitempty"`
+	Metadata Metadata `json:"metadata,omitempty"`
+
+	// Networks per-replica interfaces. Index 0 is the primary NIC and is required;
+	// the rest are extras.
+	Networks []*NetworkConfigResponse `json:"networks,omitempty"`
+
+	// Tags stamped on every instance this template launches. These are the
+	// replicas' tags, not the pool's — the pool's own labels are the
+	// top-level `tags`, and the two are independent. Changing them affects
+	// FUTURE launches only. The instances already running keep the tags
+	// they were launched with, so between the change and a refresh the
+	// pool holds members carrying two different tag sets;
+	// `stale_instance_count` is how many are still on the old one. POST
+	// /v1/instance-pools/{pool_id}/refresh rolls them onto the current
+	// template.
+	Tags Tags `json:"tags,omitempty"`
+
+	// UserData base64-encoded user data (cloud-init), stamped on every replica.
+	UserData []byte `json:"user_data,omitempty"`
+
+	// Volumes per-replica disks, the boot disk included — mark it with `boot:
+	// true`. Same shape as instance create.
+	Volumes []*InstanceVolume `json:"volumes,omitempty"`
+}
+
+// InstancePoolTemplateRequest the pool's launch config, in the shape a standalone instance create
+// takes: same field names, same types, same meanings, so a client that
+// can build an instance can build a pool of them without a second,
+// narrower contract to learn. It belongs to the pool. There is no
+// separate launch-template resource to create, version or share between
+// pools. Networking is one ordered `networks` list, index 0 being the
+// primary NIC. `ip_address` and `mac` are part of that shared NIC shape
+// but are refused here: every replica launches from this one template,
+// so a fixed address would have the second replica ask for one the first
+// already holds.
+type InstancePoolTemplateRequest struct {
+	Architecture *string `json:"architecture,omitempty"`
+
+	// Flavor regional flavor reference (UUID, CRN or exact name).
+	//
+	// Required.
+	Flavor string `json:"flavor"`
+
+	// IAMRole IAM role reference from the same account (UUID, CRN or exact name).
+	// PassRole and instance trust authorization apply.
+	IAMRole *string `json:"iam_role,omitempty"`
+
+	// Image to clone each replica's boot disk from. Accepts the same four
+	// forms instance create does: an architecture-qualified CRN, an image
+	// id, `name:version`, or a bare `name`. Unlike instance create, the
+	// reference is resolved ONCE, when the pool is created, and the
+	// resulting image id is what every replica boots — including
+	// replacements spawned months later. A tag re-resolved per replica
+	// would let a heal boot a newer build than its siblings, and a pool
+	// whose members are quietly not identical is the premise of the
+	// primitive breaking silently. To move a pool to a new build, change
+	// the template.
+	Image    *string  `json:"image,omitempty"`
+	Metadata Metadata `json:"metadata,omitempty"`
+
+	// Networks per-replica interfaces. Index 0 is the primary NIC and is required;
+	// the rest are extras.
+	//
+	// Required.
+	Networks []*NetworkConfig `json:"networks"`
+
+	// Tags stamped on every instance this template launches. These are the
+	// replicas' tags, not the pool's — the pool's own labels are the
+	// top-level `tags`, and the two are independent. Changing them affects
+	// FUTURE launches only. The instances already running keep the tags
+	// they were launched with, so between the change and a refresh the
+	// pool holds members carrying two different tag sets;
+	// `stale_instance_count` is how many are still on the old one. POST
+	// /v1/instance-pools/{pool_id}/refresh rolls them onto the current
+	// template.
+	Tags Tags `json:"tags,omitempty"`
+
+	// UserData base64-encoded user data (cloud-init), stamped on every replica.
+	UserData []byte `json:"user_data,omitempty"`
+
+	// Volumes per-replica disks, the boot disk included — mark it with `boot:
+	// true`. Same shape as instance create.
+	Volumes []*InstanceVolume `json:"volumes,omitempty"`
+}
+
+// InstancePoolUpdateRequest every field is optional; sending none of them is a 400. Omitted bounds
+// retain their current values. The resulting bounds must satisfy 0 <=
+// min_count <= max_count <= 100, or the entire request returns 400. If
+// desired_count is omitted, it is clamped into the resulting bounds. If
+// supplied, desired_count must lie within those bounds or the entire
+// request returns 400 with no changes applied. A changed target is
+// reconciled normally. Managed pools are read-only through the customer
+// API.
+//
+// A refresh waits when max_count leaves no surge headroom; increasing
+// max_count allows it to resume.
+//
+// The two tag sets move independently. `tags` relabels the pool itself
+// and takes effect immediately, touching no instance. `template.tags`
+// — like the rest of `template` — does NOT touch the instances
+// already running: a live VM cannot change flavor, tier, subnet or its
+// tags in place. It changes what the pool launches NEXT, so until you
+// roll the pool it holds members carrying two different tag sets, and
+// `stale_instance_count` is how many are on the older one. Bring them
+// onto the current template with POST
+// /v1/instance-pools/{pool_id}/refresh.
+type InstancePoolUpdateRequest struct {
+	// Description customer note on the pool. Omit to preserve it; send an empty string
+	// to clear it. Changes no instances, sizing or launch configuration.
+	Description *string `json:"description,omitempty"`
+
+	// DesiredCount new target size, bounded by the resulting min_count/max_count and
+	// the hard platform cap of 100.
+	DesiredCount *int `json:"desired_count,omitempty"`
+
+	// MaxCount new upper bound; omitted desired_count falls to this bound if
+	// needed. A value of 0 means the pool holds no members until max_count
+	// is raised.
+	MaxCount *int `json:"max_count,omitempty"`
+
+	// MinCount new lower bound; omitted desired_count rises to this bound if
+	// needed.
+	MinCount *int `json:"min_count,omitempty"`
+
+	// Tags REPLACES the pool's labels: the map you send becomes the whole set,
+	// an empty object clears them, and omitting the field leaves them
+	// alone. Replacement rather than a merge because a merge leaves no way
+	// to say a key should be removed. These label the pool, not its
+	// instances. To change what future replicas are tagged with, send
+	// `template.tags`.
+	Tags Tags `json:"tags,omitempty"`
+
+	// Template replaces the launch config WHOLESALE — the object you send is what
+	// the pool launches next, and anything you leave out is cleared rather
+	// than kept. Replacement rather than a deep merge so a shorter
+	// `networks` or `volumes` cannot be read as a truncation and silently
+	// drop an interface or a disk.
+	Template *InstancePoolTemplateRequest `json:"template,omitempty"`
+}
+
+type InstanceRebootRequest struct {
+	// Hard force a power cycle (destroy + start, equivalent to a reset button)
+	// instead of the default ACPI graceful reboot the guest can act on.
+	Hard *bool `json:"hard,omitempty"`
+}
+
+type InstanceRole struct {
+	// CRN account-scoped role identity, as used in policy documents.
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Name immutable role name.
+	Name string `json:"name"`
+}
+
+type InstanceUpdateRequest struct {
+	Description *string `json:"description,omitempty"`
+
+	// IAMRole attach or replace the instance workload role using its ID, name, or
+	// CRN. Omit this field to keep the current role; send an empty string
+	// to detach it. Null is not accepted. Requires compute:UpdateInstance;
+	// attach/replace also require iam:PassRole and a role trust policy
+	// allowing this instance. Only running or stopped customer-managed
+	// instances with no operation in progress support role edits. Pool
+	// members use the pool launch template. New IMDS requests observe the
+	// committed association immediately. Previously issued credentials are
+	// not revoked and remain valid until expiry (up to one hour);
+	// in-flight requests may complete with their prior association.
+	IAMRole  *string  `json:"iam_role,omitempty"`
+	Metadata Metadata `json:"metadata,omitempty"`
+	Tags     Tags     `json:"tags,omitempty"`
+}
+
+// InstanceVolume one disk created with the instance. `boot: true` marks the one cloned
+// from image_id; every other entry is a blank volume the in-guest agent
+// formats and mounts.
+type InstanceVolume struct {
+	// Boot marks the boot disk. It takes no mount_path or fstype — both come
+	// from the image — and sending either is refused rather than
+	// ignored.
+	Boot bool `json:"boot,omitempty"`
+
+	// DeleteOnTermination destroyed with the instance unless set false.
+	DeleteOnTermination bool `json:"delete_on_termination,omitempty"`
+
+	// Fstype filesystem the in-guest agent formats the volume with.
+	Fstype    string `json:"fstype,omitempty"`
+	MountPath string `json:"mount_path,omitempty"`
+	SizeGB    int    `json:"size_gb"`
+
+	// VolumeType tier; omitted = the region default.
+	VolumeType string `json:"volume_type,omitempty"`
+}
+
+type InterfaceAddress struct {
+	Address string `json:"address"`
+
+	// One of: "ipv4", "ipv6".
+	Family      string               `json:"family"`
+	FloatingIPs []*AddressFloatingIP `json:"floating_ips"`
+	ID          string               `json:"id"`
+
+	// Prefix owned allocation, not the guest netmask: IPv4 /32 or IPv6 /96.
+	// DHCPv6 configures the first /128.
+	Prefix  string `json:"prefix"`
+	Primary bool   `json:"primary"`
+}
+
+type ListInstanceNiCsNIC struct {
+	Addresses []*InterfaceAddress `json:"addresses"`
+	BootIndex int                 `json:"boot_index"`
+
+	// External a customer-attached standalone interface — detach unbinds it
+	// instead of destroying it.
+	External    bool   `json:"external"`
+	InterfaceID string `json:"interface_id"`
+	MAC         string `json:"mac,omitempty"`
+	Name        string `json:"name,omitempty"`
+
+	// Primary the lowest-boot-index NIC — the one carrying the guest's default
+	// and metadata routes.
+	Primary        bool            `json:"primary"`
+	RoutedPrefixes []*RoutedPrefix `json:"routed_prefixes"`
+
+	// Subnet placement; null when the referenced subnet no longer exists.
+	Subnet *Subnet `json:"subnet"`
+}
+
+type ListInstanceVolumesAttachment struct {
+	BootIndex           int    `json:"boot_index,omitempty"`
+	Bootable            bool   `json:"bootable,omitempty"`
+	DeleteOnTermination bool   `json:"delete_on_termination,omitempty"`
+	Device              string `json:"device,omitempty"`
+
+	// Fstype filesystem the in-guest agent formatted the volume with, or absent
+	// when the attachment did not name one and the agent used the ext4
+	// default. Every write path — instance create, pool template and
+	// attach — refuses anything else, so this is the whole set the field
+	// can hold.
+	//
+	// One of: "ext4", "xfs".
+	Fstype     string       `json:"fstype,omitempty"`
+	Mount      *VolumeMount `json:"mount,omitempty"`
+	MountPath  string       `json:"mount_path,omitempty"`
+	Name       string       `json:"name,omitempty"`
+	SizeGB     int          `json:"size_gb,omitempty"`
+	Status     string       `json:"status,omitempty"`
+	VolumeID   string       `json:"volume_id,omitempty"`
+	VolumeType string       `json:"volume_type,omitempty"`
+}
+
+type Metadata = map[string]string
+
+type NetworkConfig struct {
+	Addresses []*AddressRequest `json:"addresses,omitempty"`
+
+	// FloatingIPAssignment allocate public floating IPs for this NIC at launch. Explicit
+	// families require matching guest addresses and internet routes.
+	// Detach leaves the FIP reserved. No ordinary public IPv4 mapping
+	// exists.
+	//
+	// One of: "none", "ipv4", "ipv6", "dual_stack", "auto".
+	FloatingIPAssignment *string `json:"floating_ip_assignment,omitempty"`
+
+	// MAC Optional MAC address. Must be locally-administered (`X2:`, `X6:`,
+	// `XA:`, `XE:` in the first octet). Generated when omitted.
+	MAC *string `json:"mac,omitempty"`
+
+	// SecurityGroups account-scoped security group references (UUID, CRN or name) to
+	// attach to this NIC. Each must be owned by the same account. Empty
+	// list = no per-NIC ACLs (the platform's default-allow stays in
+	// force).
+	SecurityGroups []string `json:"security_groups,omitempty"`
+
+	// Subnet UUID or complete VPC/subnet CRN. Bare names require a VPC
+	// parent and are rejected here.
+	//
+	// Required.
+	Subnet string `json:"subnet"`
+}
+
+type NetworkConfigResponse struct {
+	Addresses []*AddressRequest `json:"addresses,omitempty"`
+
+	// FloatingIPAssignment allocate public floating IPs for this NIC at launch. Explicit
+	// families require matching guest addresses and internet routes.
+	// Detach leaves the FIP reserved. No ordinary public IPv4 mapping
+	// exists.
+	//
+	// One of: "none", "ipv4", "ipv6", "dual_stack", "auto".
+	FloatingIPAssignment string `json:"floating_ip_assignment,omitempty"`
+
+	// MAC Optional MAC address. Must be locally-administered (`X2:`, `X6:`,
+	// `XA:`, `XE:` in the first octet). Generated when omitted.
+	MAC string `json:"mac,omitempty"`
+
+	// SecurityGroupIDs account-scoped security group references (UUID, CRN or name) to
+	// attach to this NIC. Each must be owned by the same account. Empty
+	// list = no per-NIC ACLs (the platform's default-allow stays in
+	// force).
+	SecurityGroupIDs []string `json:"security_group_ids,omitempty"`
+
+	// Subnet placement; null when the referenced subnet no longer exists.
+	Subnet *Subnet `json:"subnet"`
+}
+
+type ReinstallInstanceRequest struct {
+	// Image replacement image reference (UUID, architecture-qualified CRN, name
+	// or name:version). Omit to reinstall from the instance's current
+	// image.
+	Image *string `json:"image,omitempty"`
+
+	// SizeGB replacement boot disk size; omitted = the image's min_disk_gb. Must
+	// be within the volume size range (1..16384) and at least the image's
+	// min_disk_gb.
+	SizeGB *int `json:"size_gb,omitempty"`
+
+	// VolumeType replacement boot disk tier; omitted = the region default.
+	//
+	// One of: "ssd", "nvme".
+	VolumeType *string `json:"volume_type,omitempty"`
+}
+
+type ResizeInstanceRequest struct {
+	// Flavor regional flavor reference (UUID, CRN or exact name) to resize to.
+	//
+	// Required.
+	Flavor string `json:"flavor"`
+}
+
+// RouteTableSummary route table used by a subnet, without repeating its VPC. Null when the
+// non-owning lookup no longer resolves, for example during concurrent
+// reassociation and deletion of the former table. Deleting a table still
+// associated with subnets is refused.
+type RouteTableSummary struct {
+	CRN  string `json:"crn"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type RoutedPrefix struct {
+	// One of: "ipv4".
+	Family string `json:"family"`
+	ID     string `json:"id"`
+	PoolID string `json:"pool_id"`
+
+	// Prefix a routed /28 from a VPC prefix pool.
+	Prefix string `json:"prefix"`
+}
+
+// SerialConsoleTicket a one-shot credential for opening a serial console from a browser.
+// Pass `ticket` as a query parameter on the WebSocket upgrade.
+type SerialConsoleTicket struct {
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// ExpiresIn seconds until it expires.
+	ExpiresIn int `json:"expires_in"`
+
+	// Ticket the credential. Opaque — do not parse it. Good for one instance
+	// and one minute; mint a new one per connection rather than storing
+	// it.
+	Ticket string `json:"ticket"`
+}
+
+// SnapshotIntervalMinutes minutes between snapshots — a minimum gap, not an exact cadence. A
+// periodic pass takes whatever has come due and re-bases each policy's
+// next run off the moment it ran, so a snapshot lands at or after
+// `interval_minutes` and never before, and can land a minute or two
+// later when the pass is busy. A window the pass misses costs one
+// snapshot rather than producing a catch-up burst afterwards.
+//
+// The floor is one minute, because that pass is what evaluates the
+// schedule and nothing finer can be honoured; the ceiling is 30 days.
+// Sub-hourly intervals multiply snapshot churn and count against the
+// `snapshots` quota, so pick the largest interval that meets your
+// recovery point objective.
+type SnapshotIntervalMinutes = int
+
+// SnapshotRetentionCount how many of this policy's snapshots to keep. When a fire takes the
+// count past this, the oldest go first.
+type SnapshotRetentionCount = int
+
+// SnapshotRetentionDays optional age bound, applied on top of `retention_count`: a snapshot
+// outside EITHER window is reaped. 0 means no age bound. The single
+// newest snapshot is exempt from the age bound, so a volume that could
+// not be snapshotted for longer than the window never loses its whole
+// history.
+type SnapshotRetentionDays = int
+
+// SnapshotScheduleSettings schedule settings for a new instance volume.
+type SnapshotScheduleSettings struct {
+	Description *string `json:"description,omitempty"`
+	Enabled     *bool   `json:"enabled,omitempty"`
+
+	// Required.
+	IntervalMinutes SnapshotIntervalMinutes `json:"interval_minutes"`
+
+	// Name account-unique snapshot policy name, subject to resource-name
+	// validation.
+	//
+	// Required.
+	Name string `json:"name"`
+
+	// Required.
+	RetentionCount SnapshotRetentionCount `json:"retention_count"`
+	RetentionDays  *SnapshotRetentionDays `json:"retention_days,omitempty"`
+	Tags           Tags                   `json:"tags,omitempty"`
+}
+
+type Subnet struct {
+	CIDRIPv4 string `json:"cidr_ipv4"`
+
+	// CIDRIPv6 the dual-stack IPv6 /64, if the subnet is v6-enabled. Its presence
+	// (vs the v4 cidr_ipv4) is how a client tells the subnet's families
+	// apart.
+	CIDRIPv6    string    `json:"cidr_ipv6,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	CRN         string    `json:"crn"`
+	Description string    `json:"description,omitempty"`
+	GatewayIPv4 string    `json:"gateway_ipv4"`
+	GatewayIPv6 string    `json:"gateway_ipv6,omitempty"`
+	ID          string    `json:"id"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name       string             `json:"name"`
+	RouteTable *RouteTableSummary `json:"route_table"`
+	Tags       map[string]string  `json:"tags"`
+	UpdatedAt  time.Time          `json:"updated_at"`
+	VPC        *VPC               `json:"vpc"`
+}
+
+type Tags = map[string]string
+
+type UpdateInstanceVolumeAttachmentRequest struct {
+	// Required.
+	DeleteOnTermination bool `json:"delete_on_termination"`
+}
+
+type VPC struct {
+	// CIDRIPv4 IPv4 CIDR block carved up by subnets. Must be private (RFC 1918):
+	// within 10.0.0.0/8, 172.16.0.0/12 or 192.168.0.0/16. Immutable after
+	// create.
+	CIDRIPv4 string `json:"cidr_ipv4"`
+
+	// CIDRIPv6 associated regional GUA or private ULA prefix.
+	CIDRIPv6  string    `json:"cidr_ipv6,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// CRN Cloud Resource Name (name-based, region+account-scoped).
+	CRN         string `json:"crn"`
+	Description string `json:"description,omitempty"`
+	ID          string `json:"id"`
+
+	// Name 1-63 chars, lowercase alphanumeric + hyphen Resource names must not
+	// start with the literal crn: prefix or be UUIDs (canonical, compact,
+	// braced, or urn:uuid: forms, in either case).
+	Name      string            `json:"name"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
+}
+
+// VolumeMount what the in-guest agent reported about this attachment.
+//
+// Present only on an attachment that carries a `mount_path`. A volume
+// without one is attached as a bare block device the tenant owns:
+// nothing reconciles it, so nothing reports on it and a state for it
+// would be a claim about something no one is watching.
+//
+// The agent is installed on first boot and nothing upgrades it
+// afterwards, so an instance older than this feature reports nothing and
+// every one of its volumes reads `unknown`. Treat `unknown` as "no
+// information", never as healthy.
+type VolumeMount struct {
+	// Code why the volume is in this state. Absent when there is nothing to
+	// say.
+	//
+	// Independent of `state` rather than something only a failure carries:
+	// `fstab_write_failed` accompanies a **mounted** volume whose fstab
+	// entry could not be written, which works now and will be gone after
+	// the next reboot.
+	//
+	// The commonest one to act on is `signatures_no_filesystem` — the
+	// disk carries a partition table or other signatures but no mountable
+	// filesystem, so the agent will not format it, because formatting
+	// would destroy what is there. A volume cloned from a boot disk and
+	// attached with a `mount_path` lands here. Partition and format it
+	// inside the guest, or attach it without a `mount_path` and mount it
+	// yourself.
+	//
+	// `unknown_error` is a code this platform does not recognise, reported
+	// by a guest agent newer than the region.
+	//
+	// One of: "unsafe_serial", "device_absent", "probe_failed", "signatures_no_filesystem", "unsupported_fstype", "mkfs_failed", "unsafe_mount_path", "mkdir_failed", "mount_failed", "fstab_write_failed", "unknown_error".
+	Code string `json:"code,omitempty"`
+
+	// Message human-readable detail from inside the guest — the failing
+	// command's output, the partition table type it found. Free text
+	// originating in the customer's own VM: sanitised and capped, but
+	// display it as text, never as markup.
+	Message string `json:"message,omitempty"`
+
+	// ReportedAt when the guest agent last reported, whether or not anything had
+	// changed. A `reported_at` far in the past means the agent has stopped
+	// talking to us, and the state beside it is what it last said rather
+	// than what is true now. Absent when `state` is `unknown`.
+	ReportedAt time.Time `json:"reported_at,omitempty"`
+
+	// Since when the volume entered this condition. Absent when `state` is
+	// `unknown`.
+	Since time.Time `json:"since,omitempty"`
+
+	// State - `unknown` — no guest agent has ever reported on this volume.
+	//   The agent may predate this feature, may have been removed
+	//   (which is supported), or the guest may never have booted.
+	// - `pending` — the agent cannot mount it yet and expects that to
+	//   change. The ordinary state for the first seconds after an
+	//   attach, while the hot-plugged disk appears in the guest.
+	// - `mounted` — mounted at `mount_path`. May still carry a `code`.
+	// - `failed` — it will not mount until something changes. Either
+	//   the agent reported a refusal that waiting cannot fix, or it
+	//   has been unable to make progress for long enough that waiting
+	//   is no longer the explanation. `code` says which.
+	//
+	// One of: "unknown", "pending", "mounted", "failed".
+	State string `json:"state"`
+}
+
+// VolumePerformanceRequest independently provision total sustained, combined read/write
+// performance. Omitted dimensions retain their current value (included
+// allowance on create). SSD permits up to 8000 IOPS and 250 MiB/s; NVMe
+// up to 12000 and 500 MiB/s. The minimum is the volume's included
+// allowance; higher grandfathered allowances remain available free of
+// charge. Throughput is whole MiB/s, except an exact fractional legacy
+// allowance may be selected to remove the paid add-on. Increases require
+// account quota, regional capacity, and healthy storage. Applied extras
+// bill by elapsed duration, including while detached or stopped.
+type VolumePerformanceRequest struct {
+	IOPS           *int     `json:"iops,omitempty"`
+	ThroughputMiBS *float64 `json:"throughput_mib_s,omitempty"`
+}

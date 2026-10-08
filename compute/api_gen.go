@@ -1,0 +1,1925 @@
+// Code generated from the Basaltic OpenAPI specifications. DO NOT EDIT.
+//
+// Regenerate with:
+//
+//	go run ./internal/gen -spec /path/to/openapi
+
+package compute
+
+import (
+	"context"
+	"io"
+	"iter"
+	"net/url"
+	"strconv"
+
+	basaltic "github.com/basaltic-sh/sdk-go"
+)
+
+// GetConsoleOutputParams are the optional filters and pagination controls for
+// [Client.GetConsoleOutput]. A nil *GetConsoleOutputParams sends none of them.
+type GetConsoleOutputParams struct {
+	// MaxBytes return at most this many bytes from the END of the transcript. A
+	// ceiling you may lower, not raise: values above the 65536-byte
+	// maximum are clamped to it.
+	MaxBytes int
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *GetConsoleOutputParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.MaxBytes != 0 {
+		q.Set("max_bytes", strconv.Itoa(int(p.MaxBytes)))
+	}
+	return q
+}
+
+// ListFlavorsParams are the optional filters and pagination controls for
+// [Client.ListFlavors]. A nil *ListFlavorsParams sends none of them.
+type ListFlavorsParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
+	// Family filter by product family. Load-balancer and database create flows
+	// should list their own family; regular instances use "general".
+	//
+	// One of: "general", "loadbalancer", "database".
+	Family string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListFlavorsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Family != "" {
+		q.Set("family", p.Family)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListImageCatalogParams are the optional filters and pagination controls for
+// [Client.ListImageCatalog]. A nil *ListImageCatalogParams sends none of them.
+type ListImageCatalogParams struct {
+	Architecture string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+
+	// Name exact image name.
+	Name string
+	OS   string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListImageCatalogParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.Architecture != "" {
+		q.Set("architecture", p.Architecture)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	if p.OS != "" {
+		q.Set("os", p.OS)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListImageCatalogParams) withMarker(marker string) *ListImageCatalogParams {
+	var out ListImageCatalogParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
+// ListImagesParams are the optional filters and pagination controls for
+// [Client.ListImages]. A nil *ListImagesParams sends none of them.
+type ListImagesParams struct {
+	// AllVersions include builds a newer version has superseded. Off by default, when
+	// each tag contributes only the build worth launching.
+	AllVersions  *bool
+	Architecture string
+
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+
+	// Name exact, case-sensitive name match; an empty value matches no named
+	// resource.
+	Name string
+	OS   string
+
+	// Status one of: "pending", "importing", "active", "error", "deleting",
+	// "withdrawn".
+	Status string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListImagesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.AllVersions != nil {
+		q.Set("all_versions", strconv.FormatBool(*p.AllVersions))
+	}
+	if p.Architecture != "" {
+		q.Set("architecture", p.Architecture)
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	if p.OS != "" {
+		q.Set("os", p.OS)
+	}
+	if p.Status != "" {
+		q.Set("status", p.Status)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListImagesParams) withMarker(marker string) *ListImagesParams {
+	var out ListImagesParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
+// ListInstanceNiCsParams are the optional filters and pagination controls for
+// [Client.ListInstanceNiCs]. A nil *ListInstanceNiCsParams sends none of them.
+type ListInstanceNiCsParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListInstanceNiCsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListInstancePoolFloatingIPsParams are the optional filters and pagination controls for
+// [Client.ListInstancePoolFloatingIPs]. A nil *ListInstancePoolFloatingIPsParams sends none of them.
+type ListInstancePoolFloatingIPsParams struct {
+	// CRN Exact CRN, validated against the endpoint type, region and caller
+	// account. Valid foreign or mismatched CRNs return an empty result;
+	// malformed or flat child CRNs return 400. Filters are conjunctive.
+	CRN   string
+	Limit int
+
+	// Marker resume token — the last id from the previous page.
+	Marker string
+
+	// Name exact resource name. This resource has no name, so a supplied name
+	// returns an empty result.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListInstancePoolFloatingIPsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListInstancePoolFloatingIPsParams) withMarker(marker string) *ListInstancePoolFloatingIPsParams {
+	var out ListInstancePoolFloatingIPsParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
+// ListInstancePoolsParams are the optional filters and pagination controls for
+// [Client.ListInstancePools]. A nil *ListInstancePoolsParams sends none of them.
+type ListInstancePoolsParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListInstancePoolsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListInstancePoolsParams) withMarker(marker string) *ListInstancePoolsParams {
+	var out ListInstancePoolsParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
+// ListInstanceVolumesParams are the optional filters and pagination controls for
+// [Client.ListInstanceVolumes]. A nil *ListInstanceVolumesParams sends none of them.
+type ListInstanceVolumesParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListInstanceVolumesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// ListInstancesParams are the optional filters and pagination controls for
+// [Client.ListInstances]. A nil *ListInstancesParams sends none of them.
+type ListInstancesParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
+	// CurrentState filter by where the instances actually are.
+	CurrentState CurrentState
+
+	// Flavor filter by regional flavor reference (UUID, CRN or exact name).
+	Flavor string
+
+	// Image filter by image reference (UUID, CRN or name; images also accept
+	// name:version).
+	Image string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListInstancesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.CurrentState != "" {
+		q.Set("current_state", string(p.CurrentState))
+	}
+	if p.Flavor != "" {
+		q.Set("flavor", p.Flavor)
+	}
+	if p.Image != "" {
+		q.Set("image", p.Image)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListInstancesParams) withMarker(marker string) *ListInstancesParams {
+	var out ListInstancesParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
+// ListPoolInstancesParams are the optional filters and pagination controls for
+// [Client.ListPoolInstances]. A nil *ListPoolInstancesParams sends none of them.
+type ListPoolInstancesParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
+	CRN string
+
+	// CurrentState filter by where the instances actually are.
+	CurrentState CurrentState
+
+	// Flavor filter by regional flavor reference (UUID, CRN or exact name).
+	Flavor string
+
+	// Image filter by image reference (UUID, CRN or name; images also accept
+	// name:version).
+	Image string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListPoolInstancesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.CurrentState != "" {
+		q.Set("current_state", string(p.CurrentState))
+	}
+	if p.Flavor != "" {
+		q.Set("flavor", p.Flavor)
+	}
+	if p.Image != "" {
+		q.Set("image", p.Image)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListPoolInstancesParams) withMarker(marker string) *ListPoolInstancesParams {
+	var out ListPoolInstancesParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
+// StartSerialConsoleParams are the optional filters and pagination controls for
+// [Client.StartSerialConsole]. A nil *StartSerialConsoleParams sends none of them.
+type StartSerialConsoleParams struct {
+	// BacklogBytes replay this many bytes of already-written output before live output
+	// begins, so attaching to a quiet guest shows why it is quiet instead
+	// of an empty screen. 0 disables replay. Values above 65536 are
+	// clamped. The replay is the tail of the same recording
+	// `/console/output` serves; the live session is the guest's serial
+	// port. The two are separate sources, so the join is marked with a
+	// `\r\n--- live ---\r\n` line: everything before it is history,
+	// everything after it is happening now. A guest printing at the
+	// instant you connect may have a few bytes land on neither side of
+	// that line — a quiet guest, the case replay exists for, is replayed
+	// exactly.
+	BacklogBytes int
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *StartSerialConsoleParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.BacklogBytes != 0 {
+		q.Set("backlog_bytes", strconv.Itoa(int(p.BacklogBytes)))
+	}
+	return q
+}
+
+// AttachInstanceNIC attaches an existing NIC to an instance.
+//
+// Attaches an existing standalone network interface. The instance must
+// be running or stopped. To create an interface, use `POST
+// /v1/interfaces` on the Network API before attaching it. This operation
+// never provisions an interface.
+//
+// The attachment is durable the moment this returns: it is part of the
+// instance's spec and survives reboots. Delivery to the guest is
+// asynchronous and the response says what it takes.
+//
+// A stopped instance comes up with the device, and `restart_required` is
+// absent. A running instance is given the device while it runs where the
+// region supports that: the call returns before the guest has it,
+// `restart_required` is absent, and the interface appears in the guest
+// moments later — poll `GET /v1/instances/{instance_id}/nics`, or
+// watch the guest for a link carrying the MAC in this response. Where
+// the region does not, the response sets `restart_required`: reboot the
+// instance with `{"hard": true}` to deliver it. A soft reboot is ACPI
+// inside the same launcher and will not.
+//
+// The address is DHCP's either way. Nothing configures the new interface
+// inside the guest, so an image that does not bring up a network device
+// when it appears (cloud-init hotplug, NetworkManager, systemd-networkd
+// with a wildcard match) holds the link without an address until
+// something in the guest asks for the lease.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) AttachInstanceNIC(ctx context.Context, instanceID string, body *AttachInstanceNICRequest, opts ...basaltic.RequestOption) (*AttachInstanceNICAttachment, error) {
+	op := &basaltic.Operation{
+		ID:       "attachInstanceNIC",
+		Method:   "POST",
+		Path:     "/v1/instances/{instance_id}/nics",
+		PathArgs: []string{instanceID},
+		Body:     body,
+	}
+	var out struct {
+		Attachment *AttachInstanceNICAttachment `json:"attachment"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Attachment, nil
+}
+
+// AttachInstancePoolFloatingIP gives the pool a shared public address.
+//
+// Binds an already-allocated floating IP of yours to the pool. One
+// public IP, answered by every replica — an anycast address — as
+// opposed to `template.networks[].assign_public_ip`, which gives each
+// replica its own.
+//
+// THE OPERATION NAMES THE POOL because membership is then maintained for
+// you: the address's members are the pool's live replicas — every one
+// of them, co-resident ones included — so a scale-out joins, a
+// scale-in leaves, and a replaced member is swapped, with no per-replica
+// attach to make. The same address can be built by hand at `POST
+// /v1/floating-ips/{floating_ip_id}/attach`, one interface at a time;
+// what the pool adds is that nobody has to keep it in step.
+//
+// The floating IP must be unattached, and the pool's subnet must already
+// route `0.0.0.0/0` to an internet gateway. Idempotent: re-attaching the
+// same address to the same pool returns it unchanged.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) AttachInstancePoolFloatingIP(ctx context.Context, poolID string, body *InstancePoolFloatingIPAttachRequest, opts ...basaltic.RequestOption) (*FloatingIP, error) {
+	op := &basaltic.Operation{
+		ID:       "attachInstancePoolFloatingIp",
+		Method:   "POST",
+		Path:     "/v1/instance-pools/{pool_id}/floating-ips",
+		PathArgs: []string{poolID},
+		Body:     body,
+	}
+	var out struct {
+		FloatingIP *FloatingIP `json:"floating_ip"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.FloatingIP, nil
+}
+
+// AttachInstanceVolume attaches a data volume to an instance.
+//
+// Attach an existing, available storage volume to the instance and
+// record the change so the host hot-plugs the disk into the running
+// instance. The volume must be in the same account and in status
+// `available`.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) AttachInstanceVolume(ctx context.Context, instanceID string, body *AttachInstanceVolumeRequest, opts ...basaltic.RequestOption) (*AttachInstanceVolumeAttachment, error) {
+	op := &basaltic.Operation{
+		ID:       "attachInstanceVolume",
+		Method:   "POST",
+		Path:     "/v1/instances/{instance_id}/volumes",
+		PathArgs: []string{instanceID},
+		Body:     body,
+	}
+	var out struct {
+		Attachment *AttachInstanceVolumeAttachment `json:"attachment"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Attachment, nil
+}
+
+// CreateImage imports an image from an object URL.
+//
+// Creating an image in the platform account requires a principal acting
+// in that account with `compute:CreateImage`.
+//
+// Registers an image for import from a presigned object URL — no image
+// bytes flow through this API. Upload your disk to any bucket you
+// control (our object store, AWS S3, MinIO, …) using a robust
+// multipart S3 client, then pass a presigned GET URL as `source_url`.
+//
+// The import runs in the background: the response is 202 with
+// status=importing, and a worker fetches the URL, converts it to the raw
+// base (qcow2 / raw / vmdk / vhd / vhdx / vdi are accepted), and imports
+// it into regional storage. The row flips to active (or error, with
+// active faults) once it finishes — poll GET /v1/images/{image_id} for
+// the status.
+//
+// A name behaves like a movable tag: by default the new image becomes
+// the "current" version for its (name, architecture), so future launches
+// of that name boot the new bits. Older versions stay bootable by id and
+// by `name:version`. Pass `current: false` to stage a version without
+// switching, then promote it later with PATCH /v1/images/{image_id}
+// (current=true).
+//
+// `version` identifies the build within the name and must be unique
+// there; omit it and the server stamps a UTC timestamp. Publishing twice
+// under one name with the same version is a 409, not a second anonymous
+// build.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) CreateImage(ctx context.Context, body *ImageCreateRequest, opts ...basaltic.RequestOption) (*Image, error) {
+	op := &basaltic.Operation{
+		ID:     "createImage",
+		Method: "POST",
+		Path:   "/v1/images",
+		Body:   body,
+	}
+	var out struct {
+		Image *Image `json:"image"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Image, nil
+}
+
+// CreateInstance creates instance.
+//
+// Create a new compute instance.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) CreateInstance(ctx context.Context, body *InstanceCreateRequest, opts ...basaltic.RequestOption) (*Instance, error) {
+	op := &basaltic.Operation{
+		ID:     "createInstance",
+		Method: "POST",
+		Path:   "/v1/instances",
+		Body:   body,
+	}
+	var out struct {
+		Instance *Instance `json:"instance"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Instance, nil
+}
+
+// CreateInstancePool creates an instance pool.
+//
+// Create a pool from a launch template and a desired count. The
+// desired_count instances are spawned synchronously; a background
+// reconciler then converges member_count toward desired_count as it's
+// changed. On create only, min_count/max_count default to desired_count.
+//
+// The top-level `tags` label the pool itself; `template.tags` are
+// stamped on every instance it launches.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) CreateInstancePool(ctx context.Context, body *InstancePoolCreateRequest, opts ...basaltic.RequestOption) (*InstancePool, error) {
+	op := &basaltic.Operation{
+		ID:     "createInstancePool",
+		Method: "POST",
+		Path:   "/v1/instance-pools",
+		Body:   body,
+	}
+	var out struct {
+		InstancePool *InstancePool `json:"instance_pool"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.InstancePool, nil
+}
+
+// CreateSerialConsoleTicket — Mint a ticket for the serial console.
+//
+// Mint a short-lived, single-instance credential for opening the serial
+// console from a browser.
+//
+// **You probably do not need this.** Any client that can set request
+// headers — the `basaltic` CLI, or any non-browser tool —
+// authenticates the WebSocket upgrade normally. This exists because a
+// browser's WebSocket constructor takes a URL and nothing else, so there
+// is no way to send an `Authorization` header on it.
+//
+// Pass the returned `ticket` as a query parameter on the upgrade:
+//
+// ```
+// wss://compute.<region>.basaltic.sh/v1/instances/<id>/console/serial?ticket=<ticket>
+// ```
+//
+// **The ticket is deliberately narrow.** It opens ONE instance, expires
+// in sixty seconds, and authorizes nothing else — because a credential
+// in a URL is written to proxy access logs, and this is worth far less
+// there than a session token would be. Mint one per connection; do not
+// store it.
+//
+// It carries who you are, not what you may do. Whether you may open this
+// console is still decided when the socket connects, against policy as
+// it stands then — so a permission revoked in the intervening minute
+// is honoured rather than frozen into the ticket.
+func (c *Client) CreateSerialConsoleTicket(ctx context.Context, instanceID string, opts ...basaltic.RequestOption) (*SerialConsoleTicket, error) {
+	op := &basaltic.Operation{
+		ID:       "createSerialConsoleTicket",
+		Method:   "POST",
+		Path:     "/v1/instances/{instance_id}/console/ticket",
+		PathArgs: []string{instanceID},
+	}
+	var out SerialConsoleTicket
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// DeleteImage deletes an unused image.
+//
+// Deleting a platform image requires a principal acting in the platform
+// account with `compute:DeleteImage`; other accounts receive 403.
+//
+// Refuses with 409 and code IMAGE_IN_USE if any instance (in any state)
+// or instance-pool template references this image. The image is
+// unchanged. The existing code/message error envelope has no structured
+// details field; message names both counts, including zero, for example:
+// "image is in use by 2 instances and 0 pools".
+//
+// An unused image transitions to status=deleting and its snapshot and
+// base data are reclaimed asynchronously. GET returns the deleting
+// resource until cleanup completes, then 404. A repeated DELETE returns
+// 404, including during cleanup. Withdrawn images follow the same
+// reference checks.
+func (c *Client) DeleteImage(ctx context.Context, imageID string, opts ...basaltic.RequestOption) (*Image, error) {
+	op := &basaltic.Operation{
+		ID:       "deleteImage",
+		Method:   "DELETE",
+		Path:     "/v1/images/{image_id}",
+		PathArgs: []string{imageID},
+	}
+	var out struct {
+		Image *Image `json:"image"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Image, nil
+}
+
+// DeleteInstance deletes instance.
+//
+// Request instance deletion. Returns 202 Accepted — the delete is
+// async: the instance transitions to `deleting` and the on-host the
+// instance is torn down on its host before it reaches `deleted`.
+func (c *Client) DeleteInstance(ctx context.Context, instanceID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "deleteInstance",
+		Method:   "DELETE",
+		Path:     "/v1/instances/{instance_id}",
+		PathArgs: []string{instanceID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteInstancePool deletes an instance pool.
+//
+// Tear down every instance the pool owns and drop the pool. Idempotent.
+func (c *Client) DeleteInstancePool(ctx context.Context, poolID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "deleteInstancePool",
+		Method:   "DELETE",
+		Path:     "/v1/instance-pools/{pool_id}",
+		PathArgs: []string{poolID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DetachInstanceNIC detaches a NIC from a running instance.
+//
+// Hot-unplugs the network interface from the instance, then tears down
+// the interface, its address allocation, and any security-group
+// bindings. Refuses to detach the only NIC on the instance.
+func (c *Client) DetachInstanceNIC(ctx context.Context, instanceID string, interfaceID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "detachInstanceNIC",
+		Method:   "DELETE",
+		Path:     "/v1/instances/{instance_id}/nics/{interface_id}",
+		PathArgs: []string{instanceID, interfaceID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DetachInstancePoolFloatingIP takes a shared address off the pool.
+//
+// Removes the address from the pool and stops routing it. The ADDRESS IS
+// NOT RELEASED — you allocated it, it stays yours, unattached, to
+// reuse or release with `DELETE /v1/floating-ips/{floating_ip_id}`.
+//
+// Idempotent: detaching an address the pool does not hold returns 204.
+func (c *Client) DetachInstancePoolFloatingIP(ctx context.Context, poolID string, floatingIPID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "detachInstancePoolFloatingIp",
+		Method:   "DELETE",
+		Path:     "/v1/instance-pools/{pool_id}/floating-ips/{floating_ip_id}",
+		PathArgs: []string{poolID, floatingIPID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DetachInstanceVolume detaches a data volume from an instance.
+//
+// Remove the volume from the instance; the host hot-unplugs the disk,
+// then compute clears the attachment.
+func (c *Client) DetachInstanceVolume(ctx context.Context, instanceID string, volumeID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "detachInstanceVolume",
+		Method:   "DELETE",
+		Path:     "/v1/instances/{instance_id}/volumes/{volume_id}",
+		PathArgs: []string{instanceID, volumeID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetConsoleOutput gets the instance's serial console output.
+//
+// Returns the guest's serial console transcript — what it wrote to
+// ttyS0 during its current boot.
+//
+// This is the diagnostic for an instance that never came up, which is
+// exactly when SSH cannot answer: a bad fstab, a wrong kernel, a
+// security group that locked you out, a cloud-init failure. Nothing has
+// to be installed in the guest for it to work.
+//
+// The transcript covers the CURRENT boot only — it is reset each time
+// the instance starts — so a crashed guest's last transcript is gone
+// once it restarts. An instance that has never booted returns an empty
+// output rather than an error.
+func (c *Client) GetConsoleOutput(ctx context.Context, instanceID string, params *GetConsoleOutputParams, opts ...basaltic.RequestOption) (*GetConsoleOutputResult, error) {
+	op := &basaltic.Operation{
+		ID:       "getConsoleOutput",
+		Method:   "GET",
+		Path:     "/v1/instances/{instance_id}/console/output",
+		PathArgs: []string{instanceID},
+	}
+	op.Query = params.query()
+	var out GetConsoleOutputResult
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetConsoleScreenshot captures the instance's display.
+//
+// Returns a still image of what the instance's screen is showing right
+// now.
+//
+// The counterpart to console output, for everything a serial transcript
+// cannot reach: a guest stuck in its boot manager, sitting at a GRUB
+// prompt, panicking before serial init, or booted from an image whose
+// kernel was never told to log to ttyS0. In those the transcript is
+// empty and the screen holds the whole answer.
+//
+// A still, not an interactive session — there is no remote desktop.
+// Requires the instance to be running; a stopped instance has no display
+// to capture and returns 409 rather than a blank frame.
+//
+// The caller must close the returned reader.
+func (c *Client) GetConsoleScreenshot(ctx context.Context, instanceID string, opts ...basaltic.RequestOption) (io.ReadCloser, error) {
+	op := &basaltic.Operation{
+		ID:       "getConsoleScreenshot",
+		Method:   "GET",
+		Path:     "/v1/instances/{instance_id}/console/screenshot",
+		PathArgs: []string{instanceID},
+	}
+	stream, _, err := c.rt.DoStream(ctx, op, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return stream, nil
+}
+
+// GetFlavor gets flavor.
+//
+// Get details of a specific flavor.
+func (c *Client) GetFlavor(ctx context.Context, flavorID string, opts ...basaltic.RequestOption) (*Flavor, error) {
+	op := &basaltic.Operation{
+		ID:       "getFlavor",
+		Method:   "GET",
+		Path:     "/v1/flavors/{flavor_id}",
+		PathArgs: []string{flavorID},
+	}
+	var out struct {
+		Flavor *Flavor `json:"flavor"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Flavor, nil
+}
+
+// GetImage gets an image.
+func (c *Client) GetImage(ctx context.Context, imageID string, opts ...basaltic.RequestOption) (*Image, error) {
+	op := &basaltic.Operation{
+		ID:       "getImage",
+		Method:   "GET",
+		Path:     "/v1/images/{image_id}",
+		PathArgs: []string{imageID},
+	}
+	var out struct {
+		Image *Image `json:"image"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Image, nil
+}
+
+// GetInstance gets instance.
+//
+// Get details of a specific instance.
+func (c *Client) GetInstance(ctx context.Context, instanceID string, opts ...basaltic.RequestOption) (*Instance, error) {
+	op := &basaltic.Operation{
+		ID:       "getInstance",
+		Method:   "GET",
+		Path:     "/v1/instances/{instance_id}",
+		PathArgs: []string{instanceID},
+	}
+	var out struct {
+		Instance *Instance `json:"instance"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Instance, nil
+}
+
+// GetInstancePool gets an instance pool.
+func (c *Client) GetInstancePool(ctx context.Context, poolID string, opts ...basaltic.RequestOption) (*InstancePool, error) {
+	op := &basaltic.Operation{
+		ID:       "getInstancePool",
+		Method:   "GET",
+		Path:     "/v1/instance-pools/{pool_id}",
+		PathArgs: []string{poolID},
+	}
+	var out struct {
+		InstancePool *InstancePool `json:"instance_pool"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.InstancePool, nil
+}
+
+// ListFlavors lists flavors.
+//
+// List all available instance flavors. The catalog is small and comes
+// back in one shot — this endpoint is not paginated.
+func (c *Client) ListFlavors(ctx context.Context, params *ListFlavorsParams, opts ...basaltic.RequestOption) (*basaltic.Page[Flavor], error) {
+	op := &basaltic.Operation{
+		ID:     "listFlavors",
+		Method: "GET",
+		Path:   "/v1/flavors",
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []Flavor `json:"flavors"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[Flavor]{Items: out.Items}
+	return page, nil
+}
+
+// ListImageCatalog lists the launch image catalog.
+//
+// Returns current active images categorized as platform or account.
+// Platform entries must be owned by the platform account and carry
+// basalt:catalog=platform. The same tag on an account image does not
+// share it with other accounts. Each name/architecture appears once,
+// using its current build. Staged, superseded, importing, failed,
+// deleting and withdrawn builds are excluded. Tags and operational
+// metadata are omitted. Categories may expand in the future (for example
+// apps); clients should handle unfamiliar category names. Pagination
+// applies across all entries, ordered by name and id. Both current
+// categories are present on every page, even when one has no entries.
+//
+// Returns one page. Use ListImageCatalogAll to walk every page.
+func (c *Client) ListImageCatalog(ctx context.Context, params *ListImageCatalogParams, opts ...basaltic.RequestOption) (*basaltic.Page[ImageCatalogCategory], error) {
+	op := &basaltic.Operation{
+		ID:     "listImageCatalog",
+		Method: "GET",
+		Path:   "/v1/image-catalog",
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []ImageCatalogCategory `json:"categories"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[ImageCatalogCategory]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListImageCatalogAll walks every page of ListImageCatalog, yielding one
+// item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListImageCatalogAll(ctx, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListImageCatalogAll(ctx context.Context, params *ListImageCatalogParams, opts ...basaltic.RequestOption) iter.Seq2[ImageCatalogCategory, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[ImageCatalogCategory], error) {
+		return c.ListImageCatalog(ctx, params.withMarker(marker), opts...)
+	})
+}
+
+// ListImages lists images.
+//
+// List only images owned by the selected account. Use GET
+// /v1/image-catalog to discover current launchable account and platform
+// images. Images cannot be made public. Platform catalog membership is
+// controlled by basalt:catalog=platform on images owned by the platform
+// account.
+//
+// One row per tag. A build drops out of this listing once a *newer*
+// build holds its name — superseded history, which stays bootable by
+// id and by `name:version`. Anything still importing or errored stays
+// listed whatever its age, and so does a version staged with `current:
+// false` that is newer than the current one. Pass `all_versions=true`
+// for a tag's whole history.
+//
+// Withdrawn images are excluded by default. Use `status=withdrawn` or
+// `all_versions=true` to inspect them. They remain readable by ID but
+// cannot be used to launch instances. Deleting images remain readable
+// until asynchronous cleanup completes.
+//
+// Returns one page. Use ListImagesAll to walk every page.
+func (c *Client) ListImages(ctx context.Context, params *ListImagesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Image], error) {
+	op := &basaltic.Operation{
+		ID:     "listImages",
+		Method: "GET",
+		Path:   "/v1/images",
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []Image `json:"images"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[Image]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListImagesAll walks every page of ListImages, yielding one item at a
+// time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListImagesAll(ctx, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListImagesAll(ctx context.Context, params *ListImagesParams, opts ...basaltic.RequestOption) iter.Seq2[Image, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[Image], error) {
+		return c.ListImages(ctx, params.withMarker(marker), opts...)
+	})
+}
+
+// ListInstanceNiCs lists the instance's network interfaces.
+//
+// List NICs in boot order. All directly attached addresses, routed
+// prefixes and floating IP identities are read here; instance objects
+// have no IP summary fields.
+func (c *Client) ListInstanceNiCs(ctx context.Context, instanceID string, params *ListInstanceNiCsParams, opts ...basaltic.RequestOption) ([]*ListInstanceNiCsNIC, error) {
+	op := &basaltic.Operation{
+		ID:       "listInstanceNICs",
+		Method:   "GET",
+		Path:     "/v1/instances/{instance_id}/nics",
+		PathArgs: []string{instanceID},
+	}
+	op.Query = params.query()
+	var out struct {
+		NICs []*ListInstanceNiCsNIC `json:"nics"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.NICs, nil
+}
+
+// ListInstancePoolFloatingIPs lists the pool's shared public addresses.
+//
+// The addresses the WHOLE pool answers on. Not the per-replica addresses
+// `template.networks[].assign_public_ip` allocates — those belong to
+// the replica and are read from the instance.
+//
+// Returns one page. Use ListInstancePoolFloatingIPsAll to walk every page.
+func (c *Client) ListInstancePoolFloatingIPs(ctx context.Context, poolID string, params *ListInstancePoolFloatingIPsParams, opts ...basaltic.RequestOption) (*basaltic.Page[FloatingIP], error) {
+	op := &basaltic.Operation{
+		ID:       "listInstancePoolFloatingIps",
+		Method:   "GET",
+		Path:     "/v1/instance-pools/{pool_id}/floating-ips",
+		PathArgs: []string{poolID},
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []FloatingIP `json:"floating_ips"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[FloatingIP]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListInstancePoolFloatingIPsAll walks every page of
+// ListInstancePoolFloatingIPs, yielding one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListInstancePoolFloatingIPsAll(ctx, poolID, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListInstancePoolFloatingIPsAll(ctx context.Context, poolID string, params *ListInstancePoolFloatingIPsParams, opts ...basaltic.RequestOption) iter.Seq2[FloatingIP, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[FloatingIP], error) {
+		return c.ListInstancePoolFloatingIPs(ctx, poolID, params.withMarker(marker), opts...)
+	})
+}
+
+// ListInstancePools lists instance pools.
+//
+// List the account's customer-managed instance pools. Pools created
+// internally by other services (e.g. the load balancer's amphora fleet)
+// are filtered out.
+//
+// Returns one page. Use ListInstancePoolsAll to walk every page.
+func (c *Client) ListInstancePools(ctx context.Context, params *ListInstancePoolsParams, opts ...basaltic.RequestOption) (*basaltic.Page[InstancePool], error) {
+	op := &basaltic.Operation{
+		ID:     "listInstancePools",
+		Method: "GET",
+		Path:   "/v1/instance-pools",
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []InstancePool `json:"instance_pools"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[InstancePool]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListInstancePoolsAll walks every page of ListInstancePools, yielding
+// one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListInstancePoolsAll(ctx, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListInstancePoolsAll(ctx context.Context, params *ListInstancePoolsParams, opts ...basaltic.RequestOption) iter.Seq2[InstancePool, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[InstancePool], error) {
+		return c.ListInstancePools(ctx, params.withMarker(marker), opts...)
+	})
+}
+
+// ListInstanceVolumes lists the instance's attached volumes.
+//
+// Returns the instance's volume bindings ordered by boot index (boot
+// disk first), each resolved with the volume's current
+// name/type/size/status.
+func (c *Client) ListInstanceVolumes(ctx context.Context, instanceID string, params *ListInstanceVolumesParams, opts ...basaltic.RequestOption) ([]*ListInstanceVolumesAttachment, error) {
+	op := &basaltic.Operation{
+		ID:       "listInstanceVolumes",
+		Method:   "GET",
+		Path:     "/v1/instances/{instance_id}/volumes",
+		PathArgs: []string{instanceID},
+	}
+	op.Query = params.query()
+	var out struct {
+		Attachments []*ListInstanceVolumesAttachment `json:"attachments"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Attachments, nil
+}
+
+// ListInstances lists instances.
+//
+// List instances in the authenticated account. Exact name and CRN
+// predicates intersect with flavor, image and other filters before
+// pagination.
+//
+// Returns one page. Use ListInstancesAll to walk every page.
+func (c *Client) ListInstances(ctx context.Context, params *ListInstancesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Instance], error) {
+	op := &basaltic.Operation{
+		ID:     "listInstances",
+		Method: "GET",
+		Path:   "/v1/instances",
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []Instance `json:"instances"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[Instance]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListInstancesAll walks every page of ListInstances, yielding one item
+// at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListInstancesAll(ctx, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListInstancesAll(ctx context.Context, params *ListInstancesParams, opts ...basaltic.RequestOption) iter.Seq2[Instance, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[Instance], error) {
+		return c.ListInstances(ctx, params.withMarker(marker), opts...)
+	})
+}
+
+// ListPoolInstances lists a pool's instances.
+//
+// List full instances scoped to this pool, with the same filters,
+// ordering and pagination as the top-level instance list. The stable
+// replica sequence number is available in instance metadata as
+// `basalt:pool:sequence_num`.
+//
+// Returns one page. Use ListPoolInstancesAll to walk every page.
+func (c *Client) ListPoolInstances(ctx context.Context, poolID string, params *ListPoolInstancesParams, opts ...basaltic.RequestOption) (*basaltic.Page[Instance], error) {
+	op := &basaltic.Operation{
+		ID:       "listPoolInstances",
+		Method:   "GET",
+		Path:     "/v1/instance-pools/{pool_id}/instances",
+		PathArgs: []string{poolID},
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []Instance `json:"instances"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[Instance]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListPoolInstancesAll walks every page of ListPoolInstances, yielding
+// one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListPoolInstancesAll(ctx, poolID, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListPoolInstancesAll(ctx context.Context, poolID string, params *ListPoolInstancesParams, opts ...basaltic.RequestOption) iter.Seq2[Instance, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[Instance], error) {
+		return c.ListPoolInstances(ctx, poolID, params.withMarker(marker), opts...)
+	})
+}
+
+// RebootInstance reboots instance.
+//
+// Reboot an instance (soft or hard).
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) RebootInstance(ctx context.Context, instanceID string, body *InstanceRebootRequest, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "rebootInstance",
+		Method:   "POST",
+		Path:     "/v1/instances/{instance_id}/reboot",
+		PathArgs: []string{instanceID},
+		Body:     body,
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// RefreshInstancePool rolls every member onto the pool's current launch template.
+//
+// Starts a rolling replacement of every instance not launched from the
+// pool's current template, including any that predate template tracking.
+//
+// Asynchronous, and deliberately so: each replacement is a VM boot, and
+// a request that waited would time out long before a pool of any size
+// finished. The reconciler replaces ONE member per pass, and only once
+// the pool is back at size with every member running — so a template
+// that does not boot stalls the roll with the pool intact instead of
+// walking it down one instance at a time.
+//
+// Capacity does not dip. The pool runs one instance over its target for
+// the duration so a replacement is serving before anything is retired,
+// when headroom is available. At max_count, the refresh waits until
+// headroom becomes available instead of retiring a member below
+// desired_count.
+//
+// Idempotent: asking again while a roll is running is accepted and does
+// not restart it. Watch `refresh_in_progress` and `stale_instance_count`
+// on the pool for progress.
+func (c *Client) RefreshInstancePool(ctx context.Context, poolID string, opts ...basaltic.RequestOption) (*InstancePool, error) {
+	op := &basaltic.Operation{
+		ID:       "refreshInstancePool",
+		Method:   "POST",
+		Path:     "/v1/instance-pools/{pool_id}/refresh",
+		PathArgs: []string{poolID},
+	}
+	var out struct {
+		InstancePool *InstancePool `json:"instance_pool"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.InstancePool, nil
+}
+
+// ReinstallInstance reinstalls instance.
+//
+// Re-image a STOPPED instance's boot volume from an image (the current
+// one, or a new image), keeping the instance's identity — id, name,
+// IPs, and cloud-init seed. The replacement is sized and tiered by
+// size_gb and volume_type, defaulting to the image's min_disk_gb on the
+// region default tier. The old boot volume is deleted; attached data
+// volumes are untouched. The new OS is applied on the next start.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) ReinstallInstance(ctx context.Context, instanceID string, body *ReinstallInstanceRequest, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "reinstallInstance",
+		Method:   "POST",
+		Path:     "/v1/instances/{instance_id}/reinstall",
+		PathArgs: []string{instanceID},
+		Body:     body,
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ResizeInstance resizes instance.
+//
+// Change a STOPPED instance's flavor (vCPU/RAM). The new size is
+// published now and materializes on the next start — so resize the
+// instance, then start it. A running instance cannot have its maximum
+// vCPU or memory changed underneath it, which is why the stop is
+// required rather than merely recommended.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) ResizeInstance(ctx context.Context, instanceID string, body *ResizeInstanceRequest, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "resizeInstance",
+		Method:   "POST",
+		Path:     "/v1/instances/{instance_id}/resize",
+		PathArgs: []string{instanceID},
+		Body:     body,
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// StartInstance starts instance.
+//
+// Start a stopped instance.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) StartInstance(ctx context.Context, instanceID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "startInstance",
+		Method:   "POST",
+		Path:     "/v1/instances/{instance_id}/start",
+		PathArgs: []string{instanceID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// StartSerialConsole opens an interactive serial console.
+//
+// Upgrades to a WebSocket carrying an interactive session on the
+// instance's serial port — the equivalent of a crash cart, and the
+// only way in when the network is broken: a bad fstab, a wrong kernel, a
+// security group that locked you out, a full disk.
+//
+// Raw bytes in binary frames, both directions. It is a terminal, not a
+// protocol: send keystrokes, receive whatever the guest prints. Point a
+// terminal emulator at it.
+//
+// This drops you at the guest's OWN login prompt. It is not a backdoor
+// — the guest's credentials are still required and nothing here grants
+// access past what the guest itself allows.
+//
+// **Authenticating the upgrade.** A client that can set headers — the
+// `basaltic` CLI, or anything not running in a browser — authenticates
+// this like every other call and needs nothing extra.
+//
+// A BROWSER cannot: the WebSocket constructor takes a URL and no
+// headers. For that case, `POST` the companion `/console/ticket`
+// endpoint and pass the result as a `ticket` query parameter. The ticket
+// is deliberately narrow — one instance, sixty seconds — because a
+// credential in a URL ends up in proxy logs, and that one is worth far
+// less than a session token would be.
+//
+// One session per instance: opening a second disconnects the first,
+// rather than interleaving two people's keystrokes into the same
+// terminal. A session ends after 15 minutes idle, or 4 hours regardless,
+// and the close frame carries the reason.
+//
+// Requires the instance to be running.
+func (c *Client) StartSerialConsole(ctx context.Context, instanceID string, params *StartSerialConsoleParams, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "startSerialConsole",
+		Method:   "GET",
+		Path:     "/v1/instances/{instance_id}/console/serial",
+		PathArgs: []string{instanceID},
+	}
+	op.Query = params.query()
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// StopInstance stops instance.
+//
+// Stop a running instance.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) StopInstance(ctx context.Context, instanceID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "stopInstance",
+		Method:   "POST",
+		Path:     "/v1/instances/{instance_id}/stop",
+		PathArgs: []string{instanceID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdateImage updates an image's metadata.
+//
+// Updating a platform image requires a principal acting in the platform
+// account with `compute:UpdateImage`; other accounts receive 403.
+func (c *Client) UpdateImage(ctx context.Context, imageID string, body *ImageUpdateRequest, opts ...basaltic.RequestOption) (*Image, error) {
+	op := &basaltic.Operation{
+		ID:       "updateImage",
+		Method:   "PATCH",
+		Path:     "/v1/images/{image_id}",
+		PathArgs: []string{imageID},
+		Body:     body,
+	}
+	var out struct {
+		Image *Image `json:"image"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Image, nil
+}
+
+// UpdateInstance updates instance.
+//
+// Update an instance's description, metadata, tags, or workload IAM
+// role. Its name is immutable. Role replacement is atomic and needs no
+// restart. Omit iam_role to preserve it; send an empty string to detach.
+// Concurrent edits serialize in commit order, and repeating the current
+// association is a no-op. Existing STS credentials keep their expiry (up
+// to one hour).
+func (c *Client) UpdateInstance(ctx context.Context, instanceID string, body *InstanceUpdateRequest, opts ...basaltic.RequestOption) (*Instance, error) {
+	op := &basaltic.Operation{
+		ID:       "updateInstance",
+		Method:   "PATCH",
+		Path:     "/v1/instances/{instance_id}",
+		PathArgs: []string{instanceID},
+		Body:     body,
+	}
+	var out struct {
+		Instance *Instance `json:"instance"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Instance, nil
+}
+
+// UpdateInstancePool updates an instance pool's description, size, tags or launch template.
+//
+// Change description, desired_count, min_count, max_count, the pool's
+// own tags, and/or the launch template. Omitted bounds retain their
+// current values. The resulting bounds must satisfy 0 <= min_count <=
+// max_count <= 100. If desired_count is omitted, it is clamped into the
+// new bounds and the reconciler scales the live instance set to match.
+// An explicit desired_count must lie within the new bounds. Invalid
+// sizing returns 400 with nothing applied, including tags and template
+// changes. Managed pools remain read-only through the customer API.
+//
+// Lowering max_count to desired_count removes refresh surge headroom.
+// The refresh waits until headroom becomes available; normal scaling
+// continues.
+//
+// `description` changes only the pool's note. Omit it to preserve the
+// note, or send an empty string to clear it. This never rolls or resizes
+// instances.
+//
+// `tags` relabels the POOL and nothing else: it takes effect
+// immediately, no instance is touched, and the new set is what a later
+// IAM condition reads as `basalt:ResourceTag/<key>`. It replaces the
+// whole set — an empty object clears it, an omitted field leaves it
+// alone.
+//
+// A new `template` replaces the stored one wholesale and changes what
+// the pool launches NEXT; the instances already running keep what they
+// booted with, because a live VM cannot change flavor, tier, subnet or
+// tags in place. So a `template.tags` edit leaves the pool holding
+// members with two different tag sets until it is rolled. The pool
+// reports `stale_instance_count` — how many members are on the old
+// template — and POST /v1/instance-pools/{pool_id}/refresh rolls them.
+func (c *Client) UpdateInstancePool(ctx context.Context, poolID string, body *InstancePoolUpdateRequest, opts ...basaltic.RequestOption) (*InstancePool, error) {
+	op := &basaltic.Operation{
+		ID:       "updateInstancePool",
+		Method:   "PATCH",
+		Path:     "/v1/instance-pools/{pool_id}",
+		PathArgs: []string{poolID},
+		Body:     body,
+	}
+	var out struct {
+		InstancePool *InstancePool `json:"instance_pool"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.InstancePool, nil
+}
+
+// UpdateInstanceVolumeAttachment updates a volume attachment's settings.
+//
+// Mutates binding-level settings — today just delete_on_termination,
+// which controls whether the volume is destroyed with the instance.
+func (c *Client) UpdateInstanceVolumeAttachment(ctx context.Context, instanceID string, volumeID string, body *UpdateInstanceVolumeAttachmentRequest, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "updateInstanceVolumeAttachment",
+		Method:   "PATCH",
+		Path:     "/v1/instances/{instance_id}/volumes/{volume_id}",
+		PathArgs: []string{instanceID, volumeID},
+		Body:     body,
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetFlavorByReference fetches one flavor by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetFlavor]; a CRN or a name goes to [Client.ListFlavors] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetFlavorByReference(ctx context.Context, ref string, scope *ListFlavorsParams, opts ...basaltic.RequestOption) (*Flavor, error) {
+	return basaltic.ResolveByReference(ctx, ref, "flavor", "listFlavors", true,
+		func(ctx context.Context, refID string) (*Flavor, error) {
+			return c.GetFlavor(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Flavor], error) {
+			var p ListFlavorsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			return c.ListFlavors(ctx, &p, opts...)
+		})
+}
+
+// GetImageByReference fetches one image by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetImage]; a CRN or a name goes to [Client.ListImages] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetImageByReference(ctx context.Context, ref string, scope *ListImagesParams, opts ...basaltic.RequestOption) (*Image, error) {
+	return basaltic.ResolveByReference(ctx, ref, "image", "listImages", true,
+		func(ctx context.Context, refID string) (*Image, error) {
+			return c.GetImage(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Image], error) {
+			var p ListImagesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListImages(ctx, &p, opts...)
+		})
+}
+
+// GetInstanceByReference fetches one instance by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetInstance]; a CRN or a name goes to [Client.ListInstances]
+// as an exact filter, together with any filters already set on scope,
+// which may be nil. A miss is a not-found error for the kind the string
+// was read as — no other kind is tried — and more than one match is
+// a [basaltic.AmbiguousReferenceError].
+//
+// A name is unique only within its parent; fix it on scope (Flavor,
+// Image) or the lookup can match more than one.
+func (c *Client) GetInstanceByReference(ctx context.Context, ref string, scope *ListInstancesParams, opts ...basaltic.RequestOption) (*Instance, error) {
+	return basaltic.ResolveByReference(ctx, ref, "instance", "listInstances", true,
+		func(ctx context.Context, refID string) (*Instance, error) {
+			return c.GetInstance(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Instance], error) {
+			var p ListInstancesParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListInstances(ctx, &p, opts...)
+		})
+}
+
+// GetInstancePoolByReference fetches one instance pool by an id, a CRN
+// or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetInstancePool]; a CRN or a name goes to
+// [Client.ListInstancePools] as an exact filter, together with any
+// filters already set on scope, which may be nil. A miss is a not-found
+// error for the kind the string was read as — no other kind is tried
+// — and more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetInstancePoolByReference(ctx context.Context, ref string, scope *ListInstancePoolsParams, opts ...basaltic.RequestOption) (*InstancePool, error) {
+	return basaltic.ResolveByReference(ctx, ref, "instance-pool", "listInstancePools", true,
+		func(ctx context.Context, refID string) (*InstancePool, error) {
+			return c.GetInstancePool(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[InstancePool], error) {
+			var p ListInstancePoolsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListInstancePools(ctx, &p, opts...)
+		})
+}

@@ -1,0 +1,749 @@
+// Code generated from the Basaltic OpenAPI specifications. DO NOT EDIT.
+//
+// Regenerate with:
+//
+//	go run ./internal/gen -spec /path/to/openapi
+
+package iam
+
+import (
+	"time"
+)
+
+// AccountReference Account UUID, immutable handle, or a Workspace account CRN
+// (crn:workspace:::account/<uuid>). The account establishes the owning
+// organization for federation and must match the target role account.
+type AccountReference = string
+
+type AssumeRoleRequest struct {
+	// DurationSeconds credential validity duration (15 min to 12 hours)
+	DurationSeconds *int                   `json:"duration_seconds,omitempty"`
+	Policy          *SessionPolicyDocument `json:"policy,omitempty"`
+
+	// Required.
+	Role RoleReference `json:"role"`
+}
+
+// AssumeRoleResponse a role session's credentials, in both forms it can be presented.
+//
+// `access_token` is a bearer token for this API — send it as
+// `Authorization: Bearer <token>`. The other four fields are AWS SigV4
+// credentials for the S3-compatible object storage endpoint, which
+// speaks nothing else.
+//
+// Both come from the same session and share its expiry, so revoking the
+// session stops both at once. Use whichever the endpoint you are calling
+// needs; there is no need to choose one at request time.
+type AssumeRoleResponse struct {
+	// AccessKeyID SigV4 access key id, for the S3 endpoint.
+	AccessKeyID string `json:"access_key_id,omitempty"`
+
+	// AccessToken bearer token for the Basaltic API. Present on every role session.
+	AccessToken string `json:"access_token,omitempty"`
+
+	// AccountHandle owning account handle of the target role.
+	AccountHandle string `json:"account_handle,omitempty"`
+
+	// AccountID owning account UUID of the target role.
+	AccountID string `json:"account_id,omitempty"`
+
+	// Expiration when the session — and therefore both credential forms —
+	// expires.
+	Expiration time.Time `json:"expiration,omitempty"`
+
+	// ExpiresIn seconds until `access_token` expires.
+	ExpiresIn int `json:"expires_in,omitempty"`
+
+	// RoleID Immutable UUID of the assumed role.
+	RoleID string `json:"role_id,omitempty"`
+
+	// SecretAccessKey SigV4 secret, for the S3 endpoint.
+	SecretAccessKey string `json:"secret_access_key,omitempty"`
+
+	// SessionToken SigV4 session token, for the S3 endpoint. Send as
+	// `X-Amz-Security-Token` and include it in `SignedHeaders`.
+	SessionToken string `json:"session_token,omitempty"`
+
+	// TokenType always `Bearer` when `access_token` is present.
+	TokenType string `json:"token_type,omitempty"`
+}
+
+// AssumeRoleWithWebIdentityRequest the exchange a federated caller sends. It carries no signature — the
+// token is the credential — so every field is read from the body and
+// nothing is inferred from the request context.
+type AssumeRoleWithWebIdentityRequest struct {
+	// Required.
+	Account AccountReference `json:"account"`
+
+	// DurationSeconds credential validity duration (15 min to 12 hours). A value above the
+	// role's own `max_session_duration` is rejected rather than clamped.
+	DurationSeconds *int `json:"duration_seconds,omitempty"`
+
+	// Required.
+	Role RoleReference `json:"role"`
+
+	// SessionName a label recorded on the session and in the audit trail. Defaults to
+	// the token's `sub` claim, so an unnamed session still records which
+	// identity it came from.
+	SessionName *string `json:"session_name,omitempty"`
+
+	// WebIdentityToken the identity token to exchange, as a signed JWT. It is verified
+	// before any role is read: the signature must chain to a key the
+	// trusted provider publishes, the audience must be the one this
+	// platform was configured to accept, and `exp` must be in the future.
+	//
+	// Required.
+	WebIdentityToken string `json:"web_identity_token"`
+}
+
+type Credential struct {
+	AccessKeyID string    `json:"access_key_id,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
+
+	// CRN Cloud Resource Name
+	CRN        string    `json:"crn,omitempty"`
+	ExpiresAt  time.Time `json:"expires_at,omitempty"`
+	ID         string    `json:"id,omitempty"`
+	LastUsedAt time.Time `json:"last_used_at,omitempty"`
+	Name       string    `json:"name,omitempty"`
+}
+
+type CredentialCreateRequest struct {
+	// ExpiresAt optional expiration date
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+
+	// Required.
+	Name string `json:"name"`
+}
+
+type CredentialCreateResponse struct {
+	Credential *Credential `json:"credential,omitempty"`
+
+	// SecretAccessKey only returned once at creation time
+	SecretAccessKey string `json:"secret_access_key,omitempty"`
+}
+
+type InlinePolicy struct {
+	CreatedAt time.Time `json:"created_at,omitempty"`
+
+	// CRN canonical inline policy identity under the owning account principal.
+	CRN      string          `json:"crn"`
+	Document *PolicyDocument `json:"document,omitempty"`
+	ID       string          `json:"id,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name        string `json:"name,omitempty"`
+	PrincipalID string `json:"principal_id,omitempty"`
+
+	// One of: "service_account", "role".
+	PrincipalType string    `json:"principal_type,omitempty"`
+	UpdatedAt     time.Time `json:"updated_at,omitempty"`
+}
+
+// LinuxIdentity stable platform-managed identity. Primary GID equals UID. Removing and
+// re-adding a membership allocates a new identity; retired IDs are never
+// reused.
+type LinuxIdentity struct {
+	GID int32 `json:"gid"`
+
+	// HomeDirectory new identities use /home/<username>. Existing identities retain
+	// their original home path and numeric file ownership.
+	HomeDirectory string `json:"home_directory"`
+	UID           int32  `json:"uid"`
+	Username      string `json:"username"`
+}
+
+type ListRegionsResult struct {
+	// Default the default region code
+	Default string `json:"default"`
+
+	// Regions list of available regions
+	Regions []*Region `json:"regions"`
+}
+
+// OAuthAuthorizeRequest a signed-in user approving a client, from the console's consent page.
+type OAuthAuthorizeRequest struct {
+	// ClientID the registered client being approved.
+	//
+	// Required.
+	ClientID string `json:"client_id"`
+
+	// CodeChallenge Base64url SHA-256 of the client's PKCE verifier, without padding.
+	//
+	// Required.
+	CodeChallenge string `json:"code_challenge"`
+
+	// CodeChallengeMethod S256 only. `plain` is refused rather than merely discouraged:
+	// whoever intercepts the code also saw the challenge, so a plain
+	// challenge protects nothing.
+	//
+	// One of: "S256".
+	//
+	// Required.
+	CodeChallengeMethod string `json:"code_challenge_method"`
+
+	// Required.
+	Organization OrganizationReference `json:"organization"`
+
+	// RedirectURI for the CLI this must be `urn:ietf:wg:oauth:2.0:oob` — the
+	// out-of-band pseudo-redirect, meaning the code is DISPLAYED rather
+	// than delivered anywhere. Nothing else is accepted for that client.
+	//
+	// Out-of-band because a redirect assumes the browser and the client
+	// are on the same machine, which is false for anyone signing in on a
+	// server they reach over SSH. What makes redemption safe is PKCE, not
+	// the delivery address.
+	//
+	// Required.
+	RedirectURI string `json:"redirect_uri"`
+
+	// State opaque value echoed back on the redirect, unchanged. The client
+	// generated it and compares it on return.
+	State *string `json:"state,omitempty"`
+}
+
+// OAuthAuthorizeResponse what the consent page does next. Exactly one of `code` and
+// `redirect_to` is present, decided by the client's registered redirect.
+type OAuthAuthorizeResponse struct {
+	// Code the authorization code, for an out-of-band client — one with
+	// nowhere to redirect to. Show it to the user so they can carry it to
+	// the program that asked. Treat it as a credential: single use, and
+	// not something to log.
+	Code string `json:"code,omitempty"`
+
+	// ExpiresIn how long the code stays redeemable, in seconds.
+	ExpiresIn int `json:"expires_in"`
+
+	// RedirectTo send the browser here, for a client that registered a real redirect.
+	// The URL carries the authorization code and the state — treat it as
+	// a credential, and do not log it.
+	RedirectTo string `json:"redirect_to,omitempty"`
+}
+
+type OAuthRevokeRequest struct {
+	// Token the access token to revoke.
+	//
+	// Required.
+	Token string `json:"token"`
+
+	// TokenTypeHint accepted and ignored — the token identifies itself. Present
+	// because RFC 7009 clients send it.
+	TokenTypeHint *string `json:"token_type_hint,omitempty"`
+}
+
+// OAuthTokenRequest An OAuth 2.0 token request. Form-encoded is what RFC 6749 specifies
+// and what client libraries send; JSON is accepted too.
+//
+// Client credentials may be sent as HTTP Basic (`Authorization: Basic
+// base64(key_id:secret)`, which is what most libraries do by default) or
+// as `client_id` and `client_secret` fields. Basic wins if both are
+// present.
+type OAuthTokenRequest struct {
+	// ClientID the access key id. Omit when using HTTP Basic.
+	ClientID *string `json:"client_id,omitempty"`
+
+	// ClientSecret the secret access key. Omit when using HTTP Basic.
+	ClientSecret *string `json:"client_secret,omitempty"`
+
+	// Code the authorization code from the consent redirect. Single use, and
+	// valid for five minutes. `authorization_code` grant only.
+	Code *string `json:"code,omitempty"`
+
+	// CodeVerifier The PKCE verifier whose SHA-256 was sent as `code_challenge` when
+	// the flow started (RFC 7636). Required with `authorization_code`: it
+	// is what proves this is the client that began the flow, since a CLI
+	// holds no client secret.
+	CodeVerifier *string `json:"code_verifier,omitempty"`
+
+	// DurationSeconds requested token lifetime. A Basaltic extension, not an OAuth
+	// parameter — omit it and you get the default. Values outside the
+	// range are clamped into it rather than refused, so asking for a day
+	// yields the longest token allowed.
+	DurationSeconds *int `json:"duration_seconds,omitempty"`
+
+	// GrantType `client_credentials` is the one to use for a service account: it
+	// exchanges an access key pair for a token, and needs nothing else.
+	//
+	// `authorization_code` and `refresh_token` belong to the interactive
+	// login a person runs (`basaltic login`), where the token names a USER
+	// rather than a service account. They are driven by the CLI, not
+	// written by hand. Check the authorization-server metadata document
+	// before branching on them — they are advertised only where an
+	// authorization endpoint is configured.
+	//
+	// One of: "client_credentials", "authorization_code", "refresh_token".
+	//
+	// Required.
+	GrantType string `json:"grant_type"`
+
+	// RedirectURI the same `redirect_uri` the code was issued for — for the CLI,
+	// `urn:ietf:wg:oauth:2.0:oob`. Re-checked here, so a code cannot be
+	// redeemed under a different one (RFC 6749 4.1.3).
+	RedirectURI *string `json:"redirect_uri,omitempty"`
+
+	// RefreshToken `refresh_token` grant only. Renews a user session without another
+	// trip through the browser. Rotated on every use — store the new
+	// one.
+	RefreshToken *string `json:"refresh_token,omitempty"`
+}
+
+// OAuthTokenResponse RFC 6749 token response.
+type OAuthTokenResponse struct {
+	// AccessToken send as `Authorization: Bearer <token>`. Opaque to clients: do not
+	// parse it, and do not key anything on the token string.
+	AccessToken string `json:"access_token"`
+
+	// ExpiresIn seconds until the token expires.
+	ExpiresIn int `json:"expires_in"`
+
+	// RefreshToken returned only by the user grants (`authorization_code` and
+	// `refresh_token`). Present it to the `refresh_token` grant to renew
+	// without another browser round trip; it is ROTATED on each use, so
+	// replace the stored copy every time.
+	//
+	// A service account gets none. It already holds a long-lived access
+	// key and can simply run `client_credentials` again, so a refresh
+	// token would be a second credential to store for no gain.
+	RefreshToken string `json:"refresh_token,omitempty"`
+
+	// One of: "Bearer".
+	TokenType string `json:"token_type"`
+}
+
+// OrganizationReference Organization UUID to select for the session. Display names are not
+// accepted. The signed-in user must be a member.
+type OrganizationReference = string
+
+type PermissionBoundary struct {
+	CreatedAt   time.Time `json:"created_at,omitempty"`
+	PolicyID    string    `json:"policy_id,omitempty"`
+	PolicyName  string    `json:"policy_name,omitempty"`
+	PrincipalID string    `json:"principal_id,omitempty"`
+
+	// One of: "service_account", "role".
+	PrincipalType string `json:"principal_type,omitempty"`
+}
+
+type Policy struct {
+	// AccountHandle immutable handle of the owning account.
+	AccountHandle string `json:"account_handle,omitempty"`
+
+	// AccountID owning account UUID; absent for shared system policies.
+	AccountID string `json:"account_id,omitempty"`
+
+	// CreatedAt creation timestamp (not present for system policies)
+	CreatedAt time.Time `json:"created_at,omitempty"`
+
+	// CRN managed policy CRN; absent on inline policy projections in
+	// effective-policy lists.
+	CRN         string          `json:"crn,omitempty"`
+	Description string          `json:"description,omitempty"`
+	Document    *PolicyDocument `json:"document,omitempty"`
+	ID          string          `json:"id,omitempty"`
+
+	// IsSystem whether this is a system-managed policy (cannot be modified or
+	// deleted)
+	IsSystem bool `json:"is_system,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name,omitempty"`
+	Tags Tags   `json:"tags,omitempty"`
+
+	// UpdatedAt last update timestamp (not present for system policies)
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+}
+
+type PolicyAttachRequest struct {
+	// Required.
+	Policy PolicyReference `json:"policy"`
+}
+
+// PolicyCondition a condition that must be satisfied for the statement to apply
+type PolicyCondition struct {
+	// Key the condition key to evaluate
+	Key string `json:"key"`
+
+	// Operator the comparison operator
+	//
+	// One of: "equals", "not_equals", "starts_with", "ends_with", "contains", "in", "not_in", "greater_than", "less_than", "greater_than_or_equals", "less_than_or_equals", "exists", "not_exists", "ip_address", "not_ip_address".
+	Operator string `json:"operator"`
+
+	// SetOperator evaluates `operator` against a multi-valued context key (a set, such
+	// as `basalt:TagKeys` — the tag keys a request carries) rather than
+	// a single value. Omit for an ordinary single-valued condition.
+	//
+	// - `for_all_values` — holds when every member of the request set
+	//   satisfies `operator`. An absent or empty set holds vacuously, so a
+	//   request carrying no tags is not fenced by a tag-key restriction.
+	// - `for_any_value` — holds when at least one member does. An absent or
+	//   empty set does not hold.
+	//
+	// One of: "for_all_values", "for_any_value".
+	SetOperator string `json:"set_operator,omitempty"`
+
+	// Values to compare against
+	Values []string `json:"values"`
+}
+
+type PolicyCreateRequest struct {
+	Description *string `json:"description,omitempty"`
+
+	// Required.
+	Document *PolicyDocument `json:"document"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
+	// Required.
+	Name string `json:"name"`
+	Tags Tags   `json:"tags,omitempty"`
+}
+
+// PolicyDocument IAM-style policy document
+type PolicyDocument struct {
+	Statements []*PolicyStatement `json:"statements"`
+
+	// One of: "2024-01-01".
+	Version string `json:"version"`
+}
+
+// PolicyReference account policy UUID, immutable name in the selected account, or
+// account-qualified IAM CRN. Shared system policies use
+// crn:iam:::policy/<name>. CRNs select one namespace without fallback.
+type PolicyReference = string
+
+// PolicyStatement a single statement. The action set is named either positively
+// (`actions`) or by exclusion (`not_actions`), and the resource set
+// likewise (`resources` / `not_resources`) — exactly one of each pair.
+// A statement that sets both sides of a pair, or neither, is rejected
+// with `INVALID_INPUT` when the document is saved.
+type PolicyStatement struct {
+	// Actions in service:action format
+	Actions []string `json:"actions,omitempty"`
+
+	// Conditions optional conditions for the statement
+	Conditions []*PolicyCondition `json:"conditions,omitempty"`
+
+	// One of: "allow", "deny".
+	Effect string `json:"effect"`
+
+	// NotActions the statement covers every action *except* these. Pairs naturally
+	// with `effect: deny` to carve a hole out of a broad allow; with
+	// `effect: allow` it grants everything the listed patterns don't name,
+	// including actions added by future services.
+	NotActions []string `json:"not_actions,omitempty"`
+
+	// NotResources the statement covers every resource *except* these. Same trade-off
+	// as `not_actions`: with `effect: allow` it reaches resources that do
+	// not exist yet.
+	NotResources []string `json:"not_resources,omitempty"`
+
+	// Resources resource identifiers or patterns
+	Resources []string `json:"resources,omitempty"`
+
+	// Sid statement identifier
+	Sid string `json:"sid,omitempty"`
+}
+
+// PolicyUpdateRequest the resource name is immutable.
+type PolicyUpdateRequest struct {
+	Description *string         `json:"description,omitempty"`
+	Document    *PolicyDocument `json:"document,omitempty"`
+	Tags        Tags            `json:"tags,omitempty"`
+}
+
+type PutInlinePolicyRequest struct {
+	// Required.
+	Document *PolicyDocument `json:"document"`
+}
+
+type Region struct {
+	// Available whether the region is currently available for use
+	Available bool `json:"available"`
+
+	// Code unique region code used in API calls and CRNs
+	Code string `json:"code"`
+
+	// ComingSoon whether the region is announced but not yet available
+	ComingSoon bool `json:"coming_soon"`
+
+	// CountryCode ISO 3166-1 alpha-2 country code (used to display flag in UI)
+	CountryCode string `json:"country_code"`
+
+	// CRN platform-owned global region identity, using the immutable region
+	// code.
+	CRN string `json:"crn"`
+
+	// Location geographic location of the region
+	Location string `json:"location"`
+
+	// Name human-readable region name
+	Name string `json:"name"`
+}
+
+type RevokeSTSSessionRequest struct {
+	// Reason for revoking the session
+	Reason *string `json:"reason,omitempty"`
+}
+
+type Role struct {
+	// AccountHandle immutable handle of the owning account.
+	AccountHandle string `json:"account_handle,omitempty"`
+
+	// AccountID owning account UUID.
+	AccountID string `json:"account_id,omitempty"`
+
+	// BuiltinKind present on the account's built-in Administrator and ReadOnly roles.
+	// These assignable roles are created with the account, do not consume
+	// custom-role quota, and do not block account deletion.
+	//
+	// One of: "administrator", "readonly".
+	BuiltinKind string    `json:"builtin_kind,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
+
+	// CRN Cloud Resource Name
+	CRN         string `json:"crn,omitempty"`
+	Description string `json:"description,omitempty"`
+	ID          string `json:"id,omitempty"`
+
+	// IsSystem system roles cannot be changed or deleted.
+	IsSystem bool `json:"is_system,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name        string       `json:"name,omitempty"`
+	Tags        Tags         `json:"tags,omitempty"`
+	TrustPolicy *TrustPolicy `json:"trust_policy,omitempty"`
+	UpdatedAt   time.Time    `json:"updated_at,omitempty"`
+}
+
+type RoleCreateRequest struct {
+	Description *string `json:"description,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	//
+	// Required.
+	Name        string       `json:"name"`
+	Tags        Tags         `json:"tags,omitempty"`
+	TrustPolicy *TrustPolicy `json:"trust_policy,omitempty"`
+}
+
+type RolePolicyAttachRequest struct {
+	// Required.
+	Policy PolicyReference `json:"policy"`
+}
+
+// RoleReference account role UUID, immutable name in the selected account, or
+// crn:iam::<account-handle>:role/<name>. AssumeRole may use a qualified
+// CRN to target another account in the same organization. The resulting
+// session is bound to the target role account.
+type RoleReference = string
+
+// RoleUpdateRequest the resource name is immutable.
+type RoleUpdateRequest struct {
+	Description *string      `json:"description,omitempty"`
+	Tags        Tags         `json:"tags,omitempty"`
+	TrustPolicy *TrustPolicy `json:"trust_policy,omitempty"`
+}
+
+type SSHKey struct {
+	Algorithm string    `json:"algorithm"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// CRN Identity-owned SSH credential CRN.
+	CRN string `json:"crn"`
+
+	// ExpiresAt optional expiry. Expired keys remain listed until revoked.
+	ExpiresAt time.Time `json:"expires_at,omitempty"`
+
+	// Fingerprint SHA-256 fingerprint in OpenSSH format.
+	Fingerprint string `json:"fingerprint"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+
+	// PublicKey Canonical OpenSSH public key without a comment or authorized_keys
+	// options.
+	PublicKey string `json:"public_key"`
+}
+
+type SSHKeyCreateRequest struct {
+	// ExpiresAt optional expiry at least one minute in the future. Rotation requires
+	// a new credential and revocation of the old one.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+
+	// Required.
+	Name string `json:"name"`
+
+	// PublicKey One OpenSSH public key. Ed25519, ECDSA, security-key variants, and
+	// RSA of at least 2048 bits are supported. Private keys, certificates,
+	// multiple keys and authorized_keys options are rejected.
+	//
+	// Required.
+	PublicKey string `json:"public_key"`
+}
+
+// STSSession account-scoped temporary credentials, including assumed-role and
+// service-account OAuth sessions. Personal browser login sessions are
+// not listed here. A session is active when it is not revoked and its
+// expiration is in the future.
+type STSSession struct {
+	AccountHandle   string    `json:"account_handle,omitempty"`
+	AccountID       string    `json:"account_id,omitempty"`
+	CreatedAt       time.Time `json:"created_at,omitempty"`
+	CRN             string    `json:"crn,omitempty"`
+	ExpiresAt       time.Time `json:"expires_at,omitempty"`
+	GrantType       string    `json:"grant_type,omitempty"`
+	ID              string    `json:"id,omitempty"`
+	LastUsedAt      time.Time `json:"last_used_at,omitempty"`
+	ParentSessionID string    `json:"parent_session_id,omitempty"`
+
+	// PrincipalID ID of the principal assuming the role (the source identity)
+	PrincipalID string `json:"principal_id,omitempty"`
+
+	// One of: "user", "service_account", "assumed_role".
+	PrincipalType string `json:"principal_type,omitempty"`
+
+	// Revoked whether the session has been revoked
+	Revoked       bool      `json:"revoked,omitempty"`
+	RevokedAt     time.Time `json:"revoked_at,omitempty"`
+	RevokedReason string    `json:"revoked_reason,omitempty"`
+
+	// RoleID the assumed role UUID; absent on service-account OAuth sessions that
+	// do not assume a role.
+	RoleID string `json:"role_id,omitempty"`
+
+	// SessionName optional session identifier
+	SessionName     string `json:"session_name,omitempty"`
+	SourceAccountID string `json:"source_account_id,omitempty"`
+
+	// SourceIP IP address where the session was created
+	SourceIP            string `json:"source_ip,omitempty"`
+	SourcePrincipalCRN  string `json:"source_principal_crn,omitempty"`
+	SourcePrincipalType string `json:"source_principal_type,omitempty"`
+
+	// UserAgent User-Agent of the caller that created the session
+	UserAgent string `json:"user_agent,omitempty"`
+}
+
+// ServiceAccount An API-only identity for programmatic access, bound to an account
+type ServiceAccount struct {
+	// AccountHandle immutable handle of the owning account.
+	AccountHandle string `json:"account_handle,omitempty"`
+
+	// AccountID owning account UUID.
+	AccountID string    `json:"account_id,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+
+	// CRN Cloud Resource Name
+	CRN           string         `json:"crn,omitempty"`
+	Description   string         `json:"description,omitempty"`
+	Enabled       bool           `json:"enabled,omitempty"`
+	ID            string         `json:"id,omitempty"`
+	LinuxIdentity *LinuxIdentity `json:"linux_identity,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name      string    `json:"name,omitempty"`
+	Tags      Tags      `json:"tags,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+}
+
+type ServiceAccountCreateRequest struct {
+	Description *string `json:"description,omitempty"`
+
+	// Name immutable account-scoped name. The Linux login is sa_<name>.
+	// Resource names must not start with the literal crn: prefix or be
+	// UUIDs.
+	//
+	// Required.
+	Name string `json:"name"`
+	Tags Tags   `json:"tags,omitempty"`
+}
+
+type ServiceAccountUpdateRequest struct {
+	Description *string `json:"description,omitempty"`
+	Enabled     *bool   `json:"enabled,omitempty"`
+	Tags        Tags    `json:"tags,omitempty"`
+}
+
+// SessionPolicyDocument an inline policy that scopes down the credentials being minted. It
+// grants nothing on its own: every request made with the resulting
+// credentials must be allowed by the assumed role's effective policies
+// *and* by this document, so it can only narrow the permissions of the
+// assumed role.
+//
+// The document is validated on the way in and stored with the session
+// — an invalid one fails the call with `INVALID_INPUT` rather than
+// being ignored. Statements take the same shape as in a managed policy
+// but carry no `conditions`; a session policy fences on actions and
+// resources only.
+type SessionPolicyDocument struct {
+	// Required.
+	Statements []*SessionPolicyStatement `json:"statements"`
+
+	// One of: "2024-01-01".
+	//
+	// Required.
+	Version string `json:"version"`
+}
+
+// SessionPolicyStatement a session-policy statement. Same action/resource exclusivity as
+// `PolicyStatement` — exactly one of `actions`/`not_actions` and one
+// of `resources`/`not_resources`.
+type SessionPolicyStatement struct {
+	// Actions in service:action format
+	Actions []string `json:"actions,omitempty"`
+
+	// One of: "allow", "deny".
+	//
+	// Required.
+	Effect string `json:"effect"`
+
+	// NotActions the statement covers every action except these
+	NotActions []string `json:"not_actions,omitempty"`
+
+	// NotResources the statement covers every resource except these
+	NotResources []string `json:"not_resources,omitempty"`
+
+	// Resources resource identifiers or patterns
+	Resources []string `json:"resources,omitempty"`
+
+	// Sid statement identifier
+	Sid *string `json:"sid,omitempty"`
+}
+
+type SetBoundaryRequest struct {
+	// Required.
+	Policy PolicyReference `json:"policy"`
+}
+
+type Tags = map[string]string
+
+// TrustPolicy defines who/what can assume this role using CRN patterns
+type TrustPolicy struct {
+	// Conditions optional conditions for role assumption
+	Conditions []*PolicyCondition `json:"conditions,omitempty"`
+
+	// Principals Qualified CRN patterns identifying who may assume this account role.
+	// Same-organization membership alone does not establish trust. The
+	// caller also needs iam:AssumeRole permission for the target role.
+	//
+	// Account roles and service accounts use
+	// crn:iam::<account-handle>:role/<name> and
+	// crn:iam::<account-handle>:service-account/<name>. Human users use
+	// crn:workspace:::user/<username> or crn:workspace:::user/* in the
+	// selected organization. An instance presents its compute CRN through
+	// IMDS. A federated caller names the trusted provider as
+	// crn:iam:::oidc-provider/<provider> and uses conditions to restrict
+	// token claims.
+	Principals []string `json:"principals,omitempty"`
+}
