@@ -1,5 +1,7 @@
 # Basaltic Go SDK
 
+[![Public source checks](https://github.com/basaltic-sh/sdk-go/actions/workflows/public-checks.yml/badge.svg?branch=main)](https://github.com/basaltic-sh/sdk-go/actions/workflows/public-checks.yml)
+
 This is a release snapshot repository. Development happens in private Basaltic
 repositories; pull requests and other code contributions are not accepted here.
 For support, see [the documentation](https://docs.basaltic.sh).
