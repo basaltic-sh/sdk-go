@@ -39,6 +39,49 @@ type AttachTargetRequest struct {
 	Target string `json:"target"`
 }
 
+// AutoscalingPolicy target tracking shared by instance pools and load balancers. Updates
+// replace the policy. Set enabled=false to retain settings and use
+// manual sizing. Each metric recommends a desired count; the largest
+// recommendation wins. Missing, stale or incomplete observations prevent
+// scale-in but do not block scale-out recommended by another valid
+// metric. Decisions obey the resource's min_count/max_count, warmup,
+// cooldown, stabilization, step limits and quotas. State survives
+// controller restarts. Active policies own desired_count; manual changes
+// are accepted and automatic evaluation resumes after cooldown. Custom
+// telemetry requires telemetry:ReadMetrics in the same account.
+type AutoscalingPolicy struct {
+	CooldownSeconds *int `json:"cooldown_seconds,omitempty"`
+
+	// DrainSeconds grace period after route withdrawal and proxy acknowledgements,
+	// before deleting a retiring member. Long-lived TCP/UDP sessions may
+	// end at the deadline; arbitrary application shutdown hooks are not
+	// supported.
+	DrainSeconds                  *int             `json:"drain_seconds,omitempty"`
+	Enabled                       bool             `json:"enabled"`
+	MaxScaleInStep                *int             `json:"max_scale_in_step,omitempty"`
+	MaxScaleOutStep               *int             `json:"max_scale_out_step,omitempty"`
+	Metrics                       []*ScalingMetric `json:"metrics"`
+	ScaleDownStabilizationSeconds *int             `json:"scale_down_stabilization_seconds,omitempty"`
+	WarmupSeconds                 *int             `json:"warmup_seconds,omitempty"`
+}
+
+type AutoscalingStatus struct {
+	EvaluatedAt  time.Time                       `json:"evaluated_at,omitempty"`
+	History      []*AutoscalingStatusHistoryItem `json:"history"`
+	LastScaledAt time.Time                       `json:"last_scaled_at,omitempty"`
+	Reason       string                          `json:"reason"`
+
+	// One of: "pending", "disabled", "stable", "scaling", "waiting", "warming_up", "metrics_unavailable", "stabilizing", "cooldown", "draining".
+	Status string `json:"status"`
+}
+
+type AutoscalingStatusHistoryItem struct {
+	At     time.Time `json:"at"`
+	From   int       `json:"from"`
+	Reason string    `json:"reason"`
+	To     int       `json:"to"`
+}
+
 type CreateListenerCertificate struct {
 	// Certificate CRN, UUID or exact name in the caller's account.
 	// Certificate CRNs require an empty region. No key material is
@@ -81,6 +124,11 @@ type CreateListenerRequest struct {
 // only. All references resolve before writes. Addresses are fixed at
 // creation; updates cannot replace them.
 type CreateLoadBalancerRequest struct {
+	Autoscaling *AutoscalingPolicy `json:"autoscaling,omitempty"`
+
+	// DesiredCount steady target within min_count and max_count.
+	DesiredCount *int `json:"desired_count,omitempty"`
+
 	// Flavor compute flavor for each LB instance.
 	//
 	// Required.
@@ -102,6 +150,12 @@ type CreateLoadBalancerRequest struct {
 	// released. Cannot be combined with floating_ip.
 	FloatingIPs []string `json:"floating_ips,omitempty"`
 
+	// MaxCount upper capacity bound including rollout surge.
+	MaxCount *int `json:"max_count,omitempty"`
+
+	// MinCount lower capacity bound.
+	MinCount *int `json:"min_count,omitempty"`
+
 	// Name 1..127 chars of [A-Za-z0-9._-] Resource names must not start with
 	// the literal crn: prefix or be UUIDs (canonical, compact, braced, or
 	// urn:uuid: forms, in either case).
@@ -109,7 +163,8 @@ type CreateLoadBalancerRequest struct {
 	// Required.
 	Name string `json:"name"`
 
-	// ReplicaCount number of LB compute instances. Defaults to 1; pick >=2 for HA.
+	// ReplicaCount deprecated input alias of desired_count; send only one. Desired
+	// defaults to 1. Omitted bounds default to desired.
 	ReplicaCount *int `json:"replica_count,omitempty"`
 
 	// SecurityGroups security groups attached to every replica NIC (AWS ALB shape). A VPC
@@ -506,11 +561,16 @@ type ListenerCertificate struct {
 }
 
 type LoadBalancer struct {
-	AccountID string    `json:"account_id"`
-	CreatedAt time.Time `json:"created_at"`
+	AccountID         string             `json:"account_id"`
+	Autoscaling       *AutoscalingPolicy `json:"autoscaling,omitempty"`
+	AutoscalingStatus *AutoscalingStatus `json:"autoscaling_status,omitempty"`
+	CreatedAt         time.Time          `json:"created_at"`
 
 	// CRN IAM resource CRN
 	CRN string `json:"crn"`
+
+	// DesiredCount steady target within min_count and max_count.
+	DesiredCount int `json:"desired_count"`
 
 	// DNSName convenience hostname auto-published for the load balancer,
 	// `{name}.{account-handle}.lb.{region}.{base-domain}`. Resolves to the
@@ -542,6 +602,12 @@ type LoadBalancer struct {
 	// InternalIPv6 Internal IPv6 VIP (set when the subnet is dual-stack).
 	InternalIPv6 string `json:"internal_ipv6,omitempty"`
 
+	// MaxCount upper capacity bound including rollout surge.
+	MaxCount int `json:"max_count"`
+
+	// MinCount lower capacity bound.
+	MinCount int `json:"min_count"`
+
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
@@ -551,8 +617,12 @@ type LoadBalancer struct {
 	// IPv6 addresses in a GUA or ULA subnet.
 	PublicIPv6 string `json:"public_ipv6,omitempty"`
 
-	// ReplicaCount number of LB compute instances. >=2 for HA.
+	// ReplicaCount deprecated alias of desired_count.
 	ReplicaCount int `json:"replica_count"`
+
+	// RolloutSurge temporary extra capacity within max_count; does not change
+	// desired_count.
+	RolloutSurge bool `json:"rollout_surge,omitempty"`
 
 	// One of: "provisioning", "active", "error", "deleting".
 	Status string `json:"status"`
@@ -595,15 +665,16 @@ type LoadBalancerReplica struct {
 	LastSeen time.Time `json:"last_seen,omitempty"`
 
 	// ProxyOk whether the proxy reported ready at the last health report
-	ProxyOk      bool `json:"proxy_ok"`
-	ReplicaIndex int  `json:"replica_index"`
+	ProxyOk      bool        `json:"proxy_ok"`
+	ReplicaIndex int         `json:"replica_index"`
+	Retirement   *Retirement `json:"retirement,omitempty"`
 
 	// Status the liveness view folded into one word: 'initializing' (the agent
 	// has never reported — boot still in flight), 'healthy'
 	// (heartbeating and the proxy is serving), 'unhealthy' (heartbeating
 	// but the proxy is down).
 	//
-	// One of: "initializing", "healthy", "unhealthy".
+	// One of: "initializing", "healthy", "unhealthy", "draining".
 	Status string `json:"status"`
 }
 
@@ -625,6 +696,15 @@ const (
 	ProtocolUdp   Protocol = "udp"
 	ProtocolField Protocol = ""
 )
+
+type Retirement struct {
+	AgentAcknowledgedAt time.Time `json:"agent_acknowledged_at,omitempty"`
+	DrainSeconds        int       `json:"drain_seconds"`
+
+	// DrainUntil earliest deletion time; absent while withdrawal is pending.
+	DrainUntil  time.Time `json:"drain_until,omitempty"`
+	RequestedAt time.Time `json:"requested_at"`
+}
 
 // RouteTableSummary route table used by a subnet, without repeating its VPC. Null when the
 // non-owning lookup no longer resolves, for example during concurrent
@@ -660,6 +740,52 @@ type RuleCondition struct {
 	// One of: "exact", "prefix", "glob", "regex".
 	Op     string   `json:"op"`
 	Values []string `json:"values"`
+}
+
+// ScalingMetric CPU uses source=cpu, target_type=utilization and a percentage target
+// <=100. Utilization is CPU seconds per second divided by allocated
+// vCPUs across all ready members. Enabled CPU scaling requires
+// min_count>=1. Other selector and aggregation fields are not allowed
+// for CPU.
+//
+// Custom demand uses source=telemetry and target_type=average_value.
+// Metric name and labels select series in the resource's account,
+// organization and region. Temporal aggregation is applied within each
+// series before combining series; repeated gauge samples are never
+// summed as extra demand. The desired count is ceil(combined value /
+// target_value): 750 pending jobs at a target of 100 per instance
+// recommends 8. Custom demand can scale a customer pool from 0.
+// Producers must publish fresh zeroes for idle queues; absent data is
+// not zero.
+type ScalingMetric struct {
+	// ExpectedSeries exact expected cardinality; incomplete or ambiguous selectors are
+	// unavailable.
+	ExpectedSeries *int `json:"expected_series,omitempty"`
+
+	// Labels exact-match labels; tenancy labels and __name__ cannot be supplied.
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// MaxAgeSeconds actual newest observation age per series; must not exceed
+	// window_seconds. Defaults to the smaller of 90 and the window.
+	MaxAgeSeconds *int    `json:"max_age_seconds,omitempty"`
+	Name          *string `json:"name,omitempty"`
+
+	// SampleAggregation use last for queue gauges; rate for monotonically increasing
+	// counters, with reset handling.
+	//
+	// One of: "last", "avg", "max", "rate".
+	SampleAggregation *string `json:"sample_aggregation,omitempty"`
+
+	// One of: "sum", "avg", "max".
+	SeriesAggregation *string `json:"series_aggregation,omitempty"`
+
+	// One of: "cpu", "telemetry".
+	Source string `json:"source"`
+
+	// One of: "utilization", "average_value".
+	TargetType    string  `json:"target_type"`
+	TargetValue   float64 `json:"target_value"`
+	WindowSeconds *int    `json:"window_seconds,omitempty"`
 }
 
 // SessionAffinity sticky sessions: pin a client to one backend in the group instead of
@@ -802,35 +928,46 @@ type UpdateListenerRequest struct {
 // policies. Sending name in an update, including an unchanged, empty or
 // null value, returns a validation error.
 type UpdateLoadBalancerRequest struct {
+	Autoscaling *AutoscalingPolicy `json:"autoscaling,omitempty"`
+
+	// DesiredCount steady target within min_count and max_count.
+	DesiredCount *int `json:"desired_count,omitempty"`
+
 	// Flavor resize each replica to a different compute flavor. Must be a
 	// loadbalancer-family flavor.
 	//
 	// A running instance cannot change size in place, so the request
 	// records the new size and returns; the replicas already up are then
 	// replaced one at a time in the background. The load balancer
-	// temporarily runs one replica over replica_count while it does: the
-	// extra replica comes up on the new flavor and starts serving before
-	// any replica on the old one is retired, so the number serving never
-	// drops below replica_count — a resize does not cost you capacity,
-	// at any replica count.
+	// temporarily runs one replica over desired_count, within max_count
+	// while it does: the extra replica comes up on the new flavor and
+	// starts serving before any replica on the old one is retired, so the
+	// number serving never drops below desired_count — a resize does not
+	// cost you capacity, at any replica count.
 	//
 	// Expect it to take several minutes, and poll GET
 	// /v1/load-balancers/{id}/replicas to watch: a replica has been
 	// replaced when its instance_id changes, and the resize is done when
 	// every flavor there matches this one.
 	//
-	// The one exception is a load balancer already at the maximum of 10
-	// replicas, which has nowhere to grow. There the replicas are replaced
-	// in place and 9 serve while each replacement boots.
+	// A resize requires max_count above desired_count for surge headroom.
+	// A rollout waits if headroom is removed while it is in progress.
 	//
 	// Rejected up front if the account does not have the compute quota for
 	// the replacement replica, so a resize cannot half-apply and leave the
 	// load balancer short.
 	Flavor *string `json:"flavor,omitempty"`
 
-	// ReplicaCount resize the set of load balancer instances. Scale-out provisions the
-	// new replicas in sequence; scale-in removes the highest-indexed
-	// replicas best-effort. 1..10.
+	// MaxCount upper capacity bound including rollout surge.
+	MaxCount *int `json:"max_count,omitempty"`
+
+	// MinCount lower capacity bound.
+	MinCount *int `json:"min_count,omitempty"`
+
+	// ReplicaCount deprecated alias of desired_count; send only one. Bounds are
+	// preserved. With desired_count omitted, it is clamped into the
+	// resulting bounds. Scale-in withdraws and drains members before
+	// deletion.
 	ReplicaCount *int `json:"replica_count,omitempty"`
 	Tags         Tags `json:"tags,omitempty"`
 }

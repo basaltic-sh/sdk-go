@@ -90,6 +90,49 @@ type AttachInstanceVolumeRequest struct {
 	Volume string `json:"volume"`
 }
 
+// AutoscalingPolicy target tracking shared by instance pools and load balancers. Updates
+// replace the policy. Set enabled=false to retain settings and use
+// manual sizing. Each metric recommends a desired count; the largest
+// recommendation wins. Missing, stale or incomplete observations prevent
+// scale-in but do not block scale-out recommended by another valid
+// metric. Decisions obey the resource's min_count/max_count, warmup,
+// cooldown, stabilization, step limits and quotas. State survives
+// controller restarts. Active policies own desired_count; manual changes
+// are accepted and automatic evaluation resumes after cooldown. Custom
+// telemetry requires telemetry:ReadMetrics in the same account.
+type AutoscalingPolicy struct {
+	CooldownSeconds *int `json:"cooldown_seconds,omitempty"`
+
+	// DrainSeconds grace period after route withdrawal and proxy acknowledgements,
+	// before deleting a retiring member. Long-lived TCP/UDP sessions may
+	// end at the deadline; arbitrary application shutdown hooks are not
+	// supported.
+	DrainSeconds                  *int             `json:"drain_seconds,omitempty"`
+	Enabled                       bool             `json:"enabled"`
+	MaxScaleInStep                *int             `json:"max_scale_in_step,omitempty"`
+	MaxScaleOutStep               *int             `json:"max_scale_out_step,omitempty"`
+	Metrics                       []*ScalingMetric `json:"metrics"`
+	ScaleDownStabilizationSeconds *int             `json:"scale_down_stabilization_seconds,omitempty"`
+	WarmupSeconds                 *int             `json:"warmup_seconds,omitempty"`
+}
+
+type AutoscalingStatus struct {
+	EvaluatedAt  time.Time                       `json:"evaluated_at,omitempty"`
+	History      []*AutoscalingStatusHistoryItem `json:"history"`
+	LastScaledAt time.Time                       `json:"last_scaled_at,omitempty"`
+	Reason       string                          `json:"reason"`
+
+	// One of: "pending", "disabled", "stable", "scaling", "waiting", "warming_up", "metrics_unavailable", "stabilizing", "cooldown", "draining".
+	Status string `json:"status"`
+}
+
+type AutoscalingStatusHistoryItem struct {
+	At     time.Time `json:"at"`
+	From   int       `json:"from"`
+	Reason string    `json:"reason"`
+	To     int       `json:"to"`
+}
+
 // CatalogImage launch metadata for the current active build of an image name and
 // architecture. No tags, build history, or operational metadata are
 // exposed.
@@ -153,8 +196,16 @@ type Flavor struct {
 	// "dedicated" pins each vCPU 1:1 to a physical core.
 	//
 	// One of: "shared", "dedicated".
-	Class     string    `json:"class,omitempty"`
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	Class string `json:"class,omitempty"`
+
+	// CPUBaselinePct Guaranteed CPU floor as a percentage of each vCPU. Omitted when no
+	// floor is guaranteed.
+	CPUBaselinePct int `json:"cpu_baseline_pct,omitempty"`
+
+	// CPUBurstPct CPU ceiling as a percentage of each vCPU. A value of 100 or an
+	// omitted field allows the full vCPU count.
+	CPUBurstPct int       `json:"cpu_burst_pct,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
 
 	// CRN Cloud Resource Name
 	CRN         string `json:"crn,omitempty"`
@@ -174,6 +225,10 @@ type Flavor struct {
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
 	Name string `json:"name,omitempty"`
+
+	// NetMbps aggregate instance network throughput limit in megabits per second.
+	// Omitted when uncapped.
+	NetMbps int `json:"net_mbps,omitempty"`
 
 	// RAMMB RAM in MB
 	RAMMB int `json:"ram_mb,omitempty"`
@@ -719,6 +774,9 @@ type InstanceLaunchVolume struct {
 // reaches no instance. `template.tags` is the set stamped on every
 // replica the pool launches.
 type InstancePool struct {
+	Autoscaling       *AutoscalingPolicy `json:"autoscaling,omitempty"`
+	AutoscalingStatus *AutoscalingStatus `json:"autoscaling_status,omitempty"`
+
 	// CRN Cloud Resource Name. This is the value an IAM policy statement must
 	// name to scope a permission to this pool alone; a policy written
 	// against anything else will not match.
@@ -758,7 +816,11 @@ type InstancePool struct {
 	// itself once every member is on the current template. The pool reads
 	// `scaling` for the duration, since it runs one instance over its
 	// target while a replacement comes up.
-	RefreshInProgress bool `json:"refresh_in_progress,omitempty"`
+	RefreshInProgress bool                  `json:"refresh_in_progress,omitempty"`
+	RetiringInstances []*RetiringPoolMember `json:"retiring_instances,omitempty"`
+
+	// RolloutSurge temporary rollout capacity; desired_count remains the steady target.
+	RolloutSurge bool `json:"rollout_surge,omitempty"`
 
 	// StaleInstanceCount how many members were launched from a template other than the pool's
 	// current one — that is, how many a refresh would replace. Non-zero
@@ -807,8 +869,9 @@ type InstancePool struct {
 // `template.flavor` + `template.networks[0].subnet`. On create only,
 // omitted min_count and max_count default to desired_count.
 type InstancePoolCreateRequest struct {
-	Description  *string `json:"description,omitempty"`
-	DesiredCount *int    `json:"desired_count,omitempty"`
+	Autoscaling  *AutoscalingPolicy `json:"autoscaling,omitempty"`
+	Description  *string            `json:"description,omitempty"`
+	DesiredCount *int               `json:"desired_count,omitempty"`
 
 	// MaxCount a value of 0 means the pool holds no members until max_count is
 	// raised.
@@ -881,7 +944,10 @@ type InstancePoolTemplate struct {
 	UserData []byte `json:"user_data,omitempty"`
 
 	// Volumes per-replica disks, the boot disk included — mark it with `boot:
-	// true`. Same shape as instance create.
+	// true`. Each new replica receives the configured provisioned
+	// performance. Omitted performance uses the included allowance.
+	// Existing volumes and snapshot schedules are not supported in pool
+	// templates.
 	Volumes []*InstanceVolume `json:"volumes,omitempty"`
 }
 
@@ -941,7 +1007,10 @@ type InstancePoolTemplateRequest struct {
 	UserData []byte `json:"user_data,omitempty"`
 
 	// Volumes per-replica disks, the boot disk included — mark it with `boot:
-	// true`. Same shape as instance create.
+	// true`. Each new replica receives the configured provisioned
+	// performance. Omitted performance uses the included allowance.
+	// Existing volumes and snapshot schedules are not supported in pool
+	// templates.
 	Volumes []*InstanceVolume `json:"volumes,omitempty"`
 }
 
@@ -967,6 +1036,8 @@ type InstancePoolTemplateRequest struct {
 // onto the current template with POST
 // /v1/instance-pools/{pool_id}/refresh.
 type InstancePoolUpdateRequest struct {
+	Autoscaling *AutoscalingPolicy `json:"autoscaling,omitempty"`
+
 	// Description customer note on the pool. Omit to preserve it; send an empty string
 	// to clear it. Changes no instances, sizing or launch configuration.
 	Description *string `json:"description,omitempty"`
@@ -1046,9 +1117,10 @@ type InstanceVolume struct {
 	DeleteOnTermination *bool `json:"delete_on_termination,omitempty"`
 
 	// Fstype filesystem the in-guest agent formats the volume with.
-	Fstype    *string `json:"fstype,omitempty"`
-	MountPath *string `json:"mount_path,omitempty"`
-	SizeGB    int     `json:"size_gb"`
+	Fstype      *string                   `json:"fstype,omitempty"`
+	MountPath   *string                   `json:"mount_path,omitempty"`
+	Performance *VolumePerformanceRequest `json:"performance,omitempty"`
+	SizeGB      int                       `json:"size_gb"`
 
 	// VolumeType tier; omitted = the region default.
 	VolumeType *string `json:"volume_type,omitempty"`
@@ -1190,6 +1262,16 @@ type ResizeInstanceRequest struct {
 	Flavor string `json:"flavor"`
 }
 
+type RetiringPoolMember struct {
+	AgentAcknowledgedAt time.Time `json:"agent_acknowledged_at,omitempty"`
+	DrainSeconds        int       `json:"drain_seconds"`
+
+	// DrainUntil earliest deletion time; absent while withdrawal is pending.
+	DrainUntil  time.Time `json:"drain_until,omitempty"`
+	InstanceID  string    `json:"instance_id"`
+	RequestedAt time.Time `json:"requested_at"`
+}
+
 // RouteTableSummary route table used by a subnet, without repeating its VPC. Null when the
 // non-owning lookup no longer resolves, for example during concurrent
 // reassociation and deletion of the former table. Deleting a table still
@@ -1208,6 +1290,52 @@ type RoutedPrefix struct {
 
 	// Prefix a routed /28 from a VPC prefix pool.
 	Prefix string `json:"prefix"`
+}
+
+// ScalingMetric CPU uses source=cpu, target_type=utilization and a percentage target
+// <=100. Utilization is CPU seconds per second divided by allocated
+// vCPUs across all ready members. Enabled CPU scaling requires
+// min_count>=1. Other selector and aggregation fields are not allowed
+// for CPU.
+//
+// Custom demand uses source=telemetry and target_type=average_value.
+// Metric name and labels select series in the resource's account,
+// organization and region. Temporal aggregation is applied within each
+// series before combining series; repeated gauge samples are never
+// summed as extra demand. The desired count is ceil(combined value /
+// target_value): 750 pending jobs at a target of 100 per instance
+// recommends 8. Custom demand can scale a customer pool from 0.
+// Producers must publish fresh zeroes for idle queues; absent data is
+// not zero.
+type ScalingMetric struct {
+	// ExpectedSeries exact expected cardinality; incomplete or ambiguous selectors are
+	// unavailable.
+	ExpectedSeries *int `json:"expected_series,omitempty"`
+
+	// Labels exact-match labels; tenancy labels and __name__ cannot be supplied.
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// MaxAgeSeconds actual newest observation age per series; must not exceed
+	// window_seconds. Defaults to the smaller of 90 and the window.
+	MaxAgeSeconds *int    `json:"max_age_seconds,omitempty"`
+	Name          *string `json:"name,omitempty"`
+
+	// SampleAggregation use last for queue gauges; rate for monotonically increasing
+	// counters, with reset handling.
+	//
+	// One of: "last", "avg", "max", "rate".
+	SampleAggregation *string `json:"sample_aggregation,omitempty"`
+
+	// One of: "sum", "avg", "max".
+	SeriesAggregation *string `json:"series_aggregation,omitempty"`
+
+	// One of: "cpu", "telemetry".
+	Source string `json:"source"`
+
+	// One of: "utilization", "average_value".
+	TargetType    string  `json:"target_type"`
+	TargetValue   float64 `json:"target_value"`
+	WindowSeconds *int    `json:"window_seconds,omitempty"`
 }
 
 // SerialConsoleTicket a one-shot credential for opening a serial console from a browser.
