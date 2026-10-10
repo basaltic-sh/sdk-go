@@ -277,7 +277,7 @@ type FloatingIP struct {
 	// have multiple NIC members. Manage their bindings through the
 	// instance pool floating IP endpoints; direct attach and detach are
 	// refused.
-	AttachedTo  string    `json:"attached_to"`
+	AttachedTo  *string   `json:"attached_to"`
 	CreatedAt   time.Time `json:"created_at"`
 	CRN         string    `json:"crn"`
 	Description string    `json:"description,omitempty"`
@@ -322,7 +322,7 @@ type FloatingIP struct {
 	Members []*FloatingIPMember `json:"members"`
 
 	// SubnetID allocation subnet for private floating IPs.
-	SubnetID  string            `json:"subnet_id,omitempty"`
+	SubnetID  *string           `json:"subnet_id,omitempty"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
 
@@ -377,7 +377,7 @@ type FloatingIPHealthCheck struct {
 // FloatingIPMember one binding of a floating IP.
 type FloatingIPMember struct {
 	// AddressID target child address on the member interface.
-	AddressID string    `json:"address_id,omitempty"`
+	AddressID *string   `json:"address_id,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 
 	// Health what the platform knows about this member.
@@ -818,12 +818,12 @@ type Subnet struct {
 	// CIDRIPv6 the dual-stack IPv6 /64, if the subnet is v6-enabled. Its presence
 	// (vs the v4 cidr_ipv4) is how a client tells the subnet's families
 	// apart.
-	CIDRIPv6    string    `json:"cidr_ipv6,omitempty"`
+	CIDRIPv6    *string   `json:"cidr_ipv6,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	CRN         string    `json:"crn"`
 	Description string    `json:"description,omitempty"`
 	GatewayIPv4 string    `json:"gateway_ipv4"`
-	GatewayIPv6 string    `json:"gateway_ipv6,omitempty"`
+	GatewayIPv6 *string   `json:"gateway_ipv6,omitempty"`
 	ID          string    `json:"id"`
 
 	// Name resource names must not start with the literal crn: prefix or be
@@ -1010,7 +1010,7 @@ type VPC struct {
 	CIDRIPv4 string `json:"cidr_ipv4"`
 
 	// CIDRIPv6 associated regional GUA or private ULA prefix.
-	CIDRIPv6  string    `json:"cidr_ipv6,omitempty"`
+	CIDRIPv6  *string   `json:"cidr_ipv6,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 
 	// CRN Cloud Resource Name (name-based, region+account-scoped).

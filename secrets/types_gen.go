@@ -50,14 +50,14 @@ type Secret struct {
 	CRN       string    `json:"crn"`
 
 	// CurrentVersion 0 if no version exists yet.
-	CurrentVersion int       `json:"current_version,omitempty"`
-	DeletedAt      time.Time `json:"deleted_at,omitempty"`
-	Description    string    `json:"description,omitempty"`
-	ID             string    `json:"id"`
+	CurrentVersion int        `json:"current_version,omitempty"`
+	DeletedAt      *time.Time `json:"deleted_at,omitempty"`
+	Description    string     `json:"description,omitempty"`
+	ID             string     `json:"id"`
 
 	// KMSKeyCRN Customer-managed KMS key the secret is encrypted under. Omitted for
 	// platform encryption or when kms_key_unavailable is true.
-	KMSKeyCRN string `json:"kms_key_crn,omitempty"`
+	KMSKeyCRN *string `json:"kms_key_crn,omitempty"`
 
 	// KMSKeyUnavailable true when the bound key has been deleted. The CRN is omitted, but
 	// the binding remains encrypted under its original key identity; this
@@ -75,10 +75,10 @@ type Secret struct {
 	Name string `json:"name"`
 
 	// RecoveryWindowDays whole-day recovery window.
-	RecoveryWindowDays int       `json:"recovery_window_days"`
-	ScheduledPurgeAt   time.Time `json:"scheduled_purge_at,omitempty"`
-	Tags               Tags      `json:"tags,omitempty"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	RecoveryWindowDays int        `json:"recovery_window_days"`
+	ScheduledPurgeAt   *time.Time `json:"scheduled_purge_at,omitempty"`
+	Tags               Tags       `json:"tags,omitempty"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 type SecretValue struct {

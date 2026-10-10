@@ -91,11 +91,11 @@ type Key struct {
 
 	// DeletedAt when deletion was requested. Null for active keys and historical
 	// pending deletions whose request time is unknown.
-	DeletedAt   time.Time `json:"deleted_at,omitempty"`
-	Description string    `json:"description,omitempty"`
-	ID          string    `json:"id"`
-	KeySpec     KeySpec   `json:"key_spec"`
-	KeyUsage    KeyUsage  `json:"key_usage"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+	Description string     `json:"description,omitempty"`
+	ID          string     `json:"id"`
+	KeySpec     KeySpec    `json:"key_spec"`
+	KeyUsage    KeyUsage   `json:"key_usage"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -104,14 +104,14 @@ type Key struct {
 
 	// RecoveryWindowDays chosen whole-day window. Null for active keys and historical pending
 	// deletions whose window is unknown.
-	RecoveryWindowDays int `json:"recovery_window_days,omitempty"`
+	RecoveryWindowDays *int `json:"recovery_window_days,omitempty"`
 
 	// ScheduledPurgeAt set only while state=pending_deletion. The key (and its
 	// cryptographic material) is hard-deleted once now() reaches this
 	// timestamp; CancelKeyDeletion before then returns the key to
 	// state=disabled.
-	ScheduledPurgeAt time.Time `json:"scheduled_purge_at,omitempty"`
-	State            KeyState  `json:"state"`
+	ScheduledPurgeAt *time.Time `json:"scheduled_purge_at,omitempty"`
+	State            KeyState   `json:"state"`
 
 	// System present and true on platform-owned envelope keys (credential master,
 	// JWT signer, …), which are visible but not yours to operate on.

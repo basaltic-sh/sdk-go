@@ -63,11 +63,11 @@ type Credit struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	// CRN global organization-scoped credit identity.
-	CRN         string    `json:"crn"`
-	Description string    `json:"description"`
-	ExpiresAt   time.Time `json:"expires_at,omitempty"`
-	ID          string    `json:"id"`
-	Remaining   string    `json:"remaining"`
+	CRN         string     `json:"crn"`
+	Description string     `json:"description"`
+	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+	ID          string     `json:"id"`
+	Remaining   string     `json:"remaining"`
 
 	// One of: "promo", "coupon", "adjustment", "migration".
 	Source string `json:"source"`
@@ -98,7 +98,7 @@ type FiscalInvoice struct {
 	// One of: "pending", "queued".
 	EmailStatus string    `json:"email_status"`
 	ID          string    `json:"id"`
-	InvoiceID   string    `json:"invoice_id,omitempty"`
+	InvoiceID   *string   `json:"invoice_id,omitempty"`
 	IssuedAt    time.Time `json:"issued_at,omitempty"`
 
 	// LastError sanitized operational error or municipal rejection codes.
@@ -129,15 +129,15 @@ type Invoice struct {
 
 	// DisputedAmount dispute principal withdrawn less funds reinstated; excludes provider
 	// fees.
-	DisputedAmount string    `json:"disputed_amount"`
-	DueAt          time.Time `json:"due_at,omitempty"`
-	ID             string    `json:"id"`
-	InvoiceNumber  string    `json:"invoice_number"`
-	IssuedAt       time.Time `json:"issued_at,omitempty"`
+	DisputedAmount string     `json:"disputed_amount"`
+	DueAt          *time.Time `json:"due_at,omitempty"`
+	ID             string     `json:"id"`
+	InvoiceNumber  string     `json:"invoice_number"`
+	IssuedAt       *time.Time `json:"issued_at,omitempty"`
 
 	// Items line items; present only on the detail endpoint.
 	Items  []*InvoiceItem `json:"items,omitempty"`
-	PaidAt time.Time      `json:"paid_at,omitempty"`
+	PaidAt *time.Time     `json:"paid_at,omitempty"`
 
 	// PDFURL path of the PDF statement, rendered on demand by GET
 	// /v1/invoices/{invoice_id}/pdf under the same authorization as this
@@ -165,20 +165,20 @@ type InvoiceItem struct {
 	Description string `json:"description"`
 
 	// One of: "usage", "credit".
-	Kind      string `json:"kind"`
-	Quantity  string `json:"quantity"`
-	Sku       string `json:"sku,omitempty"`
-	Unit      string `json:"unit,omitempty"`
-	UnitPrice string `json:"unit_price"`
+	Kind      string  `json:"kind"`
+	Quantity  string  `json:"quantity"`
+	Sku       *string `json:"sku,omitempty"`
+	Unit      *string `json:"unit,omitempty"`
+	UnitPrice string  `json:"unit_price"`
 }
 
 type Payment struct {
 	Amount string `json:"amount"`
 
 	// Attempt 1-based dunning attempt this payment row belongs to.
-	Attempt     int32     `json:"attempt"`
-	CompletedAt time.Time `json:"completed_at,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
+	Attempt     int32      `json:"attempt"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
 
 	// CRN global organization-scoped payment identity.
 	CRN string `json:"crn"`
@@ -209,8 +209,8 @@ type Payment struct {
 // decimal string rather than a JSON number so the quoted rate is exactly
 // the one that will be billed.
 type Price struct {
-	Currency    string `json:"currency"`
-	Description string `json:"description,omitempty"`
+	Currency    string  `json:"currency"`
+	Description *string `json:"description,omitempty"`
 
 	// Metadata extra facts about the SKU — `class`, `family`, `vcpus`,
 	// `memory_gb`, `storage_type`, … `family` separates the managed
@@ -249,9 +249,9 @@ type Transaction struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	// CRN global organization-scoped transaction identity.
-	CRN         string `json:"crn"`
-	Description string `json:"description,omitempty"`
-	ID          string `json:"id"`
+	CRN         string  `json:"crn"`
+	Description *string `json:"description,omitempty"`
+	ID          string  `json:"id"`
 
 	// Reference organization-scoped reference to the ledger entry's target:
 	// crn:billing:::invoice/<id>, crn:billing:::payment/<id>, or
@@ -259,7 +259,7 @@ type Transaction struct {
 	// corresponding collection's crn filter within the authenticated
 	// organization. Null for manual entries, unsupported reference types,
 	// or missing references.
-	Reference string `json:"reference,omitempty"`
+	Reference *string `json:"reference,omitempty"`
 
 	// Type ledger entry type.
 	//

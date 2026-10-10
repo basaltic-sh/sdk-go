@@ -101,11 +101,11 @@ type Credential struct {
 	CreatedAt   time.Time `json:"created_at,omitempty"`
 
 	// CRN Cloud Resource Name
-	CRN        string    `json:"crn,omitempty"`
-	ExpiresAt  time.Time `json:"expires_at,omitempty"`
-	ID         string    `json:"id,omitempty"`
-	LastUsedAt time.Time `json:"last_used_at,omitempty"`
-	Name       string    `json:"name,omitempty"`
+	CRN        string     `json:"crn,omitempty"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	ID         string     `json:"id,omitempty"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	Name       string     `json:"name,omitempty"`
 }
 
 type CredentialCreateRequest struct {
@@ -597,15 +597,15 @@ type SSHKeyCreateRequest struct {
 // not listed here. A session is active when it is not revoked and its
 // expiration is in the future.
 type STSSession struct {
-	AccountHandle   string    `json:"account_handle,omitempty"`
-	AccountID       string    `json:"account_id,omitempty"`
-	CreatedAt       time.Time `json:"created_at,omitempty"`
-	CRN             string    `json:"crn,omitempty"`
-	ExpiresAt       time.Time `json:"expires_at,omitempty"`
-	GrantType       string    `json:"grant_type,omitempty"`
-	ID              string    `json:"id,omitempty"`
-	LastUsedAt      time.Time `json:"last_used_at,omitempty"`
-	ParentSessionID string    `json:"parent_session_id,omitempty"`
+	AccountHandle   string     `json:"account_handle,omitempty"`
+	AccountID       string     `json:"account_id,omitempty"`
+	CreatedAt       time.Time  `json:"created_at,omitempty"`
+	CRN             string     `json:"crn,omitempty"`
+	ExpiresAt       time.Time  `json:"expires_at,omitempty"`
+	GrantType       string     `json:"grant_type,omitempty"`
+	ID              string     `json:"id,omitempty"`
+	LastUsedAt      *time.Time `json:"last_used_at,omitempty"`
+	ParentSessionID *string    `json:"parent_session_id,omitempty"`
 
 	// PrincipalID ID of the principal assuming the role (the source identity)
 	PrincipalID string `json:"principal_id,omitempty"`
@@ -614,25 +614,25 @@ type STSSession struct {
 	PrincipalType string `json:"principal_type,omitempty"`
 
 	// Revoked whether the session has been revoked
-	Revoked       bool      `json:"revoked,omitempty"`
-	RevokedAt     time.Time `json:"revoked_at,omitempty"`
-	RevokedReason string    `json:"revoked_reason,omitempty"`
+	Revoked       bool       `json:"revoked,omitempty"`
+	RevokedAt     *time.Time `json:"revoked_at,omitempty"`
+	RevokedReason *string    `json:"revoked_reason,omitempty"`
 
 	// RoleID the assumed role UUID; absent on service-account OAuth sessions that
 	// do not assume a role.
 	RoleID string `json:"role_id,omitempty"`
 
 	// SessionName optional session identifier
-	SessionName     string `json:"session_name,omitempty"`
-	SourceAccountID string `json:"source_account_id,omitempty"`
+	SessionName     *string `json:"session_name,omitempty"`
+	SourceAccountID *string `json:"source_account_id,omitempty"`
 
 	// SourceIP IP address where the session was created
-	SourceIP            string `json:"source_ip,omitempty"`
-	SourcePrincipalCRN  string `json:"source_principal_crn,omitempty"`
-	SourcePrincipalType string `json:"source_principal_type,omitempty"`
+	SourceIP            *string `json:"source_ip,omitempty"`
+	SourcePrincipalCRN  *string `json:"source_principal_crn,omitempty"`
+	SourcePrincipalType *string `json:"source_principal_type,omitempty"`
 
 	// UserAgent User-Agent of the caller that created the session
-	UserAgent string `json:"user_agent,omitempty"`
+	UserAgent *string `json:"user_agent,omitempty"`
 }
 
 // ServiceAccount An API-only identity for programmatic access, bound to an account

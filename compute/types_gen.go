@@ -251,7 +251,7 @@ type FloatingIP struct {
 	// have multiple NIC members. Manage their bindings through the
 	// instance pool floating IP endpoints; direct attach and detach are
 	// refused.
-	AttachedTo  string    `json:"attached_to"`
+	AttachedTo  *string   `json:"attached_to"`
 	CreatedAt   time.Time `json:"created_at"`
 	CRN         string    `json:"crn"`
 	Description string    `json:"description,omitempty"`
@@ -296,7 +296,7 @@ type FloatingIP struct {
 	Members []*FloatingIPMember `json:"members"`
 
 	// SubnetID allocation subnet for private floating IPs.
-	SubnetID  string            `json:"subnet_id,omitempty"`
+	SubnetID  *string           `json:"subnet_id,omitempty"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
 
@@ -351,7 +351,7 @@ type FloatingIPHealthCheck struct {
 // FloatingIPMember one binding of a floating IP.
 type FloatingIPMember struct {
 	// AddressID target child address on the member interface.
-	AddressID string    `json:"address_id,omitempty"`
+	AddressID *string   `json:"address_id,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 
 	// Health what the platform knows about this member.
@@ -642,9 +642,9 @@ type Instance struct {
 
 	// Image resolved source image the instance booted from. Omitted for a
 	// volume-only boot or if the referenced image row is gone.
-	Image      *Image    `json:"image,omitempty"`
-	LaunchedAt time.Time `json:"launched_at,omitempty"`
-	Metadata   Metadata  `json:"metadata,omitempty"`
+	Image      *Image     `json:"image,omitempty"`
+	LaunchedAt *time.Time `json:"launched_at,omitempty"`
+	Metadata   Metadata   `json:"metadata,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -653,9 +653,9 @@ type Instance struct {
 	Tags Tags   `json:"tags,omitempty"`
 
 	// TaskState in-flight transition, if any; null when settled.
-	TaskState    string    `json:"task_state,omitempty"`
-	TerminatedAt time.Time `json:"terminated_at,omitempty"`
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	TaskState    *string    `json:"task_state,omitempty"`
+	TerminatedAt *time.Time `json:"terminated_at,omitempty"`
+	UpdatedAt    time.Time  `json:"updated_at,omitempty"`
 
 	// UserData base64-encoded cloud-init user-data supplied at launch.
 	UserData string `json:"user_data,omitempty"`
@@ -1403,12 +1403,12 @@ type Subnet struct {
 	// CIDRIPv6 the dual-stack IPv6 /64, if the subnet is v6-enabled. Its presence
 	// (vs the v4 cidr_ipv4) is how a client tells the subnet's families
 	// apart.
-	CIDRIPv6    string    `json:"cidr_ipv6,omitempty"`
+	CIDRIPv6    *string   `json:"cidr_ipv6,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	CRN         string    `json:"crn"`
 	Description string    `json:"description,omitempty"`
 	GatewayIPv4 string    `json:"gateway_ipv4"`
-	GatewayIPv6 string    `json:"gateway_ipv6,omitempty"`
+	GatewayIPv6 *string   `json:"gateway_ipv6,omitempty"`
 	ID          string    `json:"id"`
 
 	// Name resource names must not start with the literal crn: prefix or be
@@ -1435,7 +1435,7 @@ type VPC struct {
 	CIDRIPv4 string `json:"cidr_ipv4"`
 
 	// CIDRIPv6 associated regional GUA or private ULA prefix.
-	CIDRIPv6  string    `json:"cidr_ipv6,omitempty"`
+	CIDRIPv6  *string   `json:"cidr_ipv6,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 
 	// CRN Cloud Resource Name (name-based, region+account-scoped).

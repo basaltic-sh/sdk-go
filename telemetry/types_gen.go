@@ -111,7 +111,7 @@ type LogGroup struct {
 	Name string `json:"name,omitempty"`
 
 	// RetentionDays 1..3650 days, or null for never expire
-	RetentionDays int               `json:"retention_days,omitempty"`
+	RetentionDays *int              `json:"retention_days,omitempty"`
 	Tags          map[string]string `json:"tags,omitempty"`
 	UpdatedAt     time.Time         `json:"updated_at,omitempty"`
 }
@@ -244,7 +244,7 @@ type TraceSettings struct {
 	KMSKeyUnavailable bool `json:"kms_key_unavailable,omitempty"`
 
 	// RetentionDays 1..3650, or null for never-expire
-	RetentionDays int       `json:"retention_days,omitempty"`
+	RetentionDays *int      `json:"retention_days,omitempty"`
 	UpdatedAt     time.Time `json:"updated_at,omitempty"`
 }
 

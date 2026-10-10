@@ -17,7 +17,7 @@ type Bucket struct {
 
 	// DeletedAt when deletion was requested; null when not pending or for historical
 	// windows.
-	DeletedAt time.Time `json:"deleted_at"`
+	DeletedAt *time.Time `json:"deleted_at"`
 
 	// DeletionProtection when true, DeleteBucket schedules deletion instead of removing the
 	// bucket immediately. Default false deliberately preserves S3
@@ -421,6 +421,10 @@ type Snapshot struct {
 	Faults []*Fault `json:"faults"`
 	ID     string   `json:"id,omitempty"`
 
+	// LogicalSizeBytes frozen logical restore capacity in bytes (size_gb multiplied by
+	// 2^30), not measured written data.
+	LogicalSizeBytes int64 `json:"logical_size_bytes,omitempty"`
+
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
@@ -435,6 +439,7 @@ type Snapshot struct {
 	// makes a snapshot eligible for automatic deletion — snapshots taken
 	// by hand are never reaped.
 	SnapshotPolicyID string         `json:"snapshot_policy_id,omitempty"`
+	SnapshotUsage    *SnapshotUsage `json:"snapshot_usage,omitempty"`
 	Status           SnapshotStatus `json:"status,omitempty"`
 	Tags             Tags           `json:"tags,omitempty"`
 	UpdatedAt        time.Time      `json:"updated_at,omitempty"`
@@ -608,6 +613,43 @@ type SnapshotUpdateRequest struct {
 	Tags        Tags    `json:"tags,omitempty"`
 }
 
+// SnapshotUsage non-billing measured retained written logical extents for this source
+// volume's snapshot lineage, excluding the unsnapshotted head and
+// inherited parent data. This aggregate is repeated for snapshots of the
+// same volume and must not be added across snapshots. It is not physical
+// allocation, filesystem use, or independent restore capacity. Requires
+// read permission for both the snapshot and its parent volume. Missing
+// permission, absent/failed collection, or a non-available snapshot
+// returns unknown without exposing measurement evidence. GET and list
+// reads attach observations; mutation responses report unknown. Existing
+// snapshot charges continue using provisioned snapshot capacity.
+type SnapshotUsage struct {
+	// Billable these observations do not produce charges.
+	//
+	// One of: "false".
+	Billable bool `json:"billable"`
+
+	// LineageRetainedBytes exact retained lineage bytes only when measured; null when unknown
+	// or stale. An explicit measured zero is distinct from unavailable
+	// data.
+	LineageRetainedBytes *int64 `json:"lineage_retained_bytes"`
+
+	// MeasuredAt observation timestamp for measured or stale data; null when unknown.
+	MeasuredAt *time.Time `json:"measured_at"`
+
+	// One of: "volume_lineage".
+	Scope string `json:"scope"`
+
+	// State measured means a complete observation with a matching current
+	// catalog generation and age at most 90 minutes. Stale means its
+	// generation changed or it expired. This is a last-observed value, not
+	// continuous backend verification. Unknown and stale never imply zero
+	// usage.
+	//
+	// One of: "unknown", "stale", "measured".
+	State string `json:"state"`
+}
+
 type TagSet = map[string]string
 
 type Tags = map[string]string
@@ -643,10 +685,10 @@ type Volume struct {
 	SizeGB      int                `json:"size_gb,omitempty"`
 
 	// SourceImageID image the volume was cloned from, when applicable.
-	SourceImageID string `json:"source_image_id,omitempty"`
+	SourceImageID *string `json:"source_image_id,omitempty"`
 
 	// SourceSnapshotID snapshot the volume was cloned from (restore path), when applicable.
-	SourceSnapshotID string         `json:"source_snapshot_id,omitempty"`
+	SourceSnapshotID *string        `json:"source_snapshot_id,omitempty"`
 	Status           VolumeStatus   `json:"status,omitempty"`
 	Tags             Tags           `json:"tags,omitempty"`
 	UpdatedAt        time.Time      `json:"updated_at,omitempty"`

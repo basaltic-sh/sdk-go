@@ -115,7 +115,7 @@ type FloatingIP struct {
 	// have multiple NIC members. Manage their bindings through the
 	// instance pool floating IP endpoints; direct attach and detach are
 	// refused.
-	AttachedTo  string    `json:"attached_to"`
+	AttachedTo  *string   `json:"attached_to"`
 	CreatedAt   time.Time `json:"created_at"`
 	CRN         string    `json:"crn"`
 	Description string    `json:"description,omitempty"`
@@ -160,7 +160,7 @@ type FloatingIP struct {
 	Members []*FloatingIPMember `json:"members"`
 
 	// SubnetID allocation subnet for private floating IPs.
-	SubnetID  string            `json:"subnet_id,omitempty"`
+	SubnetID  *string           `json:"subnet_id,omitempty"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
 
@@ -237,7 +237,7 @@ type FloatingIPHealthCheck struct {
 // FloatingIPMember one binding of a floating IP.
 type FloatingIPMember struct {
 	// AddressID target child address on the member interface.
-	AddressID string    `json:"address_id,omitempty"`
+	AddressID *string   `json:"address_id,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 
 	// Health what the platform knows about this member.
@@ -315,21 +315,21 @@ type GatewayRoute struct {
 	// a unicast address inside this VPC's CIDR (same IP family as
 	// destination_cidr); internet egress uses target_internet_gateway_id /
 	// target_nat_gateway_id.
-	NextHopIP    string             `json:"next_hop_ip,omitempty"`
+	NextHopIP    *string            `json:"next_hop_ip,omitempty"`
 	RouteTable   *RouteTableSummary `json:"route_table"`
 	RouteTableID string             `json:"route_table_id"`
 	Tags         map[string]string  `json:"tags"`
 
 	// TargetEgressOnlyGatewayID set when target_type=egress_only_gateway (IPv6 only). Gives the
 	// subnet outbound v6 with the internet unable to initiate inbound.
-	TargetEgressOnlyGatewayID string `json:"target_egress_only_gateway_id,omitempty"`
+	TargetEgressOnlyGatewayID *string `json:"target_egress_only_gateway_id,omitempty"`
 
 	// TargetInternetGatewayID set when target_type=internet_gateway.
-	TargetInternetGatewayID string `json:"target_internet_gateway_id,omitempty"`
+	TargetInternetGatewayID *string `json:"target_internet_gateway_id,omitempty"`
 
 	// TargetNATGatewayID set when target_type=nat_gateway. Supports IPv4 and IPv6; IPv6
 	// requires an IPv6-enabled hosting subnet.
-	TargetNATGatewayID string          `json:"target_nat_gateway_id,omitempty"`
+	TargetNATGatewayID *string         `json:"target_nat_gateway_id,omitempty"`
 	TargetType         RouteTargetType `json:"target_type"`
 	UpdatedAt          time.Time       `json:"updated_at"`
 }
@@ -364,7 +364,7 @@ type Interface struct {
 	// AttachedTo UUID of the instance holding this interface, including stopped
 	// instances. Null when no instance NIC binding exists. Deletion is
 	// refused while bound; floating IP attachment is tracked separately.
-	AttachedTo  string    `json:"attached_to,omitempty"`
+	AttachedTo  *string   `json:"attached_to,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	CRN         string    `json:"crn"`
 	Description string    `json:"description,omitempty"`
@@ -437,7 +437,7 @@ type InterfaceUpdateRequest struct {
 
 type InternetGateway struct {
 	// AttachedVPCID VPC the IGW is currently attached to (null when detached).
-	AttachedVPCID string    `json:"attached_vpc_id,omitempty"`
+	AttachedVPCID *string   `json:"attached_vpc_id,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 	CRN           string    `json:"crn"`
 	Description   string    `json:"description,omitempty"`
@@ -542,20 +542,20 @@ type Route struct {
 	// a unicast address inside this VPC's CIDR (same IP family as
 	// destination_cidr); internet egress uses target_internet_gateway_id /
 	// target_nat_gateway_id.
-	NextHopIP    string            `json:"next_hop_ip,omitempty"`
+	NextHopIP    *string           `json:"next_hop_ip,omitempty"`
 	RouteTableID string            `json:"route_table_id"`
 	Tags         map[string]string `json:"tags"`
 
 	// TargetEgressOnlyGatewayID set when target_type=egress_only_gateway (IPv6 only). Gives the
 	// subnet outbound v6 with the internet unable to initiate inbound.
-	TargetEgressOnlyGatewayID string `json:"target_egress_only_gateway_id,omitempty"`
+	TargetEgressOnlyGatewayID *string `json:"target_egress_only_gateway_id,omitempty"`
 
 	// TargetInternetGatewayID set when target_type=internet_gateway.
-	TargetInternetGatewayID string `json:"target_internet_gateway_id,omitempty"`
+	TargetInternetGatewayID *string `json:"target_internet_gateway_id,omitempty"`
 
 	// TargetNATGatewayID set when target_type=nat_gateway. Supports IPv4 and IPv6; IPv6
 	// requires an IPv6-enabled hosting subnet.
-	TargetNATGatewayID string          `json:"target_nat_gateway_id,omitempty"`
+	TargetNATGatewayID *string         `json:"target_nat_gateway_id,omitempty"`
 	TargetType         RouteTargetType `json:"target_type"`
 	UpdatedAt          time.Time       `json:"updated_at"`
 }
@@ -705,21 +705,21 @@ type SecurityGroupRule struct {
 	Direction   SecurityGroupRuleDirection `json:"direction"`
 	Ethertype   SecurityGroupRuleEthertype `json:"ethertype"`
 	ID          string                     `json:"id"`
-	PortMax     int                        `json:"port_max,omitempty"`
+	PortMax     *int                       `json:"port_max,omitempty"`
 
 	// PortMin required when protocol is tcp/udp; ignored otherwise.
-	PortMin  int                       `json:"port_min,omitempty"`
+	PortMin  *int                      `json:"port_min,omitempty"`
 	Protocol SecurityGroupRuleProtocol `json:"protocol"`
 
 	// RemoteCIDR source (ingress) or destination_cidr (egress) CIDR. Must match the
 	// rule's ethertype. Mutually exclusive with source_security_group_id.
-	RemoteCIDR      string `json:"remote_cidr,omitempty"`
-	SecurityGroupID string `json:"security_group_id"`
+	RemoteCIDR      *string `json:"remote_cidr,omitempty"`
+	SecurityGroupID string  `json:"security_group_id"`
 
 	// SourceSecurityGroupID source (ingress) or destination_cidr (egress) is "any workload in
 	// this SG". Traffic is matched by membership in the named security
 	// group. Mutually exclusive with remote_cidr.
-	SourceSecurityGroupID string `json:"source_security_group_id,omitempty"`
+	SourceSecurityGroupID *string `json:"source_security_group_id,omitempty"`
 }
 
 type SecurityGroupRuleCreateRequest struct {
@@ -777,12 +777,12 @@ type Subnet struct {
 	// CIDRIPv6 the dual-stack IPv6 /64, if the subnet is v6-enabled. Its presence
 	// (vs the v4 cidr_ipv4) is how a client tells the subnet's families
 	// apart.
-	CIDRIPv6    string    `json:"cidr_ipv6,omitempty"`
+	CIDRIPv6    *string   `json:"cidr_ipv6,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	CRN         string    `json:"crn"`
 	Description string    `json:"description,omitempty"`
 	GatewayIPv4 string    `json:"gateway_ipv4"`
-	GatewayIPv6 string    `json:"gateway_ipv6,omitempty"`
+	GatewayIPv6 *string   `json:"gateway_ipv6,omitempty"`
 	ID          string    `json:"id"`
 
 	// Name resource names must not start with the literal crn: prefix or be
@@ -887,7 +887,7 @@ type VPC struct {
 	CIDRIPv4 string `json:"cidr_ipv4"`
 
 	// CIDRIPv6 associated regional GUA or private ULA prefix.
-	CIDRIPv6  string    `json:"cidr_ipv6,omitempty"`
+	CIDRIPv6  *string   `json:"cidr_ipv6,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 
 	// CRN Cloud Resource Name (name-based, region+account-scoped).

@@ -390,7 +390,7 @@ type ZoneOwnership struct {
 	Verified bool `json:"verified,omitempty"`
 
 	// VerifiedAt when ownership was first proved. Absent while unverified.
-	VerifiedAt time.Time `json:"verified_at,omitempty"`
+	VerifiedAt *time.Time `json:"verified_at,omitempty"`
 }
 
 // ZoneRecordImport what came of `import_existing_records` — reading the domain's
