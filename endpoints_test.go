@@ -15,6 +15,8 @@ func registerTestTemplates(t *testing.T) {
 }
 
 func TestResolveEndpoint(t *testing.T) {
+	// Keep no-region cases independent of the live integration environment.
+	t.Setenv(EnvRegion, "")
 	registerTestTemplates(t)
 
 	tests := []struct {

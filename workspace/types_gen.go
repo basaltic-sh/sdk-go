@@ -220,8 +220,10 @@ type InvitationInvitedBy struct {
 type LinuxIdentity struct {
 	GID int32 `json:"gid"`
 
-	// HomeDirectory home directory derived from the permanent username, as
-	// /home/<username>. Numeric file ownership is defined by UID and GID.
+	// HomeDirectory home allocated to this identity. New human identities use
+	// /home/bsu_<uid> and service accounts use /home/bsa_<uid>. Existing
+	// identities retain their home. Read this value instead of deriving it
+	// from the username.
 	HomeDirectory string `json:"home_directory"`
 	UID           int32  `json:"uid"`
 	Username      string `json:"username"`
