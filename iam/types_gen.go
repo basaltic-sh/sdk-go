@@ -148,8 +148,8 @@ type InlinePolicy struct {
 type LinuxIdentity struct {
 	GID int32 `json:"gid"`
 
-	// HomeDirectory new identities use /home/<username>. Existing identities retain
-	// their original home path and numeric file ownership.
+	// HomeDirectory home directory derived from the permanent username, as
+	// /home/<username>. Numeric file ownership is defined by UID and GID.
 	HomeDirectory string `json:"home_directory"`
 	UID           int32  `json:"uid"`
 	Username      string `json:"username"`
@@ -383,7 +383,7 @@ type PolicyCondition struct {
 	//   empty set does not hold.
 	//
 	// One of: "for_all_values", "for_any_value".
-	SetOperator string `json:"set_operator,omitempty"`
+	SetOperator *string `json:"set_operator,omitempty"`
 
 	// Values to compare against
 	Values []string `json:"values"`
@@ -447,7 +447,7 @@ type PolicyStatement struct {
 	Resources []string `json:"resources,omitempty"`
 
 	// Sid statement identifier
-	Sid string `json:"sid,omitempty"`
+	Sid *string `json:"sid,omitempty"`
 }
 
 // PolicyUpdateRequest the resource name is immutable.

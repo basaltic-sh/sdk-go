@@ -115,7 +115,7 @@ type RecordValue struct {
 	// The field remains on the schema because the console and CLI send it
 	// on every value; only `true` is rejected. To take a value out of an
 	// RRset, remove it from `values`.
-	Disabled bool `json:"disabled,omitempty"`
+	Disabled *bool `json:"disabled,omitempty"`
 }
 
 type Soa struct {

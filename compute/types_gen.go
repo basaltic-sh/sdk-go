@@ -25,7 +25,7 @@ type AddressRequest struct {
 	// /64 (last 32 bits zero); the first and last /96 ranges are reserved.
 	// Omit for automatic allocation. Managed database nodes and the
 	// add-address operation require automatic allocation.
-	Address string `json:"address,omitempty"`
+	Address *string `json:"address,omitempty"`
 
 	// One of: "ipv4", "ipv6".
 	Family string `json:"family"`
@@ -1040,18 +1040,18 @@ type InstanceVolume struct {
 	// Boot marks the boot disk. It takes no mount_path or fstype — both come
 	// from the image — and sending either is refused rather than
 	// ignored.
-	Boot bool `json:"boot,omitempty"`
+	Boot *bool `json:"boot,omitempty"`
 
 	// DeleteOnTermination destroyed with the instance unless set false.
-	DeleteOnTermination bool `json:"delete_on_termination,omitempty"`
+	DeleteOnTermination *bool `json:"delete_on_termination,omitempty"`
 
 	// Fstype filesystem the in-guest agent formats the volume with.
-	Fstype    string `json:"fstype,omitempty"`
-	MountPath string `json:"mount_path,omitempty"`
-	SizeGB    int    `json:"size_gb"`
+	Fstype    *string `json:"fstype,omitempty"`
+	MountPath *string `json:"mount_path,omitempty"`
+	SizeGB    int     `json:"size_gb"`
 
 	// VolumeType tier; omitted = the region default.
-	VolumeType string `json:"volume_type,omitempty"`
+	VolumeType *string `json:"volume_type,omitempty"`
 }
 
 type InterfaceAddress struct {

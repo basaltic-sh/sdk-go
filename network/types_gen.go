@@ -212,10 +212,10 @@ type FloatingIPHealthCheck struct {
 	IntervalSec      int `json:"interval_sec"`
 
 	// Matcher HTTP status or range that counts as passing; ignored for tcp.
-	Matcher string `json:"matcher,omitempty"`
+	Matcher *string `json:"matcher,omitempty"`
 
 	// Path HTTP path probed; ignored for tcp.
-	Path string `json:"path,omitempty"`
+	Path *string `json:"path,omitempty"`
 
 	// Port probed on the member.
 	Port int `json:"port"`

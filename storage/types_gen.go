@@ -74,8 +74,8 @@ type CORSRule struct {
 	AllowedMethods []string `json:"allowed_methods"`
 	AllowedOrigins []string `json:"allowed_origins"`
 	ExposeHeaders  []string `json:"expose_headers,omitempty"`
-	ID             string   `json:"id,omitempty"`
-	MaxAgeSeconds  int      `json:"max_age_seconds,omitempty"`
+	ID             *string  `json:"id,omitempty"`
+	MaxAgeSeconds  *int     `json:"max_age_seconds,omitempty"`
 }
 
 type CompleteMultipartUploadRequest struct {
@@ -130,15 +130,15 @@ type EncryptionConfig struct {
 }
 
 type EncryptionRule struct {
-	BucketKeyEnabled bool                   `json:"bucket_key_enabled,omitempty"`
+	BucketKeyEnabled *bool                  `json:"bucket_key_enabled,omitempty"`
 	Default          *EncryptionRuleDefault `json:"default,omitempty"`
 }
 
 type EncryptionRuleDefault struct {
 	// KMSMasterKeyID accepted but unused S3 placeholder. Only AES256 is supported; this
 	// is not a KMS resource reference.
-	KMSMasterKeyID string `json:"kms_master_key_id,omitempty"`
-	SseAlgorithm   string `json:"sse_algorithm"`
+	KMSMasterKeyID *string `json:"kms_master_key_id,omitempty"`
+	SseAlgorithm   string  `json:"sse_algorithm"`
 }
 
 type Fault struct {
@@ -197,7 +197,7 @@ type LifecycleRule struct {
 	AbortIncompleteMultipartUpload *LifecycleRuleAbortIncompleteMultipartUpload `json:"abort_incomplete_multipart_upload,omitempty"`
 	Expiration                     *LifecycleRuleExpiration                     `json:"expiration,omitempty"`
 	Filter                         *LifecycleRuleFilter                         `json:"filter,omitempty"`
-	ID                             string                                       `json:"id,omitempty"`
+	ID                             *string                                      `json:"id,omitempty"`
 	NoncurrentVersionExpiration    *LifecycleRuleNoncurrentVersionExpiration    `json:"noncurrent_version_expiration,omitempty"`
 
 	// Status `disabled` keeps the rule in the configuration but skips it during
@@ -222,21 +222,21 @@ type LifecycleRule struct {
 }
 
 type LifecycleRuleAbortIncompleteMultipartUpload struct {
-	DaysAfterInitiation int `json:"days_after_initiation,omitempty"`
+	DaysAfterInitiation *int `json:"days_after_initiation,omitempty"`
 }
 
 type LifecycleRuleExpiration struct {
-	Date time.Time `json:"date,omitempty"`
-	Days int       `json:"days,omitempty"`
+	Date *time.Time `json:"date,omitempty"`
+	Days *int       `json:"days,omitempty"`
 }
 
 type LifecycleRuleFilter struct {
-	Prefix string `json:"prefix,omitempty"`
+	Prefix *string `json:"prefix,omitempty"`
 }
 
 type LifecycleRuleNoncurrentVersionExpiration struct {
-	NewerNoncurrentVersions int `json:"newer_noncurrent_versions,omitempty"`
-	NoncurrentDays          int `json:"noncurrent_days,omitempty"`
+	NewerNoncurrentVersions *int `json:"newer_noncurrent_versions,omitempty"`
+	NoncurrentDays          *int `json:"noncurrent_days,omitempty"`
 }
 
 // LifecycleRuleTransition move matching objects to another storage class once they are old
@@ -252,10 +252,10 @@ type LifecycleRuleNoncurrentVersionExpiration struct {
 // rather than silently applying the first.
 type LifecycleRuleTransition struct {
 	// Date absolute cut-off; fires on the next sweep after this instant.
-	Date time.Time `json:"date,omitempty"`
+	Date *time.Time `json:"date,omitempty"`
 
 	// Days after the object's last-modified time.
-	Days int `json:"days,omitempty"`
+	Days *int `json:"days,omitempty"`
 
 	// StorageClass destination class. Keeps the S3 standard's casing rather than the
 	// platform's lowercase convention, because the class vocabulary is
@@ -310,7 +310,7 @@ type ObjectListResponse struct {
 }
 
 type ObjectLockConfig struct {
-	ObjectLockEnabled string                `json:"object_lock_enabled,omitempty"`
+	ObjectLockEnabled *string               `json:"object_lock_enabled,omitempty"`
 	Rule              *ObjectLockConfigRule `json:"rule,omitempty"`
 }
 
@@ -319,11 +319,11 @@ type ObjectLockConfigRule struct {
 }
 
 type ObjectLockConfigRuleDefaultRetention struct {
-	Days int `json:"days,omitempty"`
+	Days *int `json:"days,omitempty"`
 
 	// One of: "GOVERNANCE", "COMPLIANCE".
-	Mode  string `json:"mode,omitempty"`
-	Years int    `json:"years,omitempty"`
+	Mode  *string `json:"mode,omitempty"`
+	Years *int    `json:"years,omitempty"`
 }
 
 type ObjectVersion struct {

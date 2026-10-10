@@ -14,48 +14,48 @@ import (
 // becomes true only after all country-specific fields are valid. New
 // onboarding completes after this step.
 type BillingProfile struct {
-	City string `json:"city,omitempty"`
+	City *string `json:"city,omitempty"`
 
 	// CompanyName full legal name of the individual or company.
-	CompanyName string `json:"company_name,omitempty"`
-	Complement  string `json:"complement,omitempty"`
+	CompanyName *string `json:"company_name,omitempty"`
+	Complement  *string `json:"complement,omitempty"`
 
 	// Country ISO 3166-1 alpha-2 country code.
-	Country string `json:"country,omitempty"`
+	Country *string `json:"country,omitempty"`
 
 	// One of: "", "individual", "company".
-	CustomerType string `json:"customer_type,omitempty"`
+	CustomerType *string `json:"customer_type,omitempty"`
 
 	// Email billing email for fiscal invoice delivery. The onboarding form
 	// prefills this from the signed-in user's email.
-	Email string `json:"email,omitempty"`
+	Email *string `json:"email,omitempty"`
 
 	// ForeignTaxID foreign identifier; not validated as a Brazilian document.
-	ForeignTaxID  string   `json:"foreign_tax_id,omitempty"`
+	ForeignTaxID  *string  `json:"foreign_tax_id,omitempty"`
 	MissingFields []string `json:"missing_fields,omitempty"`
 
 	// MunicipalityCode Seven-digit IBGE municipality code, required for a Brazilian
 	// recipient.
-	MunicipalityCode string `json:"municipality_code,omitempty"`
-	Neighborhood     string `json:"neighborhood,omitempty"`
+	MunicipalityCode *string `json:"municipality_code,omitempty"`
+	Neighborhood     *string `json:"neighborhood,omitempty"`
 
 	// NoTaxIDReason required for a foreign recipient without a tax identifier.
-	NoTaxIDReason string `json:"no_tax_id_reason,omitempty"`
-	Phone         string `json:"phone,omitempty"`
+	NoTaxIDReason *string `json:"no_tax_id_reason,omitempty"`
+	Phone         *string `json:"phone,omitempty"`
 
 	// PostalCode Eight-digit CEP for Brazil; optional international postal code
 	// abroad.
-	PostalCode string `json:"postal_code,omitempty"`
-	Ready      bool   `json:"ready,omitempty"`
+	PostalCode *string `json:"postal_code,omitempty"`
+	Ready      *bool   `json:"ready,omitempty"`
 
 	// State Two-letter UF for Brazil; free-form state/province abroad.
-	State        string `json:"state,omitempty"`
-	StreetName   string `json:"street_name,omitempty"`
-	StreetNumber string `json:"street_number,omitempty"`
+	State        *string `json:"state,omitempty"`
+	StreetName   *string `json:"street_name,omitempty"`
+	StreetNumber *string `json:"street_number,omitempty"`
 
 	// TaxID CPF for a Brazilian individual or CNPJ for a Brazilian company.
 	// Check digits are validated.
-	TaxID string `json:"tax_id,omitempty"`
+	TaxID *string `json:"tax_id,omitempty"`
 }
 
 type Credit struct {

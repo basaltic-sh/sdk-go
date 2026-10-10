@@ -386,31 +386,31 @@ type FloatingIPMemberInterfaceInstance struct {
 // the check port without an HTTP path. UDP groups default to TCP connect
 // probes.
 type HealthCheck struct {
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitempty"`
 
 	// HealthyThreshold zero uses the default.
-	HealthyThreshold int `json:"healthy_threshold,omitempty"`
+	HealthyThreshold *int `json:"healthy_threshold,omitempty"`
 
 	// IntervalSec zero uses the default.
-	IntervalSec int `json:"interval_sec,omitempty"`
+	IntervalSec *int `json:"interval_sec,omitempty"`
 
 	// Matcher HTTP status codes from 100 to 599; comma-separated codes or
 	// inclusive ranges. Empty uses 200.
-	Matcher string `json:"matcher,omitempty"`
-	Path    string `json:"path,omitempty"`
-	Port    int    `json:"port,omitempty"`
+	Matcher *string `json:"matcher,omitempty"`
+	Path    *string `json:"path,omitempty"`
+	Port    *int    `json:"port,omitempty"`
 
 	// Protocol omitted or empty uses the target group protocol. UDP uses a TCP
 	// connect probe. HTTPS probes use TLS.
 	//
 	// One of: "http", "https", "tcp", "udp", "".
-	Protocol string `json:"protocol,omitempty"`
+	Protocol *string `json:"protocol,omitempty"`
 
 	// TimeoutSec zero uses the default.
-	TimeoutSec int `json:"timeout_sec,omitempty"`
+	TimeoutSec *int `json:"timeout_sec,omitempty"`
 
 	// UnhealthyThreshold zero uses the default.
-	UnhealthyThreshold int `json:"unhealthy_threshold,omitempty"`
+	UnhealthyThreshold *int `json:"unhealthy_threshold,omitempty"`
 }
 
 // HealthCheckPatch merge supplied fields into the existing check. Omitted fields are
@@ -655,7 +655,7 @@ type RuleCondition struct {
 	Field string `json:"field"`
 
 	// Name header or query key name
-	Name string `json:"name,omitempty"`
+	Name *string `json:"name,omitempty"`
 
 	// One of: "exact", "prefix", "glob", "regex".
 	Op     string   `json:"op"`
@@ -670,10 +670,10 @@ type RuleCondition struct {
 type SessionAffinity struct {
 	// CookieName cookie the load balancer sets and hashes. `type=cookie` only; the
 	// field is dropped for the other types.
-	CookieName string `json:"cookie_name,omitempty"`
+	CookieName *string `json:"cookie_name,omitempty"`
 
 	// DurationSec how long that cookie lives, up to 7 days. `type=cookie` only.
-	DurationSec int `json:"duration_sec,omitempty"`
+	DurationSec *int `json:"duration_sec,omitempty"`
 
 	// Type `none` balances every request. `cookie` sets an opaque cookie on the
 	// first response and routes every later request carrying it to the
