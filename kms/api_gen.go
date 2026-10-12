@@ -15,6 +15,60 @@ import (
 	basaltic "github.com/basaltic-sh/sdk-go"
 )
 
+// GetPublicKeyParams are the optional filters and pagination controls for
+// [Client.GetPublicKey]. A nil *GetPublicKeyParams sends none of them.
+type GetPublicKeyParams struct {
+	// KeyVersion material version to export. Defaults to the current version.
+	KeyVersion int
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *GetPublicKeyParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.KeyVersion != 0 {
+		q.Set("key_version", strconv.Itoa(int(p.KeyVersion)))
+	}
+	return q
+}
+
+// ListKeyRotationsParams are the optional filters and pagination controls for
+// [Client.ListKeyRotations]. A nil *ListKeyRotationsParams sends none of them.
+type ListKeyRotationsParams struct {
+	Limit  int
+	Marker string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListKeyRotationsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListKeyRotationsParams) withMarker(marker string) *ListKeyRotationsParams {
+	var out ListKeyRotationsParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
 // ListKeysParams are the optional filters and pagination controls for
 // [Client.ListKeys]. A nil *ListKeysParams sends none of them.
 type ListKeysParams struct {
@@ -236,6 +290,123 @@ func (c *Client) GetKey(ctx context.Context, keyID string, opts ...basaltic.Requ
 	return out.Key, nil
 }
 
+// GetKeyRotation gets a key rotation.
+//
+// Read the durable status of one rotation belonging to this key.
+func (c *Client) GetKeyRotation(ctx context.Context, keyID string, rotationID string, opts ...basaltic.RequestOption) (*KeyRotation, error) {
+	op := &basaltic.Operation{
+		ID:       "getKeyRotation",
+		Method:   "GET",
+		Path:     "/v1/keys/{key_id}/rotations/{rotation_id}",
+		PathArgs: []string{keyID, rotationID},
+	}
+	var out struct {
+		Rotation *KeyRotation `json:"rotation"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Rotation, nil
+}
+
+// GetKeyRotationStatus gets key rotation status.
+//
+// Read the automatic rotation policy and current material version.
+// Historical material remains available for decryption and verification.
+func (c *Client) GetKeyRotationStatus(ctx context.Context, keyID string, opts ...basaltic.RequestOption) (*KeyRotationStatus, error) {
+	op := &basaltic.Operation{
+		ID:       "getKeyRotationStatus",
+		Method:   "GET",
+		Path:     "/v1/keys/{key_id}/rotation",
+		PathArgs: []string{keyID},
+	}
+	var out struct {
+		Rotation *KeyRotationStatus `json:"rotation"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Rotation, nil
+}
+
+// GetPublicKey gets a versioned public key.
+//
+// Export a PEM-encoded public key for an enabled asymmetric key. Omit
+// key_version for the current version. Persist the version returned by
+// Sign when distributing public keys to offline verifiers. Symmetric
+// keys have no public key.
+func (c *Client) GetPublicKey(ctx context.Context, keyID string, params *GetPublicKeyParams, opts ...basaltic.RequestOption) (*PublicKeyResponse, error) {
+	op := &basaltic.Operation{
+		ID:       "getPublicKey",
+		Method:   "GET",
+		Path:     "/v1/keys/{key_id}/public-key",
+		PathArgs: []string{keyID},
+	}
+	op.Query = params.query()
+	var out PublicKeyResponse
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ListKeyRotations lists key rotation history.
+//
+// Lists on-demand and automatic attempts, newest first. Key creation is
+// version 1 and is not a rotation. Follow meta.marker for more records.
+//
+// Returns one page. Use ListKeyRotationsAll to walk every page.
+func (c *Client) ListKeyRotations(ctx context.Context, keyID string, params *ListKeyRotationsParams, opts ...basaltic.RequestOption) (*basaltic.Page[KeyRotation], error) {
+	op := &basaltic.Operation{
+		ID:       "listKeyRotations",
+		Method:   "GET",
+		Path:     "/v1/keys/{key_id}/rotations",
+		PathArgs: []string{keyID},
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []KeyRotation `json:"rotations"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[KeyRotation]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListKeyRotationsAll walks every page of ListKeyRotations, yielding one
+// item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListKeyRotationsAll(ctx, keyID, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListKeyRotationsAll(ctx context.Context, keyID string, params *ListKeyRotationsParams, opts ...basaltic.RequestOption) iter.Seq2[KeyRotation, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[KeyRotation], error) {
+		return c.ListKeyRotations(ctx, keyID, params.withMarker(marker), opts...)
+	})
+}
+
 // ListKeys lists KMS keys.
 //
 // List KMS keys owned by the requesting account, newest-first.
@@ -292,6 +463,57 @@ func (c *Client) ListKeysAll(ctx context.Context, params *ListKeysParams, opts .
 	})
 }
 
+// Rewrap rewraps ciphertext with current key material.
+//
+// Rewrap ciphertext or a wrapped data key under the current version of
+// the same enabled encrypt_decrypt key. No plaintext is returned. For an
+// AAD envelope only the wrapped data key changes; the payload,
+// authentication tag, and original AAD requirement are preserved.
+// Rotation itself does not rewrite stored ciphertext; replace the stored
+// value with this result when migration is desired.
+func (c *Client) Rewrap(ctx context.Context, keyID string, body *RewrapRequest, opts ...basaltic.RequestOption) (*EncryptResponse, error) {
+	op := &basaltic.Operation{
+		ID:       "rewrap",
+		Method:   "POST",
+		Path:     "/v1/keys/{key_id}/rewrap",
+		PathArgs: []string{keyID},
+		Body:     body,
+	}
+	var out EncryptResponse
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// RotateKeyOnDemand rotates key material now.
+//
+// Create a new material version while retaining the key ID, CRN,
+// permissions, and historical material. Existing ciphertext and
+// signatures remain usable. Send Idempotency-Key to safely retry: the
+// same token on this key returns the same rotation for the lifetime of
+// the key, even after completion. A different request while a rotation
+// is active returns 409. Without a token, each request creates a new
+// intent. Poll the rotation by ID when accepted with 202.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) RotateKeyOnDemand(ctx context.Context, keyID string, opts ...basaltic.RequestOption) (*KeyRotation, error) {
+	op := &basaltic.Operation{
+		ID:       "rotateKeyOnDemand",
+		Method:   "POST",
+		Path:     "/v1/keys/{key_id}/rotate",
+		PathArgs: []string{keyID},
+	}
+	var out struct {
+		Rotation *KeyRotation `json:"rotation"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Rotation, nil
+}
+
 // ScheduleKeyDeletion schedules key for deletion.
 //
 // Move the key into state=pending_deletion. Quota is released
@@ -315,6 +537,31 @@ func (c *Client) ScheduleKeyDeletion(ctx context.Context, keyID string, body *Sc
 		return nil, err
 	}
 	return out.Key, nil
+}
+
+// SetKeyRotation configures automatic key rotation.
+//
+// Enable or disable automatic rotation for an enabled customer key.
+// Supports AES, RSA, and ECDSA keys. An unchanged policy preserves its
+// schedule; changing the interval or enabling schedules the first
+// rotation one period from now. On-demand rotation never shifts this
+// schedule. Disabling cancels undispatched automatic work; a dispatched
+// rotation can still complete. System keys are managed by the platform.
+func (c *Client) SetKeyRotation(ctx context.Context, keyID string, body *SetKeyRotationRequest, opts ...basaltic.RequestOption) (*KeyRotationPolicy, error) {
+	op := &basaltic.Operation{
+		ID:       "setKeyRotation",
+		Method:   "PUT",
+		Path:     "/v1/keys/{key_id}/rotation",
+		PathArgs: []string{keyID},
+		Body:     body,
+	}
+	var out struct {
+		Rotation *KeyRotationPolicy `json:"rotation"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Rotation, nil
 }
 
 // Sign signs a message.

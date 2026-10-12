@@ -327,3 +327,17 @@ so they catch real emitter faults.
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).
+
+## KMS key rotation
+
+The KMS client supports automatic rotation policies, on-demand rotation, paginated
+rotation history, public keys by material version, and ciphertext rewrapping.
+Reuse an idempotency key when retrying the same on-demand rotation. A `202`
+response represents accepted work; poll its rotation ID until it completes.
+Persist the material version returned by signing and supply it when verifying
+or retrieving a public key. Verification without a version remains compatible
+with older signatures. Rotation retains existing key identities and historical
+material; it does not rewrite stored ciphertext.
+
+See [KMS rotation](https://docs.basaltic.sh/kms/rotation) for the lifecycle,
+permissions, and migration workflow.

@@ -10,52 +10,105 @@ import (
 	"time"
 )
 
-// BillingProfile organization billing recipient. Incomplete drafts are saved; ready
-// becomes true only after all country-specific fields are valid. New
-// onboarding completes after this step.
-type BillingProfile struct {
-	City *string `json:"city,omitempty"`
+// BillingAddress address values keyed by the field keys the country's rules declare. A
+// key the country does not use is rejected. `state` and `city` appear
+// here only where the country types them as text.
+type BillingAddress struct {
+	City         *string `json:"city,omitempty"`
+	Complement   *string `json:"complement,omitempty"`
+	Neighborhood *string `json:"neighborhood,omitempty"`
 
-	// CompanyName full legal name of the individual or company.
-	CompanyName *string `json:"company_name,omitempty"`
-	Complement  *string `json:"complement,omitempty"`
-
-	// Country ISO 3166-1 alpha-2 country code.
-	Country *string `json:"country,omitempty"`
-
-	// One of: "", "individual", "company".
-	CustomerType *string `json:"customer_type,omitempty"`
-
-	// Email billing email for fiscal invoice delivery. The onboarding form
-	// prefills this from the signed-in user's email.
-	Email *string `json:"email,omitempty"`
-
-	// ForeignTaxID foreign identifier; not validated as a Brazilian document.
-	ForeignTaxID  *string  `json:"foreign_tax_id,omitempty"`
-	MissingFields []string `json:"missing_fields,omitempty"`
-
-	// MunicipalityCode Seven-digit IBGE municipality code, required for a Brazilian
-	// recipient.
-	MunicipalityCode *string `json:"municipality_code,omitempty"`
-	Neighborhood     *string `json:"neighborhood,omitempty"`
-
-	// NoTaxIDReason required for a foreign recipient without a tax identifier.
-	NoTaxIDReason *string `json:"no_tax_id_reason,omitempty"`
-	Phone         *string `json:"phone,omitempty"`
-
-	// PostalCode Eight-digit CEP for Brazil; optional international postal code
-	// abroad.
-	PostalCode *string `json:"postal_code,omitempty"`
-	Ready      *bool   `json:"ready,omitempty"`
-
-	// State Two-letter UF for Brazil; free-form state/province abroad.
+	// PostalCode stored without mask literals.
+	PostalCode   *string `json:"postal_code,omitempty"`
 	State        *string `json:"state,omitempty"`
 	StreetName   *string `json:"street_name,omitempty"`
 	StreetNumber *string `json:"street_number,omitempty"`
+}
 
-	// TaxID CPF for a Brazilian individual or CNPJ for a Brazilian company.
-	// Check digits are validated.
+// BillingProfile organization billing recipient. Incomplete drafts are saved; `ready`
+// becomes true only when the country's rules (see the catalog's `GET
+// /v1/countries/{country}`) are satisfied. New onboarding completes
+// after this step.
+type BillingProfile struct {
+	Address *BillingAddress `json:"address"`
+
+	// City the catalog city, where the country lists cities. Otherwise the city
+	// is text in `address.city`.
+	City *ResourceRef `json:"city"`
+
+	// CompanyName full legal name of the individual or company.
+	CompanyName string       `json:"company_name"`
+	Country     *ResourceRef `json:"country"`
+
+	// One of: "", "individual", "company".
+	CustomerType string `json:"customer_type"`
+
+	// Email billing email for fiscal invoice delivery. The onboarding form
+	// prefills this from the signed-in user's email.
+	Email string `json:"email"`
+
+	// MissingFields what stops the profile from being ready: `customer_type`,
+	// `company_name`, `email`, `tax_id`, `tax_id_or_reason`, or an address
+	// key. A stored value that no longer satisfies the country's rules is
+	// listed as missing.
+	MissingFields []string `json:"missing_fields"`
+
+	// NoTaxIDReason why there is no identifier, where the country's rule does not
+	// require one.
+	NoTaxIDReason string `json:"no_tax_id_reason"`
+
+	// Phone E.164 phone number, or empty.
+	Phone string `json:"phone"`
+	Ready bool   `json:"ready"`
+
+	// State the catalog state, where the country lists states. Otherwise the
+	// state is text in `address.state`.
+	State *ResourceRef `json:"state"`
+
+	// TaxID the recipient's tax identifier in the country — CPF or CNPJ in
+	// Brazil, an EIN, a VAT number. Stored without separators and
+	// upper-cased.
+	TaxID string `json:"tax_id"`
+
+	// TaxIDKind the country rule the identifier satisfied, from
+	// `CountryRules.tax_ids`. Empty when there is no identifier.
+	TaxIDKind string `json:"tax_id_kind"`
+}
+
+// BillingProfileUpdate replaces the billing profile. Supplied values that are invalid for the
+// country are rejected with 400; missing ones are accepted and reported
+// in `missing_fields`.
+type BillingProfileUpdate struct {
+	Address *BillingAddress `json:"address,omitempty"`
+
+	// City UUID or CRN, where the country lists cities.
+	City        *string `json:"city,omitempty"`
+	CompanyName *string `json:"company_name,omitempty"`
+
+	// Country UUID, CRN, or ISO alpha-2 or alpha-3 code. Defaults to
+	// Brazil.
+	Country *string `json:"country,omitempty"`
+
+	// One of: "", "individual", "company".
+	CustomerType  *string `json:"customer_type,omitempty"`
+	Email         *string `json:"email,omitempty"`
+	NoTaxIDReason *string `json:"no_tax_id_reason,omitempty"`
+
+	// Phone with its country calling code. Spaces, dots, dashes and
+	// parentheses are ignored; stored as E.164.
+	Phone *string `json:"phone,omitempty"`
+
+	// State UUID, CRN, or code, where the country lists states. Omit when
+	// a city is given; the city implies it.
+	State *string `json:"state,omitempty"`
+
+	// TaxID separators and case are ignored; the identifier is checked against
+	// the country's rules, including check digits where one is named.
 	TaxID *string `json:"tax_id,omitempty"`
+
+	// TaxIDKind needed only when a customer type accepts more than one kind;
+	// otherwise the matching kind is chosen.
+	TaxIDKind *string `json:"tax_id_kind,omitempty"`
 }
 
 type Credit struct {
@@ -241,6 +294,16 @@ type PriceListResponse struct {
 	// for, or the server's clock when none was.
 	AsOf   time.Time `json:"as_of"`
 	Prices []*Price  `json:"prices"`
+}
+
+type ResourceRef struct {
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Name display label at response time — the resource's name where it has
+	// one, otherwise its human label (an invoice number, an account
+	// display name). Absent when the target is gone. Not a lookup key.
+	Name string `json:"name,omitempty"`
 }
 
 type Transaction struct {

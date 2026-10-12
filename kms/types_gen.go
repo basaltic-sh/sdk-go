@@ -55,9 +55,9 @@ type EncryptRequest struct {
 }
 
 type EncryptResponse struct {
-	// Ciphertext base64-encoded ciphertext. Opaque — store verbatim. For AES-GCM
-	// the layout is nonce(12) || ct || tag; for RSA-OAEP the standard
-	// PKCS#1 RSAES output.
+	// Ciphertext base64-encoded opaque, versioned ciphertext. Store verbatim; do not
+	// parse its internal layout. Decrypt selects the original material
+	// version automatically after rotation.
 	Ciphertext []byte `json:"ciphertext,omitempty"`
 
 	// KeyCRN CRN of the key the ciphertext was sealed under.
@@ -66,9 +66,8 @@ type EncryptResponse struct {
 
 type GenerateDataKeyRequest struct {
 	// NumberOfBytes size of the generated data key in bytes: 16 (AES-128), 32 (AES-256,
-	// the default) or 64 (HMAC-SHA512). No other size is supported — the
-	// HSM mints data keys at those three widths only, and any other value
-	// fails the operation.
+	// the default) or 64 (HMAC-SHA512). No other size is supported; any
+	// other value fails the operation.
 	//
 	// One of: "16", "32", "64".
 	NumberOfBytes *int `json:"number_of_bytes,omitempty"`
@@ -122,6 +121,56 @@ type Key struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type KeyRotation struct {
+	CompletedAt *time.Time `json:"completed_at"`
+
+	// ErrorCode machine-readable cancellation or reconciliation reason. Null on
+	// success.
+	ErrorCode *string `json:"error_code"`
+	ID        string  `json:"id"`
+	KeyID     string  `json:"key_id"`
+
+	// KeyVersion new material version, populated only on success.
+	KeyVersion      *int       `json:"key_version"`
+	PreviousVersion *int       `json:"previous_version"`
+	RequestedAt     time.Time  `json:"requested_at"`
+	StartedAt       *time.Time `json:"started_at"`
+
+	// Status pending work is durable. Reconciliation_required means the backend
+	// outcome is unknown; no second rotation is sent and further requests
+	// are blocked until resolved. Failed means the request was cancelled
+	// before dispatch.
+	//
+	// One of: "pending", "in_progress", "reconciliation_required", "succeeded", "failed".
+	Status string `json:"status"`
+
+	// One of: "on_demand", "automatic".
+	Trigger string `json:"trigger"`
+}
+
+type KeyRotationPolicy struct {
+	// Enabled automatic rotation is opt-in and defaults to false.
+	Enabled bool `json:"enabled"`
+
+	// NextRotationAt next scheduled rotation, or null when automatic rotation is
+	// disabled. Disabled keys are skipped until re-enabled.
+	NextRotationAt     *time.Time `json:"next_rotation_at"`
+	RotationPeriodDays int        `json:"rotation_period_days"`
+}
+
+type KeyRotationStatus struct {
+	// CurrentVersion current material version used for new cryptographic operations.
+	CurrentVersion int `json:"current_version"`
+
+	// Enabled automatic rotation is opt-in and defaults to false.
+	Enabled bool `json:"enabled"`
+
+	// NextRotationAt next scheduled rotation, or null when automatic rotation is
+	// disabled. Disabled keys are skipped until re-enabled.
+	NextRotationAt     *time.Time `json:"next_rotation_at"`
+	RotationPeriodDays int        `json:"rotation_period_days"`
+}
+
 // KeySpec cryptographic spec. Determines which mechanisms apply:
 //   - aes-256:     symmetric AEAD (AES-GCM)
 //   - rsa-2048:    asymmetric; OAEP-SHA256 encrypt + PSS-SHA256 sign
@@ -162,11 +211,38 @@ const (
 	KeyUsageSignVerify     KeyUsage = "sign_verify"
 )
 
+type PublicKeyResponse struct {
+	KeyCRN     string   `json:"key_crn"`
+	KeySpec    KeySpec  `json:"key_spec"`
+	KeyUsage   KeyUsage `json:"key_usage"`
+	KeyVersion int      `json:"key_version"`
+
+	// PublicKey PEM-encoded SubjectPublicKeyInfo for the requested asymmetric
+	// material version. No private material is exported.
+	PublicKey string `json:"public_key"`
+}
+
+type RewrapRequest struct {
+	// Ciphertext base64-encoded ciphertext or wrapped data key produced by this KMS
+	// key. AAD is neither required nor changed.
+	//
+	// Required.
+	Ciphertext []byte `json:"ciphertext"`
+}
+
 type ScheduleKeyDeletionRequest struct {
 	// RecoveryWindowDays how long the key sits in pending_deletion before it is hard-deleted.
 	// Matches AWS KMS bounds; the deletion can be cancelled at any point
 	// inside the window.
 	RecoveryWindowDays *int `json:"recovery_window_days,omitempty"`
+}
+
+type SetKeyRotationRequest struct {
+	// Required.
+	Enabled bool `json:"enabled"`
+
+	// RotationPeriodDays whole days between rotations. Omission selects 365 days.
+	RotationPeriodDays *int `json:"rotation_period_days,omitempty"`
 }
 
 type SignRequest struct {
@@ -179,6 +255,10 @@ type SignRequest struct {
 }
 
 type SignResponse struct {
+	// KeyVersion material version that produced this signature. Persist with the
+	// signature for explicit verification and public-key retrieval.
+	KeyVersion int `json:"key_version,omitempty"`
+
 	// Signature base64-encoded signature. RSA-PSS: PKCS#1 octet string with
 	// saltLen=hashLen=32. ECDSA: ASN.1 DER (r,s) tuple per ANSI X9.62.
 	Signature        []byte           `json:"signature,omitempty"`
@@ -212,6 +292,11 @@ type UpdateKeyRequest struct {
 }
 
 type VerifyRequest struct {
+	// KeyVersion optional material version returned by Sign. When omitted, all
+	// retained public-key versions are tried for compatibility with older
+	// signatures.
+	KeyVersion *int `json:"key_version,omitempty"`
+
 	// Message base64-encoded original message.
 	//
 	// Required.

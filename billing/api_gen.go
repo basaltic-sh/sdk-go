@@ -631,7 +631,7 @@ func (c *Client) ListTransactionsAll(ctx context.Context, params *ListTransactio
 // prepared or issued documents retain their recipient snapshot. A
 // complete profile finishes the billing-details onboarding step and
 // allows waiting fiscal workflows to proceed.
-func (c *Client) UpdateBillingProfile(ctx context.Context, body *BillingProfile, opts ...basaltic.RequestOption) (*BillingProfile, error) {
+func (c *Client) UpdateBillingProfile(ctx context.Context, body *BillingProfileUpdate, opts ...basaltic.RequestOption) (*BillingProfile, error) {
 	op := &basaltic.Operation{
 		ID:     "updateBillingProfile",
 		Method: "PUT",
