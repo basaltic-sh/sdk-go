@@ -26,9 +26,8 @@ type BillingAddress struct {
 }
 
 // BillingProfile organization billing recipient. Incomplete drafts are saved; `ready`
-// becomes true only when the country's rules (see the catalog's `GET
-// /v1/countries/{country}`) are satisfied. New onboarding completes
-// after this step.
+// becomes true only when the country's address and tax identifier rules
+// are satisfied. New onboarding completes after this step.
 type BillingProfile struct {
 	Address *BillingAddress `json:"address"`
 
@@ -70,8 +69,8 @@ type BillingProfile struct {
 	// upper-cased.
 	TaxID string `json:"tax_id"`
 
-	// TaxIDKind the country rule the identifier satisfied, from
-	// `CountryRules.tax_ids`. Empty when there is no identifier.
+	// TaxIDKind the country rule the identifier satisfied, such as `br_cpf`,
+	// `br_cnpj`, `us_ein` or `other`. Empty when there is no identifier.
 	TaxIDKind string `json:"tax_id_kind"`
 }
 

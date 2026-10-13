@@ -6,10 +6,8 @@
 
 // Package catalog is the Catalog API.
 //
-// Public global platform discovery — regions, plus the reference
-// geography and postal-code lookup that billing profiles use. Region
-// lifecycle is independent of live health, capacity, tenant
-// authorization, and product placement.
+// Public global platform discovery. Lifecycle is independent of live
+// health, capacity, tenant authorization, and product placement.
 //
 // Build a client from a shared [basaltic.Config]:
 //

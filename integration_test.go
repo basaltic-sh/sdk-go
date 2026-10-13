@@ -21,6 +21,7 @@ import (
 	"time"
 
 	basaltic "github.com/basaltic-sh/sdk-go"
+	"github.com/basaltic-sh/sdk-go/billing"
 	"github.com/basaltic-sh/sdk-go/catalog"
 	"github.com/basaltic-sh/sdk-go/compute"
 	"github.com/basaltic-sh/sdk-go/iam"
@@ -231,5 +232,22 @@ func TestLiveImageCatalog(t *testing.T) {
 	}
 	if len(seen) == 0 {
 		t.Fatal("catalog is empty")
+	}
+}
+
+// The billing profile is country-driven: the country (and a listed state or
+// city) comes back as a catalog ResourceRef, the address as an object. A
+// draft still has a country, so this holds for any organization.
+func TestLiveBillingProfileShape(t *testing.T) {
+	cfg := liveConfig(t)
+	profile, err := billing.New(cfg).GetBillingProfile(liveContext(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.Country == nil || profile.Country.ID == "" || profile.Country.CRN == "" {
+		t.Fatalf("profile has no country reference: %+v", profile.Country)
+	}
+	if profile.Ready != (len(profile.MissingFields) == 0) {
+		t.Fatalf("ready=%v disagrees with missing_fields=%v", profile.Ready, profile.MissingFields)
 	}
 }
