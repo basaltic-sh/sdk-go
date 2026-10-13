@@ -6,10 +6,9 @@
 
 // Package telemetry is the Telemetry API.
 //
-// Regional telemetry API — log groups + log ingest/search, ClickHouse
-// metrics (remote_write + structured query with Prometheus-compatible
-// JSON envelopes), span ingest, and trace search/detail + per-account
-// trace settings.
+// Regional telemetry API — log groups and log ingest/search, metrics
+// (remote_write ingestion and native structured JSON queries), span
+// ingest, and trace search/detail + per-account trace settings.
 //
 // Log-group request references accept UUIDs, CRNs or exact
 // account-scoped names, classified by syntax without lookup fallback.

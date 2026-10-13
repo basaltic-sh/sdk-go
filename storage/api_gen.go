@@ -166,12 +166,8 @@ type ListSnapshotPoliciesParams struct {
 	// Marker resume token — the last policy id from the previous page.
 	Marker string
 
-	// Name exact account-scoped name match; an empty value matches nothing.
+	// Name exact volume-scoped name match; an empty value matches nothing.
 	Name string
-
-	// Volume account-owned volume UUID, CRN, or exact name. Narrows to the policy
-	// attached to that volume.
-	Volume string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -195,9 +191,6 @@ func (p *ListSnapshotPoliciesParams) query() url.Values {
 	}
 	if p.Name != "" {
 		q.Set("name", p.Name)
-	}
-	if p.Volume != "" {
-		q.Set("volume", p.Volume)
 	}
 	return q
 }
@@ -229,7 +222,9 @@ type ListSnapshotsParams struct {
 	// missing volume returns 400.
 	Name string
 
-	// SnapshotPolicy account-owned snapshot policy UUID, CRN, or exact name.
+	// SnapshotPolicy account-owned snapshot policy UUID or nested CRN
+	// (volume/<volume-name>/snapshot-policy/<policy-name>), or exact name
+	// when volume is supplied.
 	SnapshotPolicy string
 	Status         SnapshotStatus
 
@@ -465,12 +460,13 @@ func (c *Client) CreateSnapshot(ctx context.Context, body *SnapshotCreateRequest
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
-func (c *Client) CreateSnapshotPolicy(ctx context.Context, body *SnapshotPolicyCreateRequest, opts ...basaltic.RequestOption) (*SnapshotPolicy, error) {
+func (c *Client) CreateSnapshotPolicy(ctx context.Context, volumeID string, body *SnapshotPolicyCreateRequest, opts ...basaltic.RequestOption) (*SnapshotPolicy, error) {
 	op := &basaltic.Operation{
-		ID:     "createSnapshotPolicy",
-		Method: "POST",
-		Path:   "/v1/snapshot-policies",
-		Body:   body,
+		ID:       "createSnapshotPolicy",
+		Method:   "POST",
+		Path:     "/v1/volumes/{volume_id}/snapshot-policies",
+		PathArgs: []string{volumeID},
+		Body:     body,
 	}
 	var out struct {
 		SnapshotPolicy *SnapshotPolicy `json:"snapshot_policy"`
@@ -665,12 +661,12 @@ func (c *Client) DeleteSnapshot(ctx context.Context, snapshotID string, opts ...
 // want.
 //
 // Deleting the volume also removes its policy.
-func (c *Client) DeleteSnapshotPolicy(ctx context.Context, policyID string, opts ...basaltic.RequestOption) error {
+func (c *Client) DeleteSnapshotPolicy(ctx context.Context, volumeID string, policyID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "deleteSnapshotPolicy",
 		Method:   "DELETE",
-		Path:     "/v1/snapshot-policies/{policy_id}",
-		PathArgs: []string{policyID},
+		Path:     "/v1/volumes/{volume_id}/snapshot-policies/{policy_id}",
+		PathArgs: []string{volumeID, policyID},
 	}
 	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
 		return err
@@ -729,7 +725,7 @@ func (c *Client) ExtendVolume(ctx context.Context, volumeID string, body *Volume
 }
 
 // GetBucketCORS gets bucket CORS configuration.
-func (c *Client) GetBucketCORS(ctx context.Context, bucket string, opts ...basaltic.RequestOption) (*CORSConfig, error) {
+func (c *Client) GetBucketCORS(ctx context.Context, bucket string, opts ...basaltic.RequestOption) (*basaltic.Page[CORSRule], error) {
 	op := &basaltic.Operation{
 		ID:       "getBucketCORS",
 		Method:   "GET",
@@ -737,16 +733,17 @@ func (c *Client) GetBucketCORS(ctx context.Context, bucket string, opts ...basal
 		PathArgs: []string{bucket},
 	}
 	var out struct {
-		CORS *CORSConfig `json:"cors"`
+		Items []CORSRule `json:"cors_rules"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.CORS, nil
+	page := &basaltic.Page[CORSRule]{Items: out.Items}
+	return page, nil
 }
 
 // GetBucketEncryption gets bucket encryption configuration.
-func (c *Client) GetBucketEncryption(ctx context.Context, bucket string, opts ...basaltic.RequestOption) (*EncryptionConfig, error) {
+func (c *Client) GetBucketEncryption(ctx context.Context, bucket string, opts ...basaltic.RequestOption) (*basaltic.Page[EncryptionRule], error) {
 	op := &basaltic.Operation{
 		ID:       "getBucketEncryption",
 		Method:   "GET",
@@ -754,12 +751,13 @@ func (c *Client) GetBucketEncryption(ctx context.Context, bucket string, opts ..
 		PathArgs: []string{bucket},
 	}
 	var out struct {
-		Encryption *EncryptionConfig `json:"encryption"`
+		Items []EncryptionRule `json:"encryption_rules"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.Encryption, nil
+	page := &basaltic.Page[EncryptionRule]{Items: out.Items}
+	return page, nil
 }
 
 // GetBucketLifecycle gets bucket lifecycle configuration.
@@ -778,20 +776,18 @@ func (c *Client) GetBucketLifecycle(ctx context.Context, bucket string, opts ...
 }
 
 // GetBucketObjectLock gets bucket object-lock configuration.
-func (c *Client) GetBucketObjectLock(ctx context.Context, bucket string, opts ...basaltic.RequestOption) (*ObjectLockConfig, error) {
+func (c *Client) GetBucketObjectLock(ctx context.Context, bucket string, opts ...basaltic.RequestOption) (BucketObjectLockResponse, error) {
 	op := &basaltic.Operation{
 		ID:       "getBucketObjectLock",
 		Method:   "GET",
 		Path:     "/v1/buckets/{bucket}/object-lock",
 		PathArgs: []string{bucket},
 	}
-	var out struct {
-		ObjectLock *ObjectLockConfig `json:"object_lock"`
-	}
+	var out BucketObjectLockResponse
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.ObjectLock, nil
+	return out, nil
 }
 
 // GetBucketPolicy gets bucket policy.
@@ -896,12 +892,12 @@ func (c *Client) GetSnapshot(ctx context.Context, snapshotID string, opts ...bas
 // none (quota exhausted, volume mid-extend, …) and is empty after a
 // run that succeeded. `next_run_at` and `last_run_at` say where in the
 // cycle the policy is.
-func (c *Client) GetSnapshotPolicy(ctx context.Context, policyID string, opts ...basaltic.RequestOption) (*SnapshotPolicy, error) {
+func (c *Client) GetSnapshotPolicy(ctx context.Context, volumeID string, policyID string, opts ...basaltic.RequestOption) (*SnapshotPolicy, error) {
 	op := &basaltic.Operation{
 		ID:       "getSnapshotPolicy",
 		Method:   "GET",
-		Path:     "/v1/snapshot-policies/{policy_id}",
-		PathArgs: []string{policyID},
+		Path:     "/v1/volumes/{volume_id}/snapshot-policies/{policy_id}",
+		PathArgs: []string{volumeID, policyID},
 	}
 	var out struct {
 		SnapshotPolicy *SnapshotPolicy `json:"snapshot_policy"`
@@ -1118,15 +1114,16 @@ func (c *Client) ListParts(ctx context.Context, bucket string, uploadID string, 
 
 // ListSnapshotPolicies lists snapshot policies.
 //
-// List snapshot policies owned by the requesting account in the target
-// region, newest-first. Keyset-paginated by policy id (UUIDv7).
+// List snapshot policies attached to this volume, newest-first.
+// Keyset-paginated by policy id (UUIDv7).
 //
 // Returns one page. Use ListSnapshotPoliciesAll to walk every page.
-func (c *Client) ListSnapshotPolicies(ctx context.Context, params *ListSnapshotPoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[SnapshotPolicy], error) {
+func (c *Client) ListSnapshotPolicies(ctx context.Context, volumeID string, params *ListSnapshotPoliciesParams, opts ...basaltic.RequestOption) (*basaltic.Page[SnapshotPolicy], error) {
 	op := &basaltic.Operation{
-		ID:     "listSnapshotPolicies",
-		Method: "GET",
-		Path:   "/v1/snapshot-policies",
+		ID:       "listSnapshotPolicies",
+		Method:   "GET",
+		Path:     "/v1/volumes/{volume_id}/snapshot-policies",
+		PathArgs: []string{volumeID},
 	}
 	op.Query = params.query()
 	var out struct {
@@ -1157,7 +1154,7 @@ func (c *Client) ListSnapshotPolicies(ctx context.Context, params *ListSnapshotP
 // The iterator stops at the first error, yielding it alongside a zero
 // value, so check err on every step:
 //
-//	for item, err := range c.ListSnapshotPoliciesAll(ctx, nil) {
+//	for item, err := range c.ListSnapshotPoliciesAll(ctx, volumeID, nil) {
 //		if err != nil {
 //			return err
 //		}
@@ -1166,9 +1163,9 @@ func (c *Client) ListSnapshotPolicies(ctx context.Context, params *ListSnapshotP
 //
 // Breaking out of the loop stops the walk; no further requests are made.
 // Any Marker on params is overwritten as the walk advances.
-func (c *Client) ListSnapshotPoliciesAll(ctx context.Context, params *ListSnapshotPoliciesParams, opts ...basaltic.RequestOption) iter.Seq2[SnapshotPolicy, error] {
+func (c *Client) ListSnapshotPoliciesAll(ctx context.Context, volumeID string, params *ListSnapshotPoliciesParams, opts ...basaltic.RequestOption) iter.Seq2[SnapshotPolicy, error] {
 	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[SnapshotPolicy], error) {
-		return c.ListSnapshotPolicies(ctx, params.withMarker(marker), opts...)
+		return c.ListSnapshotPolicies(ctx, volumeID, params.withMarker(marker), opts...)
 	})
 }
 
@@ -1378,7 +1375,7 @@ func (c *Client) PutBucketLifecycle(ctx context.Context, bucket string, body *Pu
 }
 
 // PutBucketObjectLock puts bucket object-lock configuration.
-func (c *Client) PutBucketObjectLock(ctx context.Context, bucket string, body *PutBucketObjectLockRequest, opts ...basaltic.RequestOption) error {
+func (c *Client) PutBucketObjectLock(ctx context.Context, bucket string, body PutBucketObjectLockRequest, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "putBucketObjectLock",
 		Method:   "PUT",
@@ -1514,12 +1511,12 @@ func (c *Client) UpdateSnapshot(ctx context.Context, snapshotID string, body *Sn
 //
 // Change the schedule, the retention window, or pause the policy.
 // Changing `interval_minutes` re-bases the next run off now.
-func (c *Client) UpdateSnapshotPolicy(ctx context.Context, policyID string, body *SnapshotPolicyUpdateRequest, opts ...basaltic.RequestOption) (*SnapshotPolicy, error) {
+func (c *Client) UpdateSnapshotPolicy(ctx context.Context, volumeID string, policyID string, body *SnapshotPolicyUpdateRequest, opts ...basaltic.RequestOption) (*SnapshotPolicy, error) {
 	op := &basaltic.Operation{
 		ID:       "updateSnapshotPolicy",
 		Method:   "PATCH",
-		Path:     "/v1/snapshot-policies/{policy_id}",
-		PathArgs: []string{policyID},
+		Path:     "/v1/volumes/{volume_id}/snapshot-policies/{policy_id}",
+		PathArgs: []string{volumeID, policyID},
 		Body:     body,
 	}
 	var out struct {
@@ -1645,13 +1642,10 @@ func (c *Client) GetSnapshotByReference(ctx context.Context, ref string, scope *
 // filters already set on scope, which may be nil. A miss is a not-found
 // error for the kind the string was read as — no other kind is tried
 // — and more than one match is a [basaltic.AmbiguousReferenceError].
-//
-// A name is unique only within its parent; fix it on scope (Volume) or
-// the lookup can match more than one.
-func (c *Client) GetSnapshotPolicyByReference(ctx context.Context, ref string, scope *ListSnapshotPoliciesParams, opts ...basaltic.RequestOption) (*SnapshotPolicy, error) {
+func (c *Client) GetSnapshotPolicyByReference(ctx context.Context, volumeID string, ref string, scope *ListSnapshotPoliciesParams, opts ...basaltic.RequestOption) (*SnapshotPolicy, error) {
 	return basaltic.ResolveByReference(ctx, ref, "snapshot-policy", "listSnapshotPolicies", true,
 		func(ctx context.Context, refID string) (*SnapshotPolicy, error) {
-			return c.GetSnapshotPolicy(ctx, refID, opts...)
+			return c.GetSnapshotPolicy(ctx, volumeID, refID, opts...)
 		},
 		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[SnapshotPolicy], error) {
 			var p ListSnapshotPoliciesParams
@@ -1661,7 +1655,7 @@ func (c *Client) GetSnapshotPolicyByReference(ctx context.Context, ref string, s
 			p.Name = refName
 			p.CRN = refCRN
 			p.Limit = 2
-			return c.ListSnapshotPolicies(ctx, &p, opts...)
+			return c.ListSnapshotPolicies(ctx, volumeID, &p, opts...)
 		})
 }
 

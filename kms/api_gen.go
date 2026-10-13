@@ -521,7 +521,9 @@ func (c *Client) RotateKeyOnDemand(ctx context.Context, keyID string, opts ...ba
 // quota; the key material + record are hard-deleted once now() reaches
 // scheduled_purge_at. The caller can cancel any time inside the window
 // via cancel-deletion. recovery_window_days is an integer from 7 to 30
-// (default 7).
+// (default 7). Returns HTTP 409 KMS_KEY_IN_USE while resources, retained
+// encrypted data, or an in-flight encrypted write still depend on the
+// key.
 func (c *Client) ScheduleKeyDeletion(ctx context.Context, keyID string, body *ScheduleKeyDeletionRequest, opts ...basaltic.RequestOption) (*Key, error) {
 	op := &basaltic.Operation{
 		ID:       "scheduleKeyDeletion",

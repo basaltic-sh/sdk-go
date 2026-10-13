@@ -543,9 +543,11 @@ func (c *Client) ListRecordsAll(ctx context.Context, zoneID string, params *List
 
 // ListZoneVPCAssociations lists VPC associations.
 //
-// Returns VPC ids attached to a private zone. Empty for public zones or
-// unattached private zones.
-func (c *Client) ListZoneVPCAssociations(ctx context.Context, zoneID string, params *ListZoneVPCAssociationsParams, opts ...basaltic.RequestOption) (*basaltic.Page[string], error) {
+// Returns the associated VPC resources with the same shape as the
+// network VPC collection. Each CRN identifies the VPC region. The
+// complete finite collection is returned as vpcs with meta; public zones
+// return an empty array.
+func (c *Client) ListZoneVPCAssociations(ctx context.Context, zoneID string, params *ListZoneVPCAssociationsParams, opts ...basaltic.RequestOption) (*basaltic.Page[VPC], error) {
 	op := &basaltic.Operation{
 		ID:       "listZoneVPCAssociations",
 		Method:   "GET",
@@ -554,12 +556,24 @@ func (c *Client) ListZoneVPCAssociations(ctx context.Context, zoneID string, par
 	}
 	op.Query = params.query()
 	var out struct {
-		Items []string `json:"vpc_ids"`
+		Items []VPC `json:"vpcs"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	page := &basaltic.Page[string]{Items: out.Items}
+	page := &basaltic.Page[VPC]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
 	return page, nil
 }
 

@@ -10,11 +10,6 @@ import (
 	"time"
 )
 
-// AccountReference Account UUID, immutable handle, or a Workspace account CRN
-// (crn:workspace:::account/<uuid>). The account establishes the owning
-// organization for federation and must match the target role account.
-type AccountReference = string
-
 type AssumeRoleRequest struct {
 	// DurationSeconds credential validity duration (15 min to 12 hours)
 	DurationSeconds *int                   `json:"duration_seconds,omitempty"`
@@ -68,29 +63,26 @@ type AssumeRoleResponse struct {
 	TokenType string `json:"token_type,omitempty"`
 }
 
-// AssumeRoleWithWebIdentityRequest the exchange a federated caller sends. It carries no signature — the
-// token is the credential — so every field is read from the body and
-// nothing is inferred from the request context.
+// AssumeRoleWithWebIdentityRequest exchange a signed OIDC token for credentials in the account identified
+// by the full role CRN.
 type AssumeRoleWithWebIdentityRequest struct {
-	// Required.
-	Account AccountReference `json:"account"`
-
 	// DurationSeconds credential validity duration (15 min to 12 hours). A value above the
 	// role's own `max_session_duration` is rejected rather than clamped.
 	DurationSeconds *int `json:"duration_seconds,omitempty"`
 
+	// Role full account-scoped role CRN. Bare UUIDs and names are not accepted.
+	//
 	// Required.
-	Role RoleReference `json:"role"`
+	Role string `json:"role"`
 
 	// SessionName a label recorded on the session and in the audit trail. Defaults to
 	// the token's `sub` claim, so an unnamed session still records which
 	// identity it came from.
 	SessionName *string `json:"session_name,omitempty"`
 
-	// WebIdentityToken the identity token to exchange, as a signed JWT. It is verified
-	// before any role is read: the signature must chain to a key the
-	// trusted provider publishes, the audience must be the one this
-	// platform was configured to accept, and `exp` must be in the future.
+	// WebIdentityToken Signed OIDC JWT. The issuer must be registered in the role account;
+	// signature, expiry and an allowed audience are verified before
+	// evaluating role trust.
 	//
 	// Required.
 	WebIdentityToken string `json:"web_identity_token"`
@@ -134,12 +126,8 @@ type InlinePolicy struct {
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
-	Name        string `json:"name,omitempty"`
-	PrincipalID string `json:"principal_id,omitempty"`
-
-	// One of: "service_account", "role".
-	PrincipalType string    `json:"principal_type,omitempty"`
-	UpdatedAt     time.Time `json:"updated_at,omitempty"`
+	Name      string    `json:"name,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
 // LinuxIdentity stable platform-managed identity. Primary GID equals UID. Removing and
@@ -155,14 +143,6 @@ type LinuxIdentity struct {
 	HomeDirectory string `json:"home_directory"`
 	UID           int32  `json:"uid"`
 	Username      string `json:"username"`
-}
-
-type ListRegionsResult struct {
-	// Default the default region code
-	Default string `json:"default"`
-
-	// Regions list of available regions
-	Regions []*Region `json:"regions"`
 }
 
 // OAuthAuthorizeRequest a signed-in user approving a client, from the console's consent page.
@@ -314,27 +294,51 @@ type OAuthTokenResponse struct {
 	TokenType string `json:"token_type"`
 }
 
+type OidcProvider struct {
+	Audiences   []string  `json:"audiences"`
+	CreatedAt   time.Time `json:"created_at"`
+	CRN         string    `json:"crn"`
+	Description string    `json:"description,omitempty"`
+	ID          string    `json:"id"`
+
+	// IsSystem platform-managed providers cannot be edited or deleted.
+	IsSystem bool `json:"is_system"`
+
+	// Issuer Immutable HTTPS issuer URL. Public discovery and JWKS endpoints are
+	// required for customer providers.
+	Issuer    string            `json:"issuer"`
+	Name      string            `json:"name"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
+}
+
+type OidcProviderCreateRequest struct {
+	// Required.
+	Audiences   []string `json:"audiences"`
+	Description *string  `json:"description,omitempty"`
+
+	// Issuer Immutable HTTPS issuer URL. Public discovery and JWKS endpoints are
+	// required for customer providers.
+	//
+	// Required.
+	Issuer string `json:"issuer"`
+
+	// Required.
+	Name string            `json:"name"`
+	Tags map[string]string `json:"tags,omitempty"`
+}
+
+type OidcProviderUpdateRequest struct {
+	Audiences   []string          `json:"audiences,omitempty"`
+	Description *string           `json:"description,omitempty"`
+	Tags        map[string]string `json:"tags,omitempty"`
+}
+
 // OrganizationReference Organization UUID to select for the session. Display names are not
 // accepted. The signed-in user must be a member.
 type OrganizationReference = string
 
-type PermissionBoundary struct {
-	CreatedAt   time.Time `json:"created_at,omitempty"`
-	PolicyID    string    `json:"policy_id,omitempty"`
-	PolicyName  string    `json:"policy_name,omitempty"`
-	PrincipalID string    `json:"principal_id,omitempty"`
-
-	// One of: "service_account", "role".
-	PrincipalType string `json:"principal_type,omitempty"`
-}
-
 type Policy struct {
-	// AccountHandle immutable handle of the owning account.
-	AccountHandle string `json:"account_handle,omitempty"`
-
-	// AccountID owning account UUID; absent for shared system policies.
-	AccountID string `json:"account_id,omitempty"`
-
 	// CreatedAt creation timestamp (not present for system policies)
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
@@ -464,28 +468,14 @@ type PutInlinePolicyRequest struct {
 	Document *PolicyDocument `json:"document"`
 }
 
-type Region struct {
-	// Available whether the region is currently available for use
-	Available bool `json:"available"`
-
-	// Code unique region code used in API calls and CRNs
-	Code string `json:"code"`
-
-	// ComingSoon whether the region is announced but not yet available
-	ComingSoon bool `json:"coming_soon"`
-
-	// CountryCode ISO 3166-1 alpha-2 country code (used to display flag in UI)
-	CountryCode string `json:"country_code"`
-
-	// CRN platform-owned global region identity, using the immutable region
-	// code.
+type ResourceRef struct {
 	CRN string `json:"crn"`
+	ID  string `json:"id"`
 
-	// Location geographic location of the region
-	Location string `json:"location"`
-
-	// Name human-readable region name
-	Name string `json:"name"`
+	// Name display label at response time — the resource's name where it has
+	// one, otherwise its human label (an invoice number, an account
+	// display name). Absent when the target is gone. Not a lookup key.
+	Name string `json:"name,omitempty"`
 }
 
 type RevokeSTSSessionRequest struct {
@@ -494,19 +484,7 @@ type RevokeSTSSessionRequest struct {
 }
 
 type Role struct {
-	// AccountHandle immutable handle of the owning account.
-	AccountHandle string `json:"account_handle,omitempty"`
-
-	// AccountID owning account UUID.
-	AccountID string `json:"account_id,omitempty"`
-
-	// BuiltinKind present on the account's built-in Administrator and ReadOnly roles.
-	// These assignable roles are created with the account, do not consume
-	// custom-role quota, and do not block account deletion.
-	//
-	// One of: "administrator", "readonly".
-	BuiltinKind string    `json:"builtin_kind,omitempty"`
-	CreatedAt   time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
 
 	// CRN Cloud Resource Name
 	CRN         string `json:"crn,omitempty"`
@@ -597,39 +575,44 @@ type SSHKeyCreateRequest struct {
 // not listed here. A session is active when it is not revoked and its
 // expiration is in the future.
 type STSSession struct {
-	AccountHandle   string     `json:"account_handle,omitempty"`
-	AccountID       string     `json:"account_id,omitempty"`
-	CreatedAt       time.Time  `json:"created_at,omitempty"`
-	CRN             string     `json:"crn,omitempty"`
-	ExpiresAt       time.Time  `json:"expires_at,omitempty"`
-	GrantType       string     `json:"grant_type,omitempty"`
-	ID              string     `json:"id,omitempty"`
-	LastUsedAt      *time.Time `json:"last_used_at,omitempty"`
-	ParentSessionID *string    `json:"parent_session_id,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	CRN       string    `json:"crn"`
+	ExpiresAt time.Time `json:"expires_at"`
+	GrantType string    `json:"grant_type,omitempty"`
+	ID        string    `json:"id"`
 
-	// PrincipalID ID of the principal assuming the role (the source identity)
-	PrincipalID string `json:"principal_id,omitempty"`
+	// IdentityProvider Account-owned OIDC provider that verified the web-identity token.
+	IdentityProvider *ResourceRef `json:"identity_provider,omitempty"`
+	LastUsedAt       *time.Time   `json:"last_used_at,omitempty"`
 
-	// One of: "user", "service_account", "assumed_role".
-	PrincipalType string `json:"principal_type,omitempty"`
+	// ParentSession session used to assume this role, when the session is chained.
+	ParentSession *ResourceRef `json:"parent_session,omitempty"`
 
 	// Revoked whether the session has been revoked
-	Revoked       bool       `json:"revoked,omitempty"`
+	Revoked       bool       `json:"revoked"`
 	RevokedAt     *time.Time `json:"revoked_at,omitempty"`
 	RevokedReason *string    `json:"revoked_reason,omitempty"`
 
-	// RoleID the assumed role UUID; absent on service-account OAuth sessions that
-	// do not assume a role.
-	RoleID string `json:"role_id,omitempty"`
+	// Role assumed role. Absent for service-account OAuth sessions that do not
+	// assume a role.
+	Role *ResourceRef `json:"role,omitempty"`
 
 	// SessionName optional session identifier
-	SessionName     *string `json:"session_name,omitempty"`
-	SourceAccountID *string `json:"source_account_id,omitempty"`
+	SessionName *string `json:"session_name,omitempty"`
+
+	// SourceAccount account of the source resource, when applicable.
+	SourceAccount *ResourceRef `json:"source_account,omitempty"`
 
 	// SourceIP IP address where the session was created
-	SourceIP            *string `json:"source_ip,omitempty"`
-	SourcePrincipalCRN  *string `json:"source_principal_crn,omitempty"`
-	SourcePrincipalType *string `json:"source_principal_type,omitempty"`
+	SourceIP *string `json:"source_ip,omitempty"`
+
+	// SourcePrincipal source user, service account, role or instance. Absent for web
+	// identity; use identity_provider and subject instead.
+	SourcePrincipal *ResourceRef `json:"source_principal,omitempty"`
+
+	// Subject verified subject (sub) from the web-identity token, independent of
+	// the session name.
+	Subject string `json:"subject,omitempty"`
 
 	// UserAgent User-Agent of the caller that created the session
 	UserAgent *string `json:"user_agent,omitempty"`
@@ -637,11 +620,6 @@ type STSSession struct {
 
 // ServiceAccount An API-only identity for programmatic access, bound to an account
 type ServiceAccount struct {
-	// AccountHandle immutable handle of the owning account.
-	AccountHandle string `json:"account_handle,omitempty"`
-
-	// AccountID owning account UUID.
-	AccountID string    `json:"account_id,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
 	// CRN Cloud Resource Name
@@ -745,7 +723,7 @@ type TrustPolicy struct {
 	// crn:workspace:::user/<username> or crn:workspace:::user/* in the
 	// selected organization. An instance presents its compute CRN through
 	// IMDS. A federated caller names the trusted provider as
-	// crn:iam:::oidc-provider/<provider> and uses conditions to restrict
-	// token claims.
+	// crn:iam::<account>:oidc-provider/<provider> and uses conditions to
+	// restrict token claims.
 	Principals []string `json:"principals,omitempty"`
 }

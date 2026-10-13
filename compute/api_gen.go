@@ -218,9 +218,9 @@ func (p *ListImagesParams) withMarker(marker string) *ListImagesParams {
 	return &out
 }
 
-// ListInstanceNiCsParams are the optional filters and pagination controls for
-// [Client.ListInstanceNiCs]. A nil *ListInstanceNiCsParams sends none of them.
-type ListInstanceNiCsParams struct {
+// ListInstanceInterfacesParams are the optional filters and pagination controls for
+// [Client.ListInstanceInterfaces]. A nil *ListInstanceInterfacesParams sends none of them.
+type ListInstanceInterfacesParams struct {
 	// CRN exact resource CRN, intersected with all other filters before
 	// pagination. A foreign or mismatched CRN returns an empty page;
 	// malformed or empty CRNs return 400. Nested attachment lists filter
@@ -236,7 +236,7 @@ type ListInstanceNiCsParams struct {
 
 // query renders the parameters that are set. A zero value means "no
 // filter", which is what leaving one out asks for.
-func (p *ListInstanceNiCsParams) query() url.Values {
+func (p *ListInstanceInterfacesParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
@@ -583,7 +583,7 @@ func (p *StartSerialConsoleParams) query() url.Values {
 	return q
 }
 
-// AttachInstanceNIC attaches an existing NIC to an instance.
+// AttachInstanceInterface attaches an existing NIC to an instance.
 //
 // Attaches an existing standalone network interface. The instance must
 // be running or stopped. To create an interface, use `POST
@@ -598,8 +598,8 @@ func (p *StartSerialConsoleParams) query() url.Values {
 // absent. A running instance is given the device while it runs where the
 // region supports that: the call returns before the guest has it,
 // `restart_required` is absent, and the interface appears in the guest
-// moments later — poll `GET /v1/instances/{instance_id}/nics`, or
-// watch the guest for a link carrying the MAC in this response. Where
+// moments later — poll `GET /v1/instances/{instance_id}/interfaces`,
+// or watch the guest for a link carrying the MAC in this response. Where
 // the region does not, the response sets `restart_required`: reboot the
 // instance with `{"hard": true}` to deliver it. A soft reboot is ACPI
 // inside the same launcher and will not.
@@ -612,21 +612,21 @@ func (p *StartSerialConsoleParams) query() url.Values {
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
-func (c *Client) AttachInstanceNIC(ctx context.Context, instanceID string, body *AttachInstanceNICRequest, opts ...basaltic.RequestOption) (*AttachInstanceNICAttachment, error) {
+func (c *Client) AttachInstanceInterface(ctx context.Context, instanceID string, body *AttachInstanceInterfaceRequest, opts ...basaltic.RequestOption) (*AttachedInterface, error) {
 	op := &basaltic.Operation{
-		ID:       "attachInstanceNIC",
+		ID:       "attachInstanceInterface",
 		Method:   "POST",
-		Path:     "/v1/instances/{instance_id}/nics",
+		Path:     "/v1/instances/{instance_id}/interfaces",
 		PathArgs: []string{instanceID},
 		Body:     body,
 	}
 	var out struct {
-		Attachment *AttachInstanceNICAttachment `json:"attachment"`
+		Interface *AttachedInterface `json:"interface"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.Attachment, nil
+	return out.Interface, nil
 }
 
 // AttachInstancePoolFloatingIP gives the pool a shared public address.
@@ -676,7 +676,7 @@ func (c *Client) AttachInstancePoolFloatingIP(ctx context.Context, poolID string
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
-func (c *Client) AttachInstanceVolume(ctx context.Context, instanceID string, body *AttachInstanceVolumeRequest, opts ...basaltic.RequestOption) (*AttachInstanceVolumeAttachment, error) {
+func (c *Client) AttachInstanceVolume(ctx context.Context, instanceID string, body *AttachInstanceVolumeRequest, opts ...basaltic.RequestOption) (*AttachedVolume, error) {
 	op := &basaltic.Operation{
 		ID:       "attachInstanceVolume",
 		Method:   "POST",
@@ -685,12 +685,12 @@ func (c *Client) AttachInstanceVolume(ctx context.Context, instanceID string, bo
 		Body:     body,
 	}
 	var out struct {
-		Attachment *AttachInstanceVolumeAttachment `json:"attachment"`
+		Volume *AttachedVolume `json:"volume"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.Attachment, nil
+	return out.Volume, nil
 }
 
 // CreateImage imports an image from an object URL.
@@ -897,16 +897,16 @@ func (c *Client) DeleteInstancePool(ctx context.Context, poolID string, opts ...
 	return nil
 }
 
-// DetachInstanceNIC detaches a NIC from a running instance.
+// DetachInstanceInterface detaches an interface from a running instance.
 //
 // Hot-unplugs the network interface from the instance, then tears down
 // the interface, its address allocation, and any security-group
 // bindings. Refuses to detach the only NIC on the instance.
-func (c *Client) DetachInstanceNIC(ctx context.Context, instanceID string, interfaceID string, opts ...basaltic.RequestOption) error {
+func (c *Client) DetachInstanceInterface(ctx context.Context, instanceID string, interfaceID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
-		ID:       "detachInstanceNIC",
+		ID:       "detachInstanceInterface",
 		Method:   "DELETE",
-		Path:     "/v1/instances/{instance_id}/nics/{interface_id}",
+		Path:     "/v1/instances/{instance_id}/interfaces/{interface_id}",
 		PathArgs: []string{instanceID, interfaceID},
 	}
 	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
@@ -1013,7 +1013,8 @@ func (c *Client) GetConsoleScreenshot(ctx context.Context, instanceID string, op
 
 // GetFlavor gets flavor.
 //
-// Get details of a specific flavor.
+// Get details of a specific flavor Disabled flavors return 404.
+// Unavailable flavors remain visible.
 func (c *Client) GetFlavor(ctx context.Context, flavorID string, opts ...basaltic.RequestOption) (*Flavor, error) {
 	op := &basaltic.Operation{
 		ID:       "getFlavor",
@@ -1086,7 +1087,10 @@ func (c *Client) GetInstancePool(ctx context.Context, poolID string, opts ...bas
 // ListFlavors lists flavors.
 //
 // List all available instance flavors. The catalog is small and comes
-// back in one shot — this endpoint is not paginated.
+// back in one shot — this endpoint is not paginated. Disabled flavors
+// are not returned. Public status is active or unavailable based on
+// current capacity. The complete catalog is returned with finite
+// pagination metadata.
 func (c *Client) ListFlavors(ctx context.Context, params *ListFlavorsParams, opts ...basaltic.RequestOption) (*basaltic.Page[Flavor], error) {
 	op := &basaltic.Operation{
 		ID:     "listFlavors",
@@ -1096,11 +1100,23 @@ func (c *Client) ListFlavors(ctx context.Context, params *ListFlavorsParams, opt
 	op.Query = params.query()
 	var out struct {
 		Items []Flavor `json:"flavors"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
 	page := &basaltic.Page[Flavor]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
 	return page, nil
 }
 
@@ -1239,26 +1255,39 @@ func (c *Client) ListImagesAll(ctx context.Context, params *ListImagesParams, op
 	})
 }
 
-// ListInstanceNiCs lists the instance's network interfaces.
+// ListInstanceInterfaces lists the instance's network interfaces.
 //
-// List NICs in boot order. All directly attached addresses, routed
-// prefixes and floating IP identities are read here; instance objects
-// have no IP summary fields.
-func (c *Client) ListInstanceNiCs(ctx context.Context, instanceID string, params *ListInstanceNiCsParams, opts ...basaltic.RequestOption) ([]*ListInstanceNiCsNIC, error) {
+// Returns the same interface resources as the network API, plus
+// boot_index, primary, and external attachment fields. Interfaces are
+// ordered by boot index and returned as one finite page with meta.
+func (c *Client) ListInstanceInterfaces(ctx context.Context, instanceID string, params *ListInstanceInterfacesParams, opts ...basaltic.RequestOption) (*basaltic.Page[AttachedInterface], error) {
 	op := &basaltic.Operation{
-		ID:       "listInstanceNICs",
+		ID:       "listInstanceInterfaces",
 		Method:   "GET",
-		Path:     "/v1/instances/{instance_id}/nics",
+		Path:     "/v1/instances/{instance_id}/interfaces",
 		PathArgs: []string{instanceID},
 	}
 	op.Query = params.query()
 	var out struct {
-		NICs []*ListInstanceNiCsNIC `json:"nics"`
+		Items []AttachedInterface `json:"interfaces"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.NICs, nil
+	page := &basaltic.Page[AttachedInterface]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
 }
 
 // ListInstancePoolFloatingIPs lists the pool's shared public addresses.
@@ -1378,10 +1407,10 @@ func (c *Client) ListInstancePoolsAll(ctx context.Context, params *ListInstanceP
 
 // ListInstanceVolumes lists the instance's attached volumes.
 //
-// Returns the instance's volume bindings ordered by boot index (boot
-// disk first), each resolved with the volume's current
-// name/type/size/status.
-func (c *Client) ListInstanceVolumes(ctx context.Context, instanceID string, params *ListInstanceVolumesParams, opts ...basaltic.RequestOption) ([]*ListInstanceVolumesAttachment, error) {
+// Returns storage volume resources plus instance binding fields, ordered
+// by boot index (boot disk first). The complete finite collection is
+// wrapped in volumes with meta.
+func (c *Client) ListInstanceVolumes(ctx context.Context, instanceID string, params *ListInstanceVolumesParams, opts ...basaltic.RequestOption) (*basaltic.Page[AttachedVolume], error) {
 	op := &basaltic.Operation{
 		ID:       "listInstanceVolumes",
 		Method:   "GET",
@@ -1390,12 +1419,25 @@ func (c *Client) ListInstanceVolumes(ctx context.Context, instanceID string, par
 	}
 	op.Query = params.query()
 	var out struct {
-		Attachments []*ListInstanceVolumesAttachment `json:"attachments"`
+		Items []AttachedVolume `json:"volumes"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.Attachments, nil
+	page := &basaltic.Page[AttachedVolume]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
 }
 
 // ListInstances lists instances.

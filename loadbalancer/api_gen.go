@@ -43,21 +43,47 @@ func (p *ListListenersParams) query() url.Values {
 	return q
 }
 
-// ListLoadBalancerReplicasParams are the optional filters and pagination controls for
-// [Client.ListLoadBalancerReplicas]. A nil *ListLoadBalancerReplicasParams sends none of them.
-type ListLoadBalancerReplicasParams struct {
-	// CRN exact scoped CRN. Foreign or mismatched CRNs select no rows;
-	// malformed or empty CRNs return 400.
+// ListLoadBalancerInstancesParams are the optional filters and pagination controls for
+// [Client.ListLoadBalancerInstances]. A nil *ListLoadBalancerInstancesParams sends none of them.
+type ListLoadBalancerInstancesParams struct {
+	// CRN exact resource CRN, intersected with all other filters before
+	// pagination. A foreign or mismatched CRN returns an empty page;
+	// malformed or empty CRNs return 400. Nested attachment lists filter
+	// the represented resource, not the binding.
 	CRN string
 
-	// Name exact immutable name. An empty value or a resource without a name
-	// selects no rows.
+	// CurrentState filter by where the instances actually are.
+	CurrentState CurrentState
+
+	// Flavor filter by regional flavor reference (UUID, CRN or exact name).
+	Flavor string
+
+	// Image filter by image reference (UUID, CRN or name; images also accept
+	// name:version).
+	Image string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+
+	// Name exact, case-sensitive name. Empty values match no named resources.
+	// Instance NIC lists match interface names within the instance
+	// bindings; multiple interfaces with the same name may match. Floating
+	// IPs have no name identity and return an empty list for this filter.
 	Name string
 }
 
 // query renders the parameters that are set. A zero value means "no
 // filter", which is what leaving one out asks for.
-func (p *ListLoadBalancerReplicasParams) query() url.Values {
+func (p *ListLoadBalancerInstancesParams) query() url.Values {
 	q := url.Values{}
 	if p == nil {
 		return q
@@ -65,10 +91,36 @@ func (p *ListLoadBalancerReplicasParams) query() url.Values {
 	if p.CRN != "" {
 		q.Set("crn", p.CRN)
 	}
+	if p.CurrentState != "" {
+		q.Set("current_state", string(p.CurrentState))
+	}
+	if p.Flavor != "" {
+		q.Set("flavor", p.Flavor)
+	}
+	if p.Image != "" {
+		q.Set("image", p.Image)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
 	if p.Name != "" {
 		q.Set("name", p.Name)
 	}
 	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListLoadBalancerInstancesParams) withMarker(marker string) *ListLoadBalancerInstancesParams {
+	var out ListLoadBalancerInstancesParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
 }
 
 // ListLoadBalancersParams are the optional filters and pagination controls for
@@ -263,7 +315,7 @@ func (p *ListTargetsParams) query() url.Values {
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
-func (c *Client) AttachListenerCertificate(ctx context.Context, id string, listenerID string, body *AttachListenerCertificateRequest, opts ...basaltic.RequestOption) (*Listener, error) {
+func (c *Client) AttachListenerCertificate(ctx context.Context, id string, listenerID string, body *AttachListenerCertificateRequest, opts ...basaltic.RequestOption) (*ResourceRef, error) {
 	op := &basaltic.Operation{
 		ID:       "attachListenerCertificate",
 		Method:   "POST",
@@ -272,21 +324,21 @@ func (c *Client) AttachListenerCertificate(ctx context.Context, id string, liste
 		Body:     body,
 	}
 	var out struct {
-		Listener *Listener `json:"listener"`
+		Certificate *ResourceRef `json:"certificate"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.Listener, nil
+	return out.Certificate, nil
 }
 
 // AttachTarget attaches a target to this group.
 //
 // `target` must match the group's `target_type`: an IP address for `ip`,
-// a compute instance id for `instance`. A `function` group takes no
-// targets yet, and a `pool`-mode group takes its backends from the
-// instance pool — attaching to either is an error rather than a row
-// nothing will ever route to.
+// a compute instance UUID, CRN or name for `instance`. A `function`
+// group takes no targets yet, and a `pool`-mode group takes its backends
+// from the instance pool — attaching to either is an error rather than
+// a row nothing will ever route to.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -458,13 +510,11 @@ func (c *Client) DeleteTargetGroup(ctx context.Context, id string, opts ...basal
 
 // DetachListenerCertificate detaches a certificate from an HTTPS listener.
 //
-// Refuses to remove the last cert on an HTTPS listener, or to remove the
-// currently-default cert while siblings still exist — promote a
-// replacement first via PATCH listener.
-//
-// Use the attachment UUID returned as certificates[].id on the listener,
-// distinct from the source certificate UUID. Detachment also works after
-// the source certificate has been deleted.
+// Detach by the source certificate UUID returned in certificates[].id by
+// the certificate collection. Detachment also works after the source
+// certificate has been deleted. Removing the last certificate from
+// HTTPS, or the current default while others remain, is refused. Switch
+// the default first with PATCH default_certificate.
 func (c *Client) DetachListenerCertificate(ctx context.Context, id string, listenerID string, certificateID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "detachListenerCertificate",
@@ -577,6 +627,45 @@ func (c *Client) GetTargetGroup(ctx context.Context, id string, opts ...basaltic
 	return out.TargetGroup, nil
 }
 
+// ListListenerCertificates lists listener certificates.
+//
+// Return attached certificates using the same public Certificate
+// contract as GET /v1/certificates, including domains, status, expiry,
+// challenges, faults, and public PEMs. The certificates collection
+// includes finite pagination metadata. Compare each id with
+// listener.default_certificate.id to identify the default. Requires
+// loadbalancer:ListListenerCertificates on the listener CRN; no
+// certificate-service permission is required. Private keys and
+// attachment UUIDs are never returned.
+func (c *Client) ListListenerCertificates(ctx context.Context, id string, listenerID string, opts ...basaltic.RequestOption) (*basaltic.Page[Certificate], error) {
+	op := &basaltic.Operation{
+		ID:       "listListenerCertificates",
+		Method:   "GET",
+		Path:     "/v1/load-balancers/{id}/listeners/{listener_id}/certificates",
+		PathArgs: []string{id, listenerID},
+	}
+	var out struct {
+		Items []Certificate `json:"certificates"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[Certificate]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
 // ListListeners lists this load balancer's listeners.
 func (c *Client) ListListeners(ctx context.Context, id string, params *ListListenersParams, opts ...basaltic.RequestOption) (*basaltic.Page[Listener], error) {
 	op := &basaltic.Operation{
@@ -588,36 +677,86 @@ func (c *Client) ListListeners(ctx context.Context, id string, params *ListListe
 	op.Query = params.query()
 	var out struct {
 		Items []Listener `json:"listeners"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
 	page := &basaltic.Page[Listener]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
 	return page, nil
 }
 
-// ListLoadBalancerReplicas lists the LB's instance replicas with live health.
+// ListLoadBalancerInstances lists a load balancer's instances.
 //
-// Returns one entry per compute instance backing the LB. The per-replica
-// `proxy_ok` + `last_seen` overlay is refreshed on every replica health
-// report (typically every 15s) and is absent when a replica hasn't yet
-// reported (boot still in flight).
-func (c *Client) ListLoadBalancerReplicas(ctx context.Context, id string, params *ListLoadBalancerReplicasParams, opts ...basaltic.RequestOption) (*basaltic.Page[LoadBalancerReplica], error) {
+// List full compute instances belonging to this load balancer, with the
+// same filters, ordering and pagination as a compute instance pool. Each
+// instance includes its ResourceRefs and lifecycle fields, plus load
+// balancer health (`status`, `proxy_ok`, `last_seen`, `agent_version`)
+// and optional retirement details. The stable sequence number is in
+// `metadata["basalt:pool:sequence_num"]`. `status` describes proxy
+// health; `current_state` describes the instance lifecycle.
+//
+// Returns one page. Use ListLoadBalancerInstancesAll to walk every page.
+func (c *Client) ListLoadBalancerInstances(ctx context.Context, id string, params *ListLoadBalancerInstancesParams, opts ...basaltic.RequestOption) (*basaltic.Page[LoadBalancerInstance], error) {
 	op := &basaltic.Operation{
-		ID:       "listLoadBalancerReplicas",
+		ID:       "listLoadBalancerInstances",
 		Method:   "GET",
-		Path:     "/v1/load-balancers/{id}/replicas",
+		Path:     "/v1/load-balancers/{id}/instances",
 		PathArgs: []string{id},
 	}
 	op.Query = params.query()
 	var out struct {
-		Items []LoadBalancerReplica `json:"replicas"`
+		Items []LoadBalancerInstance `json:"instances"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	page := &basaltic.Page[LoadBalancerReplica]{Items: out.Items}
+	page := &basaltic.Page[LoadBalancerInstance]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
 	return page, nil
+}
+
+// ListLoadBalancerInstancesAll walks every page of
+// ListLoadBalancerInstances, yielding one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListLoadBalancerInstancesAll(ctx, id, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListLoadBalancerInstancesAll(ctx context.Context, id string, params *ListLoadBalancerInstancesParams, opts ...basaltic.RequestOption) iter.Seq2[LoadBalancerInstance, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[LoadBalancerInstance], error) {
+		return c.ListLoadBalancerInstances(ctx, id, params.withMarker(marker), opts...)
+	})
 }
 
 // ListLoadBalancers lists load balancers.
@@ -684,11 +823,23 @@ func (c *Client) ListRules(ctx context.Context, id string, listenerID string, pa
 	op.Query = params.query()
 	var out struct {
 		Items []Rule `json:"rules"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
 	page := &basaltic.Page[Rule]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
 	return page, nil
 }
 
@@ -756,15 +907,27 @@ func (c *Client) ListTargets(ctx context.Context, id string, params *ListTargets
 	op.Query = params.query()
 	var out struct {
 		Items []Target `json:"targets"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
 	page := &basaltic.Page[Target]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
 	return page, nil
 }
 
-// UpdateListener patches a listener (rotate cert, change default target group).
+// UpdateListener updates a listener.
 func (c *Client) UpdateListener(ctx context.Context, id string, listenerID string, body *UpdateListenerRequest, opts ...basaltic.RequestOption) (*Listener, error) {
 	op := &basaltic.Operation{
 		ID:       "updateListener",

@@ -22,9 +22,9 @@ func TestCatalogDiscoveryNeedsNoCredentials(t *testing.T) {
 			if r.URL.Query().Get("crn") != "crn:catalog::platform:region/sa-saopaulo-1" {
 				t.Error("missing exact catalog filter")
 			}
-			w.Write([]byte(`{"regions":[{"code":"sa-saopaulo-1","crn":"crn:catalog::platform:region/sa-saopaulo-1","state":"active","accepting_new_resources":true}],"default":"sa-saopaulo-1"}`))
+			w.Write([]byte(`{"regions":[{"code":"sa-saopaulo-1","crn":"crn:catalog::platform:region/sa-saopaulo-1","state":"active"}],"default":"sa-saopaulo-1"}`))
 		case "/v1/regions/sa-saopaulo-1":
-			w.Write([]byte(`{"code":"sa-saopaulo-1","state":"active","accepting_new_resources":true}`))
+			w.Write([]byte(`{"region":{"code":"sa-saopaulo-1","state":"active"}}`))
 		default:
 			t.Errorf("unexpected path %s", r.URL.Path)
 			w.WriteHeader(404)
@@ -43,14 +43,14 @@ func TestCatalogDiscoveryNeedsNoCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rows.Default != "sa-saopaulo-1" || len(rows.Regions) != 1 || !rows.Regions[0].AcceptingNewResources {
+	if rows.Default != "sa-saopaulo-1" || len(rows.Regions) != 1 || rows.Regions[0].State != "active" {
 		t.Fatal("catalog response lost lifecycle or default")
 	}
 	detail, err := client.GetRegion(context.Background(), "sa-saopaulo-1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if detail.Code != "sa-saopaulo-1" || !detail.AcceptingNewResources || calls != 2 {
+	if detail.Code != "sa-saopaulo-1" || detail.State != "active" || calls != 2 {
 		t.Fatal("invalid catalog detail")
 	}
 }

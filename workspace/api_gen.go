@@ -1454,7 +1454,7 @@ func (c *Client) GetUserInlinePolicy(ctx context.Context, userID string, policyN
 }
 
 // GetUserPermissionBoundary gets a user's permission boundary.
-func (c *Client) GetUserPermissionBoundary(ctx context.Context, userID string, opts ...basaltic.RequestOption) (*PermissionBoundary, error) {
+func (c *Client) GetUserPermissionBoundary(ctx context.Context, userID string, opts ...basaltic.RequestOption) (*Policy, error) {
 	op := &basaltic.Operation{
 		ID:       "getUserPermissionBoundary",
 		Method:   "GET",
@@ -1462,12 +1462,12 @@ func (c *Client) GetUserPermissionBoundary(ctx context.Context, userID string, o
 		PathArgs: []string{userID},
 	}
 	var out struct {
-		PermissionBoundary *PermissionBoundary `json:"permission_boundary"`
+		Policy *Policy `json:"policy"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.PermissionBoundary, nil
+	return out.Policy, nil
 }
 
 // ListAccountRoleAssignments lists account role assignments.

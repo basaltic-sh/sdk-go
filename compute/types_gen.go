@@ -10,15 +10,6 @@ import (
 	"time"
 )
 
-type AddressFloatingIP struct {
-	Address string `json:"address"`
-	CRN     string `json:"crn"`
-	ID      string `json:"id"`
-
-	// One of: "public", "private".
-	Visibility string `json:"visibility"`
-}
-
 type AddressRequest struct {
 	// Address optional fixed address when creating an interface or instance NIC.
 	// For IPv6, use the first address of an aligned /96 inside the subnet
@@ -31,28 +22,7 @@ type AddressRequest struct {
 	Family string `json:"family"`
 }
 
-type AttachInstanceNICAttachment struct {
-	Addresses []*InterfaceAddress `json:"addresses,omitempty"`
-	BootIndex int                 `json:"boot_index,omitempty"`
-
-	// External the attached interface existed before this call (interface was
-	// given). Detach unbinds it and leaves it standalone rather than
-	// destroying it.
-	External    bool   `json:"external,omitempty"`
-	InterfaceID string `json:"interface_id,omitempty"`
-	MAC         string `json:"mac,omitempty"`
-
-	// RestartRequired the guest does not carry the interface yet and a hard reboot is what
-	// delivers it — an interface past the first is a network on the
-	// instance's launcher, and a launcher's networks are fixed for its
-	// lifetime. Set when the instance was running in a region that cannot
-	// attach to a running guest. Absent for a stopped instance, which
-	// comes up with the device, and absent where the region attaches live,
-	// where the running guest is given the device without a restart.
-	RestartRequired bool `json:"restart_required,omitempty"`
-}
-
-type AttachInstanceNICRequest struct {
+type AttachInstanceInterfaceRequest struct {
 	// Interface existing standalone interface UUID or complete VPC/subnet/interface
 	// CRN. Bare names lack the subnet parent and are rejected. It keeps
 	// its address, MAC, and security groups; detach returns it to
@@ -60,12 +30,6 @@ type AttachInstanceNICRequest struct {
 	//
 	// Required.
 	Interface string `json:"interface"`
-}
-
-type AttachInstanceVolumeAttachment struct {
-	Device     string `json:"device,omitempty"`
-	InstanceID string `json:"instance_id,omitempty"`
-	VolumeID   string `json:"volume_id,omitempty"`
 }
 
 type AttachInstanceVolumeRequest struct {
@@ -88,6 +52,96 @@ type AttachInstanceVolumeRequest struct {
 	//
 	// Required.
 	Volume string `json:"volume"`
+}
+
+type AttachedInterface struct {
+	// AttachedTo instance holding this interface, including a stopped instance. Null
+	// when unbound. Floating IP attachments are tracked separately.
+	AttachedTo  *ResourceRef `json:"attached_to"`
+	BootIndex   int          `json:"boot_index"`
+	CreatedAt   time.Time    `json:"created_at"`
+	CRN         string       `json:"crn"`
+	Description string       `json:"description,omitempty"`
+
+	// External a customer-attached standalone interface — detach unbinds it
+	// instead of destroying it.
+	External bool   `json:"external"`
+	ID       string `json:"id"`
+	MAC      string `json:"mac"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name"`
+
+	// Primary the lowest-boot-index NIC — the one carrying the guest's default
+	// and metadata routes.
+	Primary bool `json:"primary"`
+
+	// RestartRequired the guest does not carry the interface yet and a hard reboot is what
+	// delivers it — an interface past the first is a network on the
+	// instance's launcher, and a launcher's networks are fixed for its
+	// lifetime. Set when the instance was running in a region that cannot
+	// attach to a running guest. Absent for a stopped instance, which
+	// comes up with the device, and absent where the region attaches live,
+	// where the running guest is given the device without a restart.
+	RestartRequired bool `json:"restart_required,omitempty"`
+
+	// Subnet containing this interface.
+	Subnet    *ResourceRef      `json:"subnet"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
+}
+
+type AttachedVolume struct {
+	BootIndex int `json:"boot_index"`
+
+	// Bootable set at create time when the volume is provisioned from a bootable
+	// image. Immutable after creation.
+	Bootable  bool      `json:"bootable"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// CRN Cloud Resource Name (name-based, region-scoped).
+	CRN                 string `json:"crn"`
+	DeleteOnTermination bool   `json:"delete_on_termination"`
+	Description         string `json:"description,omitempty"`
+	Device              string `json:"device"`
+
+	// Faults active faults, newest first. Empty when healthy. Status is error if
+	// and only if an active error-severity fault exists. Resolved history
+	// is retained internally.
+	Faults []*Fault `json:"faults"`
+
+	// Fstype filesystem the in-guest agent formatted the volume with, or absent
+	// when the attachment did not name one and the agent used the ext4
+	// default. Every write path — instance create, pool template and
+	// attach — refuses anything else, so this is the whole set the field
+	// can hold.
+	//
+	// One of: "ext4", "xfs".
+	Fstype           string            `json:"fstype,omitempty"`
+	ID               string            `json:"id"`
+	IncludedIoLimits *IncludedIoLimits `json:"included_io_limits"`
+	Mount            *VolumeMount      `json:"mount,omitempty"`
+	MountPath        string            `json:"mount_path,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name        string             `json:"name"`
+	Performance *VolumePerformance `json:"performance"`
+	SizeGB      int                `json:"size_gb"`
+
+	// SourceImage source image identity, or null when this volume was not created from
+	// an image.
+	SourceImage *ResourceRef `json:"source_image"`
+
+	// SourceSnapshot source snapshot identity, or null when not created from a snapshot.
+	SourceSnapshot *ResourceRef   `json:"source_snapshot"`
+	Status         VolumeStatus   `json:"status"`
+	Tags           Tags           `json:"tags"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	VolumeType     VolumeTypeName `json:"volume_type"`
 }
 
 // AutoscalingPolicy target tracking shared by instance pools and load balancers. Updates
@@ -196,7 +250,7 @@ type Flavor struct {
 	// "dedicated" pins each vCPU 1:1 to a physical core.
 	//
 	// One of: "shared", "dedicated".
-	Class string `json:"class,omitempty"`
+	Class string `json:"class"`
 
 	// CPUBaselinePct Guaranteed CPU floor as a percentage of each vCPU. Omitted when no
 	// floor is guaranteed.
@@ -204,11 +258,10 @@ type Flavor struct {
 
 	// CPUBurstPct CPU ceiling as a percentage of each vCPU. A value of 100 or an
 	// omitted field allows the full vCPU count.
-	CPUBurstPct int       `json:"cpu_burst_pct,omitempty"`
-	CreatedAt   time.Time `json:"created_at,omitempty"`
+	CPUBurstPct int `json:"cpu_burst_pct,omitempty"`
 
 	// CRN Cloud Resource Name
-	CRN         string `json:"crn,omitempty"`
+	CRN         string `json:"crn"`
 	Description string `json:"description,omitempty"`
 
 	// Family which product can book the flavor. "general" flavors are for regular
@@ -218,93 +271,61 @@ type Flavor struct {
 	// instances.
 	//
 	// One of: "general", "loadbalancer", "database".
-	Family string `json:"family,omitempty"`
-	ID     string `json:"id,omitempty"`
+	Family string `json:"family"`
+	ID     string `json:"id"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 
 	// NetMbps aggregate instance network throughput limit in megabits per second.
 	// Omitted when uncapped.
 	NetMbps int `json:"net_mbps,omitempty"`
 
 	// RAMMB RAM in MB
-	RAMMB int `json:"ram_mb,omitempty"`
+	RAMMB int `json:"ram_mb"`
 
-	// One of: "active", "disabled".
-	Status    string    `json:"status,omitempty"`
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Status active when capacity can currently place this flavor; unavailable
+	// when no capacity is available. Disabled flavors are excluded from
+	// the public catalog.
+	//
+	// One of: "active", "unavailable".
+	Status string `json:"status"`
 
 	// Vcpus number of virtual CPUs
-	Vcpus int `json:"vcpus,omitempty"`
+	Vcpus int `json:"vcpus"`
 }
 
 type FloatingIP struct {
 	// Address allocated public or private address.
 	Address string `json:"address"`
 
-	// AttachedTo Canonical CRN of the bound interface, instance pool, or load
-	// balancer; null when unattached. A pool-owned address names its pool
-	// even when the pool has zero members. Only pool-owned addresses may
-	// have multiple NIC members. Manage their bindings through the
-	// instance pool floating IP endpoints; direct attach and detach are
-	// refused.
-	AttachedTo  *string   `json:"attached_to"`
-	CreatedAt   time.Time `json:"created_at"`
-	CRN         string    `json:"crn"`
-	Description string    `json:"description,omitempty"`
-	Family      IPFamily  `json:"family"`
+	// AttachedTo instance pool or load balancer that owns the address. Null for
+	// direct interface attachments and unattached addresses. An empty pool
+	// retains ownership.
+	AttachedTo  *ResourceRef `json:"attached_to"`
+	CreatedAt   time.Time    `json:"created_at"`
+	CRN         string       `json:"crn"`
+	Description string       `json:"description,omitempty"`
+	Family      IPFamily     `json:"family"`
 
 	// HealthCheck the readiness check applied to this address's members. Absent when
 	// none is configured. See `FloatingIpHealthCheck`.
 	HealthCheck *FloatingIPHealthCheck `json:"health_check,omitempty"`
 	ID          string                 `json:"id"`
 
-	// Members the floating IP's bindings. A floating IP fronts 0 members
-	// (allocated, unattached), 1 member (the everyday case), or N members
-	// for an instance pool — an anycast floating IP, where one public IP
-	// is delivered to N VM NICs across hosts (each advertised as a /32
-	// from the host holding it).
-	//
-	// Members may share a hypervisor. Two of them on one host used to mean
-	// one served and the other was silently dark; a member's forwarding
-	// rule now names the member, and the host splits connections across
-	// the members it holds, so where the members sit is a capacity
-	// decision rather than a correctness one. An instance pool's address
-	// takes its members from the pool's live replicas — every one of
-	// them — so a scale-out joins and a scale-in leaves without a
-	// per-replica attach.
-	//
-	// With more than one member ONE member serves each connection, chosen
-	// by hashing the flow's addresses and ports, and every packet of that
-	// connection goes to the same one. The members are separate instances
-	// that share nothing, so this spreads connections and survives the
-	// loss of a host — it is not a load balancer: nothing checks whether
-	// the service inside the instance is up, and connections in progress
-	// to a member that goes away are not moved, they end.
-	//
-	// A POOL's address is the exception, and only for booting. A replica
-	// joins the address as soon as it is placed, but does not receive
-	// traffic until it has reached the instance metadata service —
-	// evidence that the guest booted, rather than that its virtual machine
-	// was started. Until then it is a member with `health` `unhealthy`. A
-	// replica whose image never contacts the metadata service is admitted
-	// anyway after a few minutes, so an unusual image delays traffic
-	// rather than never getting it.
-	Members []*FloatingIPMember `json:"members"`
-
-	// SubnetID allocation subnet for private floating IPs.
-	SubnetID  *string           `json:"subnet_id,omitempty"`
+	// Subnet allocation subnet for a private floating IP; null for public
+	// addresses.
+	Subnet    *ResourceRef      `json:"subnet"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
 
 	// One of: "public", "private".
 	Visibility string `json:"visibility"`
 
-	// VPCID Allocation VPC for private floating IPs.
-	VPCID string `json:"vpc_id,omitempty"`
+	// VPC Allocation VPC for a private floating IP; null for public addresses.
+	VPC *ResourceRef `json:"vpc"`
 }
 
 // FloatingIPHealthCheck a readiness check for a shared (anycast) floating IP's members — the
@@ -346,67 +367,6 @@ type FloatingIPHealthCheck struct {
 
 	// UnhealthyThreshold consecutive failures before a member flips unhealthy.
 	UnhealthyThreshold int `json:"unhealthy_threshold"`
-}
-
-// FloatingIPMember one binding of a floating IP.
-type FloatingIPMember struct {
-	// AddressID target child address on the member interface.
-	AddressID *string   `json:"address_id,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-
-	// Health what the platform knows about this member.
-	//
-	// `unknown` — nobody is checking. A member you attached yourself
-	// with no health check on the address reads this: you chose the moment
-	// of attach, and the platform has no signal about what runs inside the
-	// instance. It is advertised.
-	//
-	// `healthy` — the platform has evidence this member is up (and, if a
-	// health check is configured on the address, that the check is
-	// passing).
-	//
-	// `unhealthy` — the platform is waiting for that evidence and has
-	// not seen it, or a configured check is failing. The member keeps its
-	// place on the address and receives no traffic until it recovers.
-	//
-	// Without a health check this is liveness only — `healthy` means the
-	// guest came up, not that your service is listening. Configure
-	// `health_check` on the floating IP to add readiness on top of that.
-	//
-	// One of: "unknown", "healthy", "unhealthy".
-	Health string `json:"health"`
-
-	// Interface Bound NIC summary; null for a load balancer binding named by
-	// attached_to.
-	Interface *FloatingIPMemberInterface `json:"interface"`
-
-	// Reason why the member reads the `health` it does — so you can tell "your
-	// service is not answering" from "the guest has not booted yet".
-	//
-	// `unprobed` — nobody is checking (no health check, hand-attached).
-	// `booting` — the platform has not yet seen the guest come up.
-	// `probe_failed` — the configured health check is failing. `passing`
-	// — the guest is up and, if a check is configured, it passes.
-	//
-	// One of: "unprobed", "booting", "probe_failed", "passing".
-	Reason string `json:"reason"`
-}
-
-// FloatingIPMemberInterface Bound NIC summary; null for a load balancer binding named by
-// attached_to.
-type FloatingIPMemberInterface struct {
-	CRN string `json:"crn"`
-	ID  string `json:"id"`
-
-	// Instance owning instance; null when the interface has no owning instance.
-	Instance *FloatingIPMemberInterfaceInstance `json:"instance"`
-}
-
-// FloatingIPMemberInterfaceInstance owning instance; null when the interface has no owning instance.
-type FloatingIPMemberInterfaceInstance struct {
-	CRN  string `json:"crn"`
-	ID   string `json:"id"`
-	Name string `json:"name"`
 }
 
 type GetConsoleOutputResult struct {
@@ -603,11 +563,31 @@ type ImageUpdateRequest struct {
 	Tags    Tags    `json:"tags,omitempty"`
 }
 
+// IncludedIoLimits per-volume combined read/write allowance. All SSD and NVMe volumes,
+// including existing volumes, include exactly 3000 IOPS and 131072000
+// bytes/s (125 MiB/s), independently of capacity, with no burst.
+// Resizing does not change these values. These are shared-storage
+// ceilings, not a latency or reservation SLA. Additional provisioned
+// performance is charged separately only above this allowance.
+type IncludedIoLimits struct {
+	// BurstBytesPerSec always zero for SSD and NVMe volumes; throughput bursting is
+	// disabled.
+	BurstBytesPerSec int64 `json:"burst_bytes_per_sec"`
+
+	// BurstIOPS always zero for SSD and NVMe volumes; IOPS bursting is disabled.
+	BurstIOPS int `json:"burst_iops"`
+
+	// BurstSeconds always zero for SSD and NVMe volumes; no burst duration applies.
+	BurstSeconds int   `json:"burst_seconds"`
+	BytesPerSec  int64 `json:"bytes_per_sec"`
+	IOPS         int   `json:"iops"`
+}
+
 type Instance struct {
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 
 	// CRN Cloud Resource Name
-	CRN string `json:"crn,omitempty"`
+	CRN string `json:"crn"`
 
 	// CurrentState where the instance actually is. Read this one to answer "is it up"
 	// — the transitional states live here, not on desired_state, because
@@ -615,7 +595,7 @@ type Instance struct {
 	//
 	// desired_state=running with current_state=stopped is an instance that
 	// was asked to start and has not come up yet.
-	CurrentState CurrentState `json:"current_state,omitempty"`
+	CurrentState CurrentState `json:"current_state"`
 	Description  string       `json:"description,omitempty"`
 
 	// DesiredState what was asked for. Only three values, because there are only three
@@ -623,39 +603,36 @@ type Instance struct {
 	// running, Stop for stopped, Delete for deleted.
 	//
 	// One of: "running", "stopped", "deleted".
-	DesiredState string `json:"desired_state,omitempty"`
+	DesiredState string `json:"desired_state"`
 
 	// Faults active faults ordered by last_at descending, then internal history
 	// id descending for a stable tie-breaker. Healthy resources return [].
 	Faults []*Fault `json:"faults"`
 
-	// Flavor resolved flavor (compute size) the instance runs on. Omitted if the
-	// referenced flavor row has been retired.
-	Flavor *Flavor `json:"flavor,omitempty"`
+	// Flavor identity. Every instance has a flavor; query the flavor
+	// resource for CPU and RAM.
+	Flavor *ResourceRef `json:"flavor"`
 
-	// IAMRole summary of the attached IAM role, visible with instance read access
-	// without iam:GetRole. Omitted when no role is attached, the role was
-	// deleted, or it belongs to another account. Sensitive role fields
-	// remain available only through the IAM API.
-	IAMRole *InstanceRole `json:"iam_role,omitempty"`
-	ID      string        `json:"id,omitempty"`
+	// IAMRole Attached IAM role identity, or null when no role is attached.
+	// Deleted roles retain their identity without name.
+	IAMRole *ResourceRef `json:"iam_role"`
+	ID      string       `json:"id"`
 
-	// Image resolved source image the instance booted from. Omitted for a
-	// volume-only boot or if the referenced image row is gone.
-	Image      *Image     `json:"image,omitempty"`
-	LaunchedAt *time.Time `json:"launched_at,omitempty"`
-	Metadata   Metadata   `json:"metadata,omitempty"`
+	// Image pinned source image identity, or null for a volume-only boot.
+	Image      *ResourceRef `json:"image"`
+	LaunchedAt *time.Time   `json:"launched_at,omitempty"`
+	Metadata   Metadata     `json:"metadata,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 	Tags Tags   `json:"tags,omitempty"`
 
 	// TaskState in-flight transition, if any; null when settled.
 	TaskState    *string    `json:"task_state,omitempty"`
 	TerminatedAt *time.Time `json:"terminated_at,omitempty"`
-	UpdatedAt    time.Time  `json:"updated_at,omitempty"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 
 	// UserData base64-encoded cloud-init user-data supplied at launch.
 	UserData string `json:"user_data,omitempty"`
@@ -847,6 +824,9 @@ type InstancePool struct {
 	// One of: "active", "scaling", "error", "deleting".
 	Status string `json:"status,omitempty"`
 
+	// Subnets eligible placement subnets in the same account, region and VPC.
+	Subnets []*ResourceRef `json:"subnets"`
+
 	// Tags labels on the POOL itself, for IAM conditions
 	// (`basalt:ResourceTag/<key>`) and cost attribution. They are attached
 	// to nothing else: no instance the pool launches carries them. The
@@ -860,14 +840,13 @@ type InstancePool struct {
 	// only place it appears: a flat copy of it beside this was two
 	// spellings of one thing, and two spellings drift.
 	Template *InstancePoolTemplate `json:"template,omitempty"`
+	VPC      *ResourceRef          `json:"vpc"`
 }
 
-// InstancePoolCreateRequest `template` is the launch config — the same fields instance create
-// takes. The pool's own fields — description, tags, sizing — stay at
-// the top level, because they describe the pool rather than the
-// instances in it. A flavor and a primary subnet are required, as
-// `template.flavor` + `template.networks[0].subnet`. On create only,
-// omitted min_count and max_count default to desired_count.
+// InstancePoolCreateRequest create a pool with one interface per member. Subnets must be nonempty,
+// unique, and belong to the same account, region and VPC. New members
+// are placed in the least-populated selected subnet. Omitted min_count
+// and max_count default to desired_count.
 type InstancePoolCreateRequest struct {
 	Autoscaling  *AutoscalingPolicy `json:"autoscaling,omitempty"`
 	Description  *string            `json:"description,omitempty"`
@@ -884,6 +863,11 @@ type InstancePoolCreateRequest struct {
 	//
 	// Required.
 	Name string `json:"name"`
+
+	// Subnets Subnet UUIDs or CRNs in the same VPC.
+	//
+	// Required.
+	Subnets []string `json:"subnets"`
 
 	// Tags labels on the pool resource, for IAM conditions
 	// (`basalt:RequestTag/<key>` here, `basalt:ResourceTag/<key>` on later
@@ -906,28 +890,30 @@ type InstancePoolFloatingIPAttachRequest struct {
 	FloatingIP string `json:"floating_ip"`
 }
 
-// InstancePoolTemplate stored launch configuration with canonical UUID relationship
-// identities. Convert these identities to the request fields in
-// InstancePoolTemplateRequest when replacing the template. The image
-// identity is pinned; later name reuse or a new current image version
-// does not change them.
+// InstancePoolTemplate stored launch configuration with ResourceRef relationships. Use a
+// reference id or crn as the corresponding string selector when
+// replacing the template. Image identities remain pinned until template
+// replacement.
 type InstancePoolTemplate struct {
-	FlavorID string `json:"flavor_id,omitempty"`
+	// Addresses address families allocated on the member's sole interface. Fixed
+	// addresses are not allowed.
+	Addresses []*AddressRequest `json:"addresses,omitempty"`
+	Flavor    *ResourceRef      `json:"flavor"`
 
-	// IAMRole summary of the IAM role attached to every replica, visible with pool
-	// read access without iam:GetRole. Omitted when no role is attached,
-	// the role was deleted, or it belongs to another account. Sensitive
-	// role fields remain available only through the IAM API.
-	IAMRole *InstanceRole `json:"iam_role,omitempty"`
+	// FloatingIPAssignment per-member public floating IP assignment. Explicit families require
+	// addresses and internet routes in every selected subnet.
+	//
+	// One of: "none", "ipv4", "ipv6", "dual_stack", "auto".
+	FloatingIPAssignment string `json:"floating_ip_assignment"`
 
-	// ImageID resolved image UUID pinned for every replica until template
-	// replacement.
-	ImageID  string   `json:"image_id,omitempty"`
-	Metadata Metadata `json:"metadata,omitempty"`
+	// IAMRole role assigned to replicas, or null when none is configured.
+	IAMRole *ResourceRef `json:"iam_role"`
 
-	// Networks per-replica interfaces. Index 0 is the primary NIC and is required;
-	// the rest are extras.
-	Networks []*NetworkConfigResponse `json:"networks,omitempty"`
+	// Image source image pinned until the template is replaced, or null when no
+	// image is selected.
+	Image          *ResourceRef   `json:"image"`
+	Metadata       Metadata       `json:"metadata,omitempty"`
+	SecurityGroups []*ResourceRef `json:"security_groups"`
 
 	// Tags stamped on every instance this template launches. These are the
 	// replicas' tags, not the pool's — the pool's own labels are the
@@ -951,23 +937,27 @@ type InstancePoolTemplate struct {
 	Volumes []*InstanceVolume `json:"volumes,omitempty"`
 }
 
-// InstancePoolTemplateRequest the pool's launch config, in the shape a standalone instance create
-// takes: same field names, same types, same meanings, so a client that
-// can build an instance can build a pool of them without a second,
-// narrower contract to learn. It belongs to the pool. There is no
-// separate launch-template resource to create, version or share between
-// pools. Networking is one ordered `networks` list, index 0 being the
-// primary NIC. `ip_address` and `mac` are part of that shared NIC shape
-// but are refused here: every replica launches from this one template,
-// so a fixed address would have the second replica ask for one the first
-// already holds.
+// InstancePoolTemplateRequest launch configuration shared by every member. Each member receives one
+// interface in a subnet selected from the pool's top-level subnets. The
+// template controls that interface's security groups, allocated address
+// families and optional per-member floating IPs. Fixed addresses are not
+// allowed.
 type InstancePoolTemplateRequest struct {
-	Architecture *string `json:"architecture,omitempty"`
+	// Addresses address families allocated per member; fixed addresses are not
+	// allowed.
+	Addresses    []*AddressRequest `json:"addresses,omitempty"`
+	Architecture *string           `json:"architecture,omitempty"`
 
 	// Flavor regional flavor reference (UUID, CRN or exact name).
 	//
 	// Required.
 	Flavor string `json:"flavor"`
+
+	// FloatingIPAssignment per-member public floating IP assignment. Explicit families require
+	// addresses and internet routes in every selected subnet.
+	//
+	// One of: "none", "ipv4", "ipv6", "dual_stack", "auto".
+	FloatingIPAssignment *string `json:"floating_ip_assignment,omitempty"`
 
 	// IAMRole IAM role reference from the same account (UUID, CRN or exact name).
 	// PassRole and instance trust authorization apply.
@@ -986,11 +976,8 @@ type InstancePoolTemplateRequest struct {
 	Image    *string  `json:"image,omitempty"`
 	Metadata Metadata `json:"metadata,omitempty"`
 
-	// Networks per-replica interfaces. Index 0 is the primary NIC and is required;
-	// the rest are extras.
-	//
-	// Required.
-	Networks []*NetworkConfig `json:"networks"`
+	// SecurityGroups security group selectors applied to every member interface.
+	SecurityGroups []string `json:"security_groups,omitempty"`
 
 	// Tags stamped on every instance this template launches. These are the
 	// replicas' tags, not the pool's — the pool's own labels are the
@@ -1055,6 +1042,11 @@ type InstancePoolUpdateRequest struct {
 	// needed.
 	MinCount *int `json:"min_count,omitempty"`
 
+	// Subnets replace the eligible placement set. Omit to preserve it. Affects
+	// future launches; run an explicit refresh to move existing members.
+	// All selected subnets must share a VPC.
+	Subnets []string `json:"subnets,omitempty"`
+
 	// Tags REPLACES the pool's labels: the map you send becomes the whole set,
 	// an empty object clears them, and omitting the field leaves them
 	// alone. Replacement rather than a merge because a merge leaves no way
@@ -1075,15 +1067,6 @@ type InstanceRebootRequest struct {
 	// Hard force a power cycle (destroy + start, equivalent to a reset button)
 	// instead of the default ACPI graceful reboot the guest can act on.
 	Hard *bool `json:"hard,omitempty"`
-}
-
-type InstanceRole struct {
-	// CRN account-scoped role identity, as used in policy documents.
-	CRN string `json:"crn"`
-	ID  string `json:"id"`
-
-	// Name immutable role name.
-	Name string `json:"name"`
 }
 
 type InstanceUpdateRequest struct {
@@ -1126,63 +1109,6 @@ type InstanceVolume struct {
 	VolumeType *string `json:"volume_type,omitempty"`
 }
 
-type InterfaceAddress struct {
-	Address string `json:"address"`
-
-	// One of: "ipv4", "ipv6".
-	Family      string               `json:"family"`
-	FloatingIPs []*AddressFloatingIP `json:"floating_ips"`
-	ID          string               `json:"id"`
-
-	// Prefix owned allocation, not the guest netmask: IPv4 /32 or IPv6 /96.
-	// DHCPv6 configures the first /128.
-	Prefix  string `json:"prefix"`
-	Primary bool   `json:"primary"`
-}
-
-type ListInstanceNiCsNIC struct {
-	Addresses []*InterfaceAddress `json:"addresses"`
-	BootIndex int                 `json:"boot_index"`
-
-	// External a customer-attached standalone interface — detach unbinds it
-	// instead of destroying it.
-	External    bool   `json:"external"`
-	InterfaceID string `json:"interface_id"`
-	MAC         string `json:"mac,omitempty"`
-	Name        string `json:"name,omitempty"`
-
-	// Primary the lowest-boot-index NIC — the one carrying the guest's default
-	// and metadata routes.
-	Primary        bool            `json:"primary"`
-	RoutedPrefixes []*RoutedPrefix `json:"routed_prefixes"`
-
-	// Subnet placement; null when the referenced subnet no longer exists.
-	Subnet *Subnet `json:"subnet"`
-}
-
-type ListInstanceVolumesAttachment struct {
-	BootIndex           int    `json:"boot_index,omitempty"`
-	Bootable            bool   `json:"bootable,omitempty"`
-	DeleteOnTermination bool   `json:"delete_on_termination,omitempty"`
-	Device              string `json:"device,omitempty"`
-
-	// Fstype filesystem the in-guest agent formatted the volume with, or absent
-	// when the attachment did not name one and the agent used the ext4
-	// default. Every write path — instance create, pool template and
-	// attach — refuses anything else, so this is the whole set the field
-	// can hold.
-	//
-	// One of: "ext4", "xfs".
-	Fstype     string       `json:"fstype,omitempty"`
-	Mount      *VolumeMount `json:"mount,omitempty"`
-	MountPath  string       `json:"mount_path,omitempty"`
-	Name       string       `json:"name,omitempty"`
-	SizeGB     int          `json:"size_gb,omitempty"`
-	Status     string       `json:"status,omitempty"`
-	VolumeID   string       `json:"volume_id,omitempty"`
-	VolumeType string       `json:"volume_type,omitempty"`
-}
-
 type Metadata = map[string]string
 
 type NetworkConfig struct {
@@ -1213,31 +1139,6 @@ type NetworkConfig struct {
 	Subnet string `json:"subnet"`
 }
 
-type NetworkConfigResponse struct {
-	Addresses []*AddressRequest `json:"addresses,omitempty"`
-
-	// FloatingIPAssignment allocate public floating IPs for this NIC at launch. Explicit
-	// families require matching guest addresses and internet routes.
-	// Detach leaves the FIP reserved. No ordinary public IPv4 mapping
-	// exists.
-	//
-	// One of: "none", "ipv4", "ipv6", "dual_stack", "auto".
-	FloatingIPAssignment string `json:"floating_ip_assignment,omitempty"`
-
-	// MAC Optional MAC address. Must be locally-administered (`X2:`, `X6:`,
-	// `XA:`, `XE:` in the first octet). Generated when omitted.
-	MAC string `json:"mac,omitempty"`
-
-	// SecurityGroupIDs account-scoped security group references (UUID, CRN or name) to
-	// attach to this NIC. Each must be owned by the same account. Empty
-	// list = no per-NIC ACLs (the platform's default-allow stays in
-	// force).
-	SecurityGroupIDs []string `json:"security_group_ids,omitempty"`
-
-	// Subnet placement; null when the referenced subnet no longer exists.
-	Subnet *Subnet `json:"subnet"`
-}
-
 type ReinstallInstanceRequest struct {
 	// Image replacement image reference (UUID, architecture-qualified CRN, name
 	// or name:version). Omit to reinstall from the instance's current
@@ -1262,6 +1163,16 @@ type ResizeInstanceRequest struct {
 	Flavor string `json:"flavor"`
 }
 
+type ResourceRef struct {
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Name display label at response time — the resource's name where it has
+	// one, otherwise its human label (an invoice number, an account
+	// display name). Absent when the target is gone. Not a lookup key.
+	Name string `json:"name,omitempty"`
+}
+
 type RetiringPoolMember struct {
 	AgentAcknowledgedAt time.Time `json:"agent_acknowledged_at,omitempty"`
 	DrainSeconds        int       `json:"drain_seconds"`
@@ -1270,26 +1181,6 @@ type RetiringPoolMember struct {
 	DrainUntil  time.Time `json:"drain_until,omitempty"`
 	InstanceID  string    `json:"instance_id"`
 	RequestedAt time.Time `json:"requested_at"`
-}
-
-// RouteTableSummary route table used by a subnet, without repeating its VPC. Null when the
-// non-owning lookup no longer resolves, for example during concurrent
-// reassociation and deletion of the former table. Deleting a table still
-// associated with subnets is refused.
-type RouteTableSummary struct {
-	CRN  string `json:"crn"`
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-type RoutedPrefix struct {
-	// One of: "ipv4".
-	Family string `json:"family"`
-	ID     string `json:"id"`
-	PoolID string `json:"pool_id"`
-
-	// Prefix a routed /28 from a VPC prefix pool.
-	Prefix string `json:"prefix"`
 }
 
 // ScalingMetric CPU uses source=cpu, target_type=utilization and a percentage target
@@ -1397,58 +1288,11 @@ type SnapshotScheduleSettings struct {
 	Tags           Tags                   `json:"tags,omitempty"`
 }
 
-type Subnet struct {
-	CIDRIPv4 string `json:"cidr_ipv4"`
-
-	// CIDRIPv6 the dual-stack IPv6 /64, if the subnet is v6-enabled. Its presence
-	// (vs the v4 cidr_ipv4) is how a client tells the subnet's families
-	// apart.
-	CIDRIPv6    *string   `json:"cidr_ipv6,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	CRN         string    `json:"crn"`
-	Description string    `json:"description,omitempty"`
-	GatewayIPv4 string    `json:"gateway_ipv4"`
-	GatewayIPv6 *string   `json:"gateway_ipv6,omitempty"`
-	ID          string    `json:"id"`
-
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	Name       string             `json:"name"`
-	RouteTable *RouteTableSummary `json:"route_table"`
-	Tags       map[string]string  `json:"tags"`
-	UpdatedAt  time.Time          `json:"updated_at"`
-	VPC        *VPC               `json:"vpc"`
-}
-
 type Tags = map[string]string
 
 type UpdateInstanceVolumeAttachmentRequest struct {
 	// Required.
 	DeleteOnTermination bool `json:"delete_on_termination"`
-}
-
-type VPC struct {
-	// CIDRIPv4 IPv4 CIDR block carved up by subnets. Must be private (RFC 1918):
-	// within 10.0.0.0/8, 172.16.0.0/12 or 192.168.0.0/16. Immutable after
-	// create.
-	CIDRIPv4 string `json:"cidr_ipv4"`
-
-	// CIDRIPv6 associated regional GUA or private ULA prefix.
-	CIDRIPv6  *string   `json:"cidr_ipv6,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-
-	// CRN Cloud Resource Name (name-based, region+account-scoped).
-	CRN         string `json:"crn"`
-	Description string `json:"description,omitempty"`
-	ID          string `json:"id"`
-
-	// Name 1-63 chars, lowercase alphanumeric + hyphen Resource names must not
-	// start with the literal crn: prefix or be UUIDs (canonical, compact,
-	// braced, or urn:uuid: forms, in either case).
-	Name      string            `json:"name"`
-	Tags      map[string]string `json:"tags"`
-	UpdatedAt time.Time         `json:"updated_at"`
 }
 
 // VolumeMount what the in-guest agent reported about this attachment.
@@ -1517,6 +1361,11 @@ type VolumeMount struct {
 	State string `json:"state"`
 }
 
+type VolumePerformance struct {
+	Applied   *IncludedIoLimits `json:"applied"`
+	Requested *IncludedIoLimits `json:"requested"`
+}
+
 // VolumePerformanceRequest independently provision total sustained, combined read/write
 // performance. Omitted dimensions retain their current value (included
 // allowance on create). SSD permits up to 8000 IOPS and 250 MiB/s; NVMe
@@ -1530,3 +1379,28 @@ type VolumePerformanceRequest struct {
 	IOPS           *int     `json:"iops,omitempty"`
 	ThroughputMiBS *float64 `json:"throughput_mib_s,omitempty"`
 }
+
+type VolumeStatus string
+
+// Values VolumeStatus accepts.
+const (
+	VolumeStatusCreating  VolumeStatus = "creating"
+	VolumeStatusAvailable VolumeStatus = "available"
+	VolumeStatusInUse     VolumeStatus = "in_use"
+	VolumeStatusExtending VolumeStatus = "extending"
+	VolumeStatusUpdating  VolumeStatus = "updating"
+	VolumeStatusDeleting  VolumeStatus = "deleting"
+	VolumeStatusError     VolumeStatus = "error"
+)
+
+// VolumeTypeName customer-facing storage tier a volume is stored on. Mapped per-region
+// to a storage pool by operator config (the mapping is opaque to API
+// callers).
+type VolumeTypeName string
+
+// Values VolumeTypeName accepts.
+const (
+	VolumeTypeNameHDD  VolumeTypeName = "hdd"
+	VolumeTypeNameSSD  VolumeTypeName = "ssd"
+	VolumeTypeNameNVMe VolumeTypeName = "nvme"
+)

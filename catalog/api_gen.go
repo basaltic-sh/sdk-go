@@ -60,11 +60,13 @@ func (c *Client) GetRegion(ctx context.Context, code string, opts ...basaltic.Re
 		PathArgs:        []string{code},
 		Unauthenticated: true,
 	}
-	var out Region
+	var out struct {
+		Region *Region `json:"region"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return &out, nil
+	return out.Region, nil
 }
 
 // ListRegions lists regions.

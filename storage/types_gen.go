@@ -51,7 +51,7 @@ type Bucket struct {
 }
 
 type BucketLifecycleResponse struct {
-	Lifecycle *LifecycleConfig `json:"lifecycle"`
+	LifecycleRules []*LifecycleRule `json:"lifecycle_rules"`
 
 	// Revision opaque configuration revision. Supply this value in double quotes as
 	// If-Match on PUT or DELETE. The empty configuration has revision
@@ -59,15 +59,13 @@ type BucketLifecycleResponse struct {
 	Revision string `json:"revision"`
 }
 
+type BucketObjectLockResponse = *ObjectLockConfig
+
 // BucketPolicy pkg/policy.PolicyDocument serialization. See the IAM policy docs for
 // the statement shape; here we just declare it as an opaque object so
 // the spec doesn't have to track schema changes inside the policy
 // engine.
 type BucketPolicy = map[string]any
-
-type CORSConfig struct {
-	Rules []*CORSRule `json:"rules"`
-}
 
 type CORSRule struct {
 	AllowedHeaders []string `json:"allowed_headers,omitempty"`
@@ -123,10 +121,6 @@ type CreateBucketRequest struct {
 	// ObjectLockEnabled when true, enables S3 Object Lock on the bucket at creation time and
 	// turns versioning on. Object Lock cannot be enabled later.
 	ObjectLockEnabled *bool `json:"object_lock_enabled,omitempty"`
-}
-
-type EncryptionConfig struct {
-	Rules []*EncryptionRule `json:"rules"`
 }
 
 type EncryptionRule struct {
@@ -187,10 +181,6 @@ type InitiateMultipartUploadRequest struct {
 	Key          string            `json:"key"`
 	Metadata     map[string]string `json:"metadata,omitempty"`
 	StorageClass *string           `json:"storage_class,omitempty"`
-}
-
-type LifecycleConfig struct {
-	Rules []*LifecycleRule `json:"rules"`
 }
 
 type LifecycleRule struct {
@@ -310,15 +300,15 @@ type ObjectListResponse struct {
 }
 
 type ObjectLockConfig struct {
-	ObjectLockEnabled *string               `json:"object_lock_enabled,omitempty"`
-	Rule              *ObjectLockConfigRule `json:"rule,omitempty"`
+	ObjectLockEnabled *string                         `json:"object_lock_enabled,omitempty"`
+	ObjectLockRule    *ObjectLockConfigObjectLockRule `json:"object_lock_rule,omitempty"`
 }
 
-type ObjectLockConfigRule struct {
-	DefaultRetention *ObjectLockConfigRuleDefaultRetention `json:"default_retention,omitempty"`
+type ObjectLockConfigObjectLockRule struct {
+	DefaultRetention *ObjectLockConfigObjectLockRuleDefaultRetention `json:"default_retention,omitempty"`
 }
 
-type ObjectLockConfigRuleDefaultRetention struct {
+type ObjectLockConfigObjectLockRuleDefaultRetention struct {
 	Days *int `json:"days,omitempty"`
 
 	// One of: "GOVERNANCE", "COMPLIANCE".
@@ -355,7 +345,7 @@ type PaginationMeta struct {
 
 type PutBucketCORSRequest struct {
 	// Required.
-	CORS *CORSConfig `json:"cors"`
+	CORSRules []*CORSRule `json:"cors_rules"`
 }
 
 type PutBucketDeletionProtectionRequest struct {
@@ -372,18 +362,15 @@ type PutBucketDeletionProtectionRequest struct {
 
 type PutBucketEncryptionRequest struct {
 	// Required.
-	Encryption *EncryptionConfig `json:"encryption"`
+	EncryptionRules []*EncryptionRule `json:"encryption_rules"`
 }
 
 type PutBucketLifecycleRequest struct {
 	// Required.
-	Lifecycle *LifecycleConfig `json:"lifecycle"`
+	LifecycleRules []*LifecycleRule `json:"lifecycle_rules"`
 }
 
-type PutBucketObjectLockRequest struct {
-	// Required.
-	ObjectLock *ObjectLockConfig `json:"object_lock"`
-}
+type PutBucketObjectLockRequest = *ObjectLockConfig
 
 type PutBucketPolicyRequest struct {
 	// Required.
@@ -408,44 +395,46 @@ type PutObjectResponse struct {
 	Size int64  `json:"size"`
 }
 
+type ResourceRef struct {
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Name display label at response time — the resource's name where it has
+	// one, otherwise its human label (an invoice number, an account
+	// display name). Absent when the target is gone. Not a lookup key.
+	Name string `json:"name,omitempty"`
+}
+
 type Snapshot struct {
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 
 	// CRN Cloud Resource Name (name-based, region-scoped).
-	CRN         string `json:"crn,omitempty"`
+	CRN         string `json:"crn"`
 	Description string `json:"description,omitempty"`
 
 	// Faults active faults, newest first. Empty when healthy. Status is error if
 	// and only if an active error-severity fault exists. Resolved history
 	// is retained internally.
 	Faults []*Fault `json:"faults"`
-	ID     string   `json:"id,omitempty"`
-
-	// LogicalSizeBytes frozen logical restore capacity in bytes (size_gb multiplied by
-	// 2^30), not measured written data.
-	LogicalSizeBytes int64 `json:"logical_size_bytes,omitempty"`
+	ID     string   `json:"id"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 
-	// SizeGB frozen size of the source volume at the time the snapshot was taken
-	// — the volume may have been extended since.
-	SizeGB int `json:"size_gb,omitempty"`
+	// SizeBytes frozen logical restore capacity in bytes, not measured written data.
+	// The source volume may have been extended since the snapshot was
+	// taken.
+	SizeBytes int64 `json:"size_bytes"`
 
-	// SnapshotPolicyID the snapshot policy that took this snapshot. Absent when a person
-	// did. This is also what retention matches on, so its presence is what
-	// makes a snapshot eligible for automatic deletion — snapshots taken
-	// by hand are never reaped.
-	SnapshotPolicyID string         `json:"snapshot_policy_id,omitempty"`
-	SnapshotUsage    *SnapshotUsage `json:"snapshot_usage,omitempty"`
-	Status           SnapshotStatus `json:"status,omitempty"`
-	Tags             Tags           `json:"tags,omitempty"`
-	UpdatedAt        time.Time      `json:"updated_at,omitempty"`
-
-	// VolumeID source volume the snapshot was taken from.
-	VolumeID string `json:"volume_id,omitempty"`
+	// SnapshotPolicy the schedule that created this snapshot. Absent for manual
+	// snapshots, which are never reaped by schedule retention.
+	SnapshotPolicy *ResourceRef   `json:"snapshot_policy,omitempty"`
+	Status         SnapshotStatus `json:"status"`
+	Tags           Tags           `json:"tags"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	Volume         *ResourceRef   `json:"volume"`
 }
 
 type SnapshotCreateRequest struct {
@@ -484,9 +473,9 @@ type SnapshotIntervalMinutes = int
 // snapshots this policy created.
 //
 // Retention only ever deletes snapshots the policy itself created (those
-// carrying its `snapshot_policy_id`) — a snapshot taken by hand is
-// never reaped. It also never deletes a snapshot something depends on: a
-// snapshot a volume was created from, including a restore still in
+// carrying its `snapshot_policy` reference) — a snapshot taken by hand
+// is never reaped. It also never deletes a snapshot something depends
+// on: a snapshot a volume was created from, including a restore still in
 // progress, is skipped and re-examined later.
 type SnapshotPolicy struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
@@ -525,10 +514,6 @@ type SnapshotPolicy struct {
 	RetentionDays  SnapshotRetentionDays  `json:"retention_days,omitempty"`
 	Tags           Tags                   `json:"tags,omitempty"`
 	UpdatedAt      time.Time              `json:"updated_at,omitempty"`
-
-	// VolumeID the volume this schedule is attached to. A volume supports up to 16
-	// independent policies.
-	VolumeID string `json:"volume_id,omitempty"`
 }
 
 type SnapshotPolicyCreateRequest struct {
@@ -543,7 +528,7 @@ type SnapshotPolicyCreateRequest struct {
 	// Required.
 	IntervalMinutes SnapshotIntervalMinutes `json:"interval_minutes"`
 
-	// Name unique within the account — it names the policy in its CRN.
+	// Name unique within the volume — it names the policy in its CRN.
 	// Scheduled snapshots are named `<policy>-<UTC timestamp>`. Resource
 	// names must not start with the literal crn: prefix or be UUIDs
 	// (canonical, compact, braced, or urn:uuid: forms, in either case).
@@ -555,11 +540,6 @@ type SnapshotPolicyCreateRequest struct {
 	RetentionCount SnapshotRetentionCount `json:"retention_count"`
 	RetentionDays  *SnapshotRetentionDays `json:"retention_days,omitempty"`
 	Tags           Tags                   `json:"tags,omitempty"`
-
-	// Volume account-owned volume UUID, CRN, or exact name.
-	//
-	// Required.
-	Volume string `json:"volume"`
 }
 
 // SnapshotPolicyUpdateRequest names are fixed at creation because they form the CRN used by IAM
@@ -613,43 +593,6 @@ type SnapshotUpdateRequest struct {
 	Tags        Tags    `json:"tags,omitempty"`
 }
 
-// SnapshotUsage non-billing measured retained written logical extents for this source
-// volume's snapshot lineage, excluding the unsnapshotted head and
-// inherited parent data. This aggregate is repeated for snapshots of the
-// same volume and must not be added across snapshots. It is not physical
-// allocation, filesystem use, or independent restore capacity. Requires
-// read permission for both the snapshot and its parent volume. Missing
-// permission, absent/failed collection, or a non-available snapshot
-// returns unknown without exposing measurement evidence. GET and list
-// reads attach observations; mutation responses report unknown. Existing
-// snapshot charges continue using provisioned snapshot capacity.
-type SnapshotUsage struct {
-	// Billable these observations do not produce charges.
-	//
-	// One of: "false".
-	Billable bool `json:"billable"`
-
-	// LineageRetainedBytes exact retained lineage bytes only when measured; null when unknown
-	// or stale. An explicit measured zero is distinct from unavailable
-	// data.
-	LineageRetainedBytes *int64 `json:"lineage_retained_bytes"`
-
-	// MeasuredAt observation timestamp for measured or stale data; null when unknown.
-	MeasuredAt *time.Time `json:"measured_at"`
-
-	// One of: "volume_lineage".
-	Scope string `json:"scope"`
-
-	// State measured means a complete observation with a matching current
-	// catalog generation and age at most 90 minutes. Stale means its
-	// generation changed or it expired. This is a last-observed value, not
-	// continuous backend verification. Unknown and stale never imply zero
-	// usage.
-	//
-	// One of: "unknown", "stale", "measured".
-	State string `json:"state"`
-}
-
 type TagSet = map[string]string
 
 type Tags = map[string]string
@@ -663,36 +606,37 @@ type UploadPartResponse struct {
 type Volume struct {
 	// Bootable set at create time when the volume is provisioned from a bootable
 	// image. Immutable after creation.
-	Bootable  bool      `json:"bootable,omitempty"`
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	Bootable  bool      `json:"bootable"`
+	CreatedAt time.Time `json:"created_at"`
 
 	// CRN Cloud Resource Name (name-based, region-scoped).
-	CRN         string `json:"crn,omitempty"`
+	CRN         string `json:"crn"`
 	Description string `json:"description,omitempty"`
 
 	// Faults active faults, newest first. Empty when healthy. Status is error if
 	// and only if an active error-severity fault exists. Resolved history
 	// is retained internally.
 	Faults           []*Fault          `json:"faults"`
-	ID               string            `json:"id,omitempty"`
-	IncludedIoLimits *IncludedIoLimits `json:"included_io_limits,omitempty"`
+	ID               string            `json:"id"`
+	IncludedIoLimits *IncludedIoLimits `json:"included_io_limits"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
-	Name        string             `json:"name,omitempty"`
-	Performance *VolumePerformance `json:"performance,omitempty"`
-	SizeGB      int                `json:"size_gb,omitempty"`
+	Name        string             `json:"name"`
+	Performance *VolumePerformance `json:"performance"`
+	SizeGB      int                `json:"size_gb"`
 
-	// SourceImageID image the volume was cloned from, when applicable.
-	SourceImageID *string `json:"source_image_id,omitempty"`
+	// SourceImage source image identity, or null when this volume was not created from
+	// an image.
+	SourceImage *ResourceRef `json:"source_image"`
 
-	// SourceSnapshotID snapshot the volume was cloned from (restore path), when applicable.
-	SourceSnapshotID *string        `json:"source_snapshot_id,omitempty"`
-	Status           VolumeStatus   `json:"status,omitempty"`
-	Tags             Tags           `json:"tags,omitempty"`
-	UpdatedAt        time.Time      `json:"updated_at,omitempty"`
-	VolumeType       VolumeTypeName `json:"volume_type,omitempty"`
+	// SourceSnapshot source snapshot identity, or null when not created from a snapshot.
+	SourceSnapshot *ResourceRef   `json:"source_snapshot"`
+	Status         VolumeStatus   `json:"status"`
+	Tags           Tags           `json:"tags"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	VolumeType     VolumeTypeName `json:"volume_type"`
 }
 
 type VolumeCreateRequest struct {
@@ -741,15 +685,7 @@ type VolumeExtendRequest struct {
 
 type VolumePerformance struct {
 	Applied   *IncludedIoLimits `json:"applied"`
-	AppliedAt time.Time         `json:"applied_at,omitempty"`
-
-	// LastError latest retryable failure; the accepted request remains durable.
-	LastError   string            `json:"last_error,omitempty"`
-	OperationID string            `json:"operation_id,omitempty"`
-	Requested   *IncludedIoLimits `json:"requested"`
-
-	// One of: "creating", "pending", "applied".
-	State string `json:"state"`
+	Requested *IncludedIoLimits `json:"requested"`
 }
 
 // VolumePerformanceRequest independently provision total sustained, combined read/write
@@ -774,6 +710,7 @@ const (
 	VolumeStatusAvailable VolumeStatus = "available"
 	VolumeStatusInUse     VolumeStatus = "in_use"
 	VolumeStatusExtending VolumeStatus = "extending"
+	VolumeStatusUpdating  VolumeStatus = "updating"
 	VolumeStatusDeleting  VolumeStatus = "deleting"
 	VolumeStatusError     VolumeStatus = "error"
 )

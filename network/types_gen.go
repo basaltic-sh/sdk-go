@@ -10,15 +10,6 @@ import (
 	"time"
 )
 
-type AddressFloatingIP struct {
-	Address string `json:"address"`
-	CRN     string `json:"crn"`
-	ID      string `json:"id"`
-
-	// One of: "public", "private".
-	Visibility string `json:"visibility"`
-}
-
 type AddressRequest struct {
 	// Address optional fixed address when creating an interface or instance NIC.
 	// For IPv6, use the first address of an aligned /96 inside the subnet
@@ -45,20 +36,15 @@ type AttachFloatingIPRequest struct {
 }
 
 type CreateInterfacePrefixRequest struct {
+	// Pool UUID or CRN in the interface VPC.
+	//
 	// Required.
-	PoolID string `json:"pool_id"`
+	Pool string `json:"pool"`
 }
 
 type CreatePrefixPoolRequest struct {
 	// Required.
 	CIDRIPv4 string `json:"cidr_ipv4"`
-}
-
-type DetachFloatingIPRequest struct {
-	// Interface UUID or nested CRN; bare names, null and empty references
-	// are rejected. Omitting the field clears the binding. Naming a NIC
-	// that is not a member is a no-op.
-	Interface *string `json:"interface,omitempty"`
 }
 
 // EgressOnlyGateway Native IPv6 egress without address translation: a subnet with global
@@ -80,7 +66,7 @@ type EgressOnlyGateway struct {
 	Name      string            `json:"name"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
-	VPC       *VPC              `json:"vpc"`
+	VPC       *ResourceRef      `json:"vpc"`
 }
 
 type EgressOnlyGatewayCreateRequest struct {
@@ -109,66 +95,31 @@ type FloatingIP struct {
 	// Address allocated public or private address.
 	Address string `json:"address"`
 
-	// AttachedTo Canonical CRN of the bound interface, instance pool, or load
-	// balancer; null when unattached. A pool-owned address names its pool
-	// even when the pool has zero members. Only pool-owned addresses may
-	// have multiple NIC members. Manage their bindings through the
-	// instance pool floating IP endpoints; direct attach and detach are
-	// refused.
-	AttachedTo  *string   `json:"attached_to"`
-	CreatedAt   time.Time `json:"created_at"`
-	CRN         string    `json:"crn"`
-	Description string    `json:"description,omitempty"`
-	Family      IPFamily  `json:"family"`
+	// AttachedTo instance pool or load balancer that owns the address. Null for
+	// direct interface attachments and unattached addresses. An empty pool
+	// retains ownership.
+	AttachedTo  *ResourceRef `json:"attached_to"`
+	CreatedAt   time.Time    `json:"created_at"`
+	CRN         string       `json:"crn"`
+	Description string       `json:"description,omitempty"`
+	Family      IPFamily     `json:"family"`
 
 	// HealthCheck the readiness check applied to this address's members. Absent when
 	// none is configured. See `FloatingIpHealthCheck`.
 	HealthCheck *FloatingIPHealthCheck `json:"health_check,omitempty"`
 	ID          string                 `json:"id"`
 
-	// Members the floating IP's bindings. A floating IP fronts 0 members
-	// (allocated, unattached), 1 member (the everyday case), or N members
-	// for an instance pool — an anycast floating IP, where one public IP
-	// is delivered to N VM NICs across hosts (each advertised as a /32
-	// from the host holding it).
-	//
-	// Members may share a hypervisor. Two of them on one host used to mean
-	// one served and the other was silently dark; a member's forwarding
-	// rule now names the member, and the host splits connections across
-	// the members it holds, so where the members sit is a capacity
-	// decision rather than a correctness one. An instance pool's address
-	// takes its members from the pool's live replicas — every one of
-	// them — so a scale-out joins and a scale-in leaves without a
-	// per-replica attach.
-	//
-	// With more than one member ONE member serves each connection, chosen
-	// by hashing the flow's addresses and ports, and every packet of that
-	// connection goes to the same one. The members are separate instances
-	// that share nothing, so this spreads connections and survives the
-	// loss of a host — it is not a load balancer: nothing checks whether
-	// the service inside the instance is up, and connections in progress
-	// to a member that goes away are not moved, they end.
-	//
-	// A POOL's address is the exception, and only for booting. A replica
-	// joins the address as soon as it is placed, but does not receive
-	// traffic until it has reached the instance metadata service —
-	// evidence that the guest booted, rather than that its virtual machine
-	// was started. Until then it is a member with `health` `unhealthy`. A
-	// replica whose image never contacts the metadata service is admitted
-	// anyway after a few minutes, so an unusual image delays traffic
-	// rather than never getting it.
-	Members []*FloatingIPMember `json:"members"`
-
-	// SubnetID allocation subnet for private floating IPs.
-	SubnetID  *string           `json:"subnet_id,omitempty"`
+	// Subnet allocation subnet for a private floating IP; null for public
+	// addresses.
+	Subnet    *ResourceRef      `json:"subnet"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
 
 	// One of: "public", "private".
 	Visibility string `json:"visibility"`
 
-	// VPCID Allocation VPC for private floating IPs.
-	VPCID string `json:"vpc_id,omitempty"`
+	// VPC Allocation VPC for a private floating IP; null for public addresses.
+	VPC *ResourceRef `json:"vpc"`
 }
 
 type FloatingIPCreateRequest struct {
@@ -234,11 +185,17 @@ type FloatingIPHealthCheck struct {
 	UnhealthyThreshold int `json:"unhealthy_threshold"`
 }
 
-// FloatingIPMember one binding of a floating IP.
-type FloatingIPMember struct {
+// FloatingIPInterface an interface receiving the floating IP, with its attachment health.
+type FloatingIPInterface struct {
 	// AddressID target child address on the member interface.
-	AddressID *string   `json:"address_id,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+	AddressID string `json:"address_id,omitempty"`
+
+	// AttachedTo instance holding this interface, including a stopped instance. Null
+	// when unbound. Floating IP attachments are tracked separately.
+	AttachedTo  *ResourceRef `json:"attached_to"`
+	CreatedAt   time.Time    `json:"created_at"`
+	CRN         string       `json:"crn"`
+	Description string       `json:"description,omitempty"`
 
 	// Health what the platform knows about this member.
 	//
@@ -261,10 +218,13 @@ type FloatingIPMember struct {
 	//
 	// One of: "unknown", "healthy", "unhealthy".
 	Health string `json:"health"`
+	ID     string `json:"id"`
+	MAC    string `json:"mac"`
 
-	// Interface Bound NIC summary; null for a load balancer binding named by
-	// attached_to.
-	Interface *FloatingIPMemberInterface `json:"interface"`
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name"`
 
 	// Reason why the member reads the `health` it does — so you can tell "your
 	// service is not answering" from "the guest has not booted yet".
@@ -276,23 +236,20 @@ type FloatingIPMember struct {
 	//
 	// One of: "unprobed", "booting", "probe_failed", "passing".
 	Reason string `json:"reason"`
+
+	// Subnet containing this interface.
+	Subnet    *ResourceRef      `json:"subnet"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
 }
 
-// FloatingIPMemberInterface Bound NIC summary; null for a load balancer binding named by
-// attached_to.
-type FloatingIPMemberInterface struct {
-	CRN string `json:"crn"`
-	ID  string `json:"id"`
+type FloatingIPRef struct {
+	Address string `json:"address"`
+	CRN     string `json:"crn"`
+	ID      string `json:"id"`
 
-	// Instance owning instance; null when the interface has no owning instance.
-	Instance *FloatingIPMemberInterfaceInstance `json:"instance"`
-}
-
-// FloatingIPMemberInterfaceInstance owning instance; null when the interface has no owning instance.
-type FloatingIPMemberInterfaceInstance struct {
-	CRN  string `json:"crn"`
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	// One of: "public", "private".
+	Visibility string `json:"visibility"`
 }
 
 type FloatingIPUpdateRequest struct {
@@ -311,27 +268,26 @@ type GatewayRoute struct {
 	DestinationCIDR string    `json:"destination_cidr"`
 	ID              string    `json:"id"`
 
-	// NextHopIP set when target_type=ip. Mutex with the target_*_id fields. Must be
-	// a unicast address inside this VPC's CIDR (same IP family as
-	// destination_cidr); internet egress uses target_internet_gateway_id /
-	// target_nat_gateway_id.
-	NextHopIP    *string            `json:"next_hop_ip,omitempty"`
-	RouteTable   *RouteTableSummary `json:"route_table"`
-	RouteTableID string             `json:"route_table_id"`
-	Tags         map[string]string  `json:"tags"`
+	// NextHopIP set when target_type=ip. Mutex with the target_* fields. Must be a
+	// unicast address inside this VPC's CIDR (same IP family as
+	// destination_cidr); internet egress uses target_internet_gateway /
+	// target_nat_gateway.
+	NextHopIP  *string           `json:"next_hop_ip,omitempty"`
+	RouteTable *ResourceRef      `json:"route_table"`
+	Tags       map[string]string `json:"tags"`
 
-	// TargetEgressOnlyGatewayID set when target_type=egress_only_gateway (IPv6 only). Gives the
-	// subnet outbound v6 with the internet unable to initiate inbound.
-	TargetEgressOnlyGatewayID *string `json:"target_egress_only_gateway_id,omitempty"`
+	// TargetEgressOnlyGateway set when target_type=egress_only_gateway (IPv6 only). Gives the
+	// subnet outbound IPv6 and replies only.
+	TargetEgressOnlyGateway *ResourceRef `json:"target_egress_only_gateway,omitempty"`
 
-	// TargetInternetGatewayID set when target_type=internet_gateway.
-	TargetInternetGatewayID *string `json:"target_internet_gateway_id,omitempty"`
+	// TargetInternetGateway set when target_type=internet_gateway.
+	TargetInternetGateway *ResourceRef `json:"target_internet_gateway,omitempty"`
 
-	// TargetNATGatewayID set when target_type=nat_gateway. Supports IPv4 and IPv6; IPv6
+	// TargetNATGateway set when target_type=nat_gateway. Supports IPv4 and IPv6; IPv6
 	// requires an IPv6-enabled hosting subnet.
-	TargetNATGatewayID *string         `json:"target_nat_gateway_id,omitempty"`
-	TargetType         RouteTargetType `json:"target_type"`
-	UpdatedAt          time.Time       `json:"updated_at"`
+	TargetNATGateway *ResourceRef    `json:"target_nat_gateway,omitempty"`
+	TargetType       RouteTargetType `json:"target_type"`
+	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
 // IPFamily The IP address family. Floating IPs support either family and may have
@@ -359,35 +315,33 @@ const (
 )
 
 type Interface struct {
-	Addresses []*InterfaceAddress `json:"addresses"`
-
-	// AttachedTo UUID of the instance holding this interface, including stopped
-	// instances. Null when no instance NIC binding exists. Deletion is
-	// refused while bound; floating IP attachment is tracked separately.
-	AttachedTo  *string   `json:"attached_to,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	CRN         string    `json:"crn"`
-	Description string    `json:"description,omitempty"`
-	ID          string    `json:"id"`
-	MAC         string    `json:"mac"`
+	// AttachedTo instance holding this interface, including a stopped instance. Null
+	// when unbound. Floating IP attachments are tracked separately.
+	AttachedTo  *ResourceRef `json:"attached_to"`
+	CreatedAt   time.Time    `json:"created_at"`
+	CRN         string       `json:"crn"`
+	Description string       `json:"description,omitempty"`
+	ID          string       `json:"id"`
+	MAC         string       `json:"mac"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
-	Name           string            `json:"name"`
-	RoutedPrefixes []*RoutedPrefix   `json:"routed_prefixes"`
-	Subnet         *Subnet           `json:"subnet"`
-	Tags           map[string]string `json:"tags"`
-	UpdatedAt      time.Time         `json:"updated_at"`
+	Name string `json:"name"`
+
+	// Subnet containing this interface.
+	Subnet    *ResourceRef      `json:"subnet"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
 }
 
 type InterfaceAddress struct {
 	Address string `json:"address"`
 
 	// One of: "ipv4", "ipv6".
-	Family      string               `json:"family"`
-	FloatingIPs []*AddressFloatingIP `json:"floating_ips"`
-	ID          string               `json:"id"`
+	Family      string           `json:"family"`
+	FloatingIPs []*FloatingIPRef `json:"floating_ips"`
+	ID          string           `json:"id"`
 
 	// Prefix owned allocation, not the guest netmask: IPv4 /32 or IPv6 /96.
 	// DHCPv6 configures the first /128.
@@ -421,13 +375,11 @@ type InterfaceCreateRequest struct {
 	Tags   map[string]string `json:"tags,omitempty"`
 }
 
-type InterfaceSecurityGroupsRequest struct {
-	// SecurityGroups Security-group UUIDs, CRNs or account-scoped names. All entries
-	// resolve before replacement; duplicate canonical IDs collapse to one
-	// membership. An empty array removes all groups.
+type InterfaceSecurityGroupRequest struct {
+	// SecurityGroup security group UUID, CRN, or account-scoped name.
 	//
 	// Required.
-	SecurityGroups []string `json:"security_groups"`
+	SecurityGroup string `json:"security_group"`
 }
 
 type InterfaceUpdateRequest struct {
@@ -436,12 +388,12 @@ type InterfaceUpdateRequest struct {
 }
 
 type InternetGateway struct {
-	// AttachedVPCID VPC the IGW is currently attached to (null when detached).
-	AttachedVPCID *string   `json:"attached_vpc_id,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	CRN           string    `json:"crn"`
-	Description   string    `json:"description,omitempty"`
-	ID            string    `json:"id"`
+	// AttachedVPC VPC the internet gateway is attached to.
+	AttachedVPC *ResourceRef `json:"attached_vpc,omitempty"`
+	CreatedAt   time.Time    `json:"created_at"`
+	CRN         string       `json:"crn"`
+	Description string       `json:"description,omitempty"`
+	ID          string       `json:"id"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -449,13 +401,6 @@ type InternetGateway struct {
 	Name      string            `json:"name"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
-}
-
-type InternetGatewayAttachRequest struct {
-	// VPC UUID, CRN or exact name in the caller account.
-	//
-	// Required.
-	VPC string `json:"vpc"`
 }
 
 type InternetGatewayCreateRequest struct {
@@ -468,11 +413,27 @@ type InternetGatewayCreateRequest struct {
 	// Required.
 	Name string            `json:"name"`
 	Tags map[string]string `json:"tags,omitempty"`
+
+	// VPC UUID, CRN or exact name in the caller account. The binding is
+	// permanent.
+	//
+	// Required.
+	VPC string `json:"vpc"`
 }
 
 type InternetGatewayUpdateRequest struct {
 	Description *string           `json:"description,omitempty"`
 	Tags        map[string]string `json:"tags,omitempty"`
+}
+
+type ListInterfacePrefixesResult struct {
+	Meta     *PaginationMeta `json:"meta"`
+	Prefixes []*RoutedPrefix `json:"prefixes"`
+}
+
+type ListPrefixPoolsResult struct {
+	Meta        *PaginationMeta `json:"meta"`
+	PrefixPools []*PrefixPool   `json:"prefix_pools"`
 }
 
 type NATGateway struct {
@@ -496,7 +457,7 @@ type NATGateway struct {
 	// gateway deletion. Shared source NAT supports both global and ULA
 	// subnet addresses.
 	PublicIPv6 string            `json:"public_ipv6,omitempty"`
-	Subnet     *Subnet           `json:"subnet"`
+	Subnet     *ResourceRef      `json:"subnet"`
 	Tags       map[string]string `json:"tags"`
 	UpdatedAt  time.Time         `json:"updated_at"`
 }
@@ -525,10 +486,36 @@ type NATGatewayUpdateRequest struct {
 	Tags        map[string]string `json:"tags,omitempty"`
 }
 
+type PaginationMeta struct {
+	// HasMore whether there are more items
+	HasMore bool `json:"has_more,omitempty"`
+
+	// Limit number of items per page
+	Limit int `json:"limit,omitempty"`
+
+	// Marker opaque cursor for the next page. Pass it back as the `marker` query
+	// parameter; treat it as a token, not a value to parse.
+	Marker string `json:"marker,omitempty"`
+
+	// Total number of items
+	Total int `json:"total,omitempty"`
+}
+
 type PrefixPool struct {
 	// CIDRIPv4 VPC IPv4 range disjoint from all subnets and other prefix pools.
 	CIDRIPv4 string `json:"cidr_ipv4"`
+	CRN      string `json:"crn"`
 	ID       string `json:"id"`
+}
+
+type ResourceRef struct {
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Name display label at response time — the resource's name where it has
+	// one, otherwise its human label (an invoice number, an account
+	// display name). Absent when the target is gone. Not a lookup key.
+	Name string `json:"name,omitempty"`
 }
 
 type Route struct {
@@ -538,26 +525,25 @@ type Route struct {
 	DestinationCIDR string    `json:"destination_cidr"`
 	ID              string    `json:"id"`
 
-	// NextHopIP set when target_type=ip. Mutex with the target_*_id fields. Must be
-	// a unicast address inside this VPC's CIDR (same IP family as
-	// destination_cidr); internet egress uses target_internet_gateway_id /
-	// target_nat_gateway_id.
-	NextHopIP    *string           `json:"next_hop_ip,omitempty"`
-	RouteTableID string            `json:"route_table_id"`
-	Tags         map[string]string `json:"tags"`
+	// NextHopIP set when target_type=ip. Mutex with the target_* fields. Must be a
+	// unicast address inside this VPC's CIDR (same IP family as
+	// destination_cidr); internet egress uses target_internet_gateway /
+	// target_nat_gateway.
+	NextHopIP *string           `json:"next_hop_ip,omitempty"`
+	Tags      map[string]string `json:"tags"`
 
-	// TargetEgressOnlyGatewayID set when target_type=egress_only_gateway (IPv6 only). Gives the
-	// subnet outbound v6 with the internet unable to initiate inbound.
-	TargetEgressOnlyGatewayID *string `json:"target_egress_only_gateway_id,omitempty"`
+	// TargetEgressOnlyGateway set when target_type=egress_only_gateway (IPv6 only). Gives the
+	// subnet outbound IPv6 and replies only.
+	TargetEgressOnlyGateway *ResourceRef `json:"target_egress_only_gateway,omitempty"`
 
-	// TargetInternetGatewayID set when target_type=internet_gateway.
-	TargetInternetGatewayID *string `json:"target_internet_gateway_id,omitempty"`
+	// TargetInternetGateway set when target_type=internet_gateway.
+	TargetInternetGateway *ResourceRef `json:"target_internet_gateway,omitempty"`
 
-	// TargetNATGatewayID set when target_type=nat_gateway. Supports IPv4 and IPv6; IPv6
+	// TargetNATGateway set when target_type=nat_gateway. Supports IPv4 and IPv6; IPv6
 	// requires an IPv6-enabled hosting subnet.
-	TargetNATGatewayID *string         `json:"target_nat_gateway_id,omitempty"`
-	TargetType         RouteTargetType `json:"target_type"`
-	UpdatedAt          time.Time       `json:"updated_at"`
+	TargetNATGateway *ResourceRef    `json:"target_nat_gateway,omitempty"`
+	TargetType       RouteTargetType `json:"target_type"`
+	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
 // RouteCreateRequest exactly one of next_hop_ip / target_internet_gateway /
@@ -608,7 +594,7 @@ type RouteTable struct {
 	Name      string            `json:"name"`
 	Tags      map[string]string `json:"tags"`
 	UpdatedAt time.Time         `json:"updated_at"`
-	VPC       *VPC              `json:"vpc"`
+	VPC       *ResourceRef      `json:"vpc"`
 }
 
 type RouteTableCreateRequest struct {
@@ -627,16 +613,6 @@ type RouteTableCreateRequest struct {
 	//
 	// Required.
 	VPC string `json:"vpc"`
-}
-
-// RouteTableSummary route table used by a subnet, without repeating its VPC. Null when the
-// non-owning lookup no longer resolves, for example during concurrent
-// reassociation and deletion of the former table. Deleting a table still
-// associated with subnets is refused.
-type RouteTableSummary struct {
-	CRN  string `json:"crn"`
-	ID   string `json:"id"`
-	Name string `json:"name"`
 }
 
 type RouteTableUpdateRequest struct {
@@ -665,9 +641,9 @@ type RouteUpdateRequest struct {
 
 type RoutedPrefix struct {
 	// One of: "ipv4".
-	Family string `json:"family"`
-	ID     string `json:"id"`
-	PoolID string `json:"pool_id"`
+	Family string       `json:"family"`
+	ID     string       `json:"id"`
+	Pool   *ResourceRef `json:"pool"`
 
 	// Prefix a routed /28 from a VPC prefix pool.
 	Prefix string `json:"prefix"`
@@ -712,14 +688,12 @@ type SecurityGroupRule struct {
 	Protocol SecurityGroupRuleProtocol `json:"protocol"`
 
 	// RemoteCIDR source (ingress) or destination_cidr (egress) CIDR. Must match the
-	// rule's ethertype. Mutually exclusive with source_security_group_id.
-	RemoteCIDR      *string `json:"remote_cidr,omitempty"`
-	SecurityGroupID string  `json:"security_group_id"`
+	// rule's ethertype. Mutually exclusive with source_security_group.
+	RemoteCIDR *string `json:"remote_cidr,omitempty"`
 
-	// SourceSecurityGroupID source (ingress) or destination_cidr (egress) is "any workload in
-	// this SG". Traffic is matched by membership in the named security
-	// group. Mutually exclusive with remote_cidr.
-	SourceSecurityGroupID *string `json:"source_security_group_id,omitempty"`
+	// SourceSecurityGroup security group supplying the source or destination members. Mutually
+	// exclusive with remote_cidr.
+	SourceSecurityGroup *ResourceRef `json:"source_security_group,omitempty"`
 }
 
 type SecurityGroupRuleCreateRequest struct {
@@ -788,11 +762,14 @@ type Subnet struct {
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
-	Name       string             `json:"name"`
-	RouteTable *RouteTableSummary `json:"route_table"`
-	Tags       map[string]string  `json:"tags"`
-	UpdatedAt  time.Time          `json:"updated_at"`
-	VPC        *VPC               `json:"vpc"`
+	Name string `json:"name"`
+
+	// RouteTable route table associated with this subnet; null when the table is
+	// unavailable.
+	RouteTable *ResourceRef      `json:"route_table"`
+	Tags       map[string]string `json:"tags"`
+	UpdatedAt  time.Time         `json:"updated_at"`
+	VPC        *ResourceRef      `json:"vpc"`
 }
 
 type SubnetCreateRequest struct {
@@ -834,7 +811,9 @@ type SubnetCreateRequest struct {
 	VPC string `json:"vpc"`
 }
 
-type SubnetUpdateRequest struct {
+// SubnetIPv6request provide allocate_cidr_ipv6 as true or a nonempty cidr_ipv6. Existing
+// IPv6 ranges cannot be replaced.
+type SubnetIPv6request struct {
 	// AllocateCIDRIPv6 allocate a free /64 from the VPC IPv6 range. Can be enabled after
 	// creation. Every existing and new interface receives an IPv6 /96 and
 	// its first /128 automatically. NAT gateways hosted here also receive
@@ -854,8 +833,7 @@ type SubnetUpdateRequest struct {
 	// not duplicated. Changes affect every interface sharing these groups.
 	// Requires CreateSecurityGroupRule permission and available rule
 	// quota. Only accepted with allocate_cidr_ipv6 or cidr_ipv6.
-	CopyIPv4SecurityRules *bool   `json:"copy_ipv4_security_rules,omitempty"`
-	Description           *string `json:"description,omitempty"`
+	CopyIPv4SecurityRules *bool `json:"copy_ipv4_security_rules,omitempty"`
 
 	// IPv6Routing when enabling IPv6, optionally add ::/0 to the subnet's route table.
 	// match_ipv4 follows an IPv4 internet-gateway or NAT-gateway default
@@ -872,6 +850,10 @@ type SubnetUpdateRequest struct {
 	//
 	// One of: "match_ipv4", "unchanged", "internet_gateway", "nat_gateway", "egress_only_gateway".
 	IPv6Routing *string `json:"ipv6_routing,omitempty"`
+}
+
+type SubnetUpdateRequest struct {
+	Description *string `json:"description,omitempty"`
 
 	// RouteTable Route-table UUID, nested CRN or exact name within the subnet VPC. On
 	// PATCH the owned path subnet supplies the VPC. Omission on create
@@ -928,14 +910,19 @@ type VPCCreateRequest struct {
 	Tags map[string]string `json:"tags,omitempty"`
 }
 
-type VPCUpdateRequest struct {
+// VPCIPv6request provide allocate_cidr_ipv6 as true or a nonempty cidr_ipv6. Existing
+// IPv6 ranges cannot be replaced.
+type VPCIPv6request struct {
 	// AllocateCIDRIPv6 allocate a regional GUA /60. Mutually exclusive with cidr_ipv6.
 	// Existing IPv6 ranges cannot be replaced.
 	AllocateCIDRIPv6 *bool `json:"allocate_cidr_ipv6,omitempty"`
 
 	// CIDRIPv6 optional aligned locally assigned ULA (fd00::/8), /48 through /60.
 	// May be added after VPC creation.
-	CIDRIPv6    *string           `json:"cidr_ipv6,omitempty"`
+	CIDRIPv6 *string `json:"cidr_ipv6,omitempty"`
+}
+
+type VPCUpdateRequest struct {
 	Description *string           `json:"description,omitempty"`
 	Tags        map[string]string `json:"tags,omitempty"`
 }

@@ -32,6 +32,7 @@ type requestSettings struct {
 	noRetry        bool
 	responseHeader *http.Header
 	stream         bool
+	nullFields     []string
 }
 
 func (rs *requestSettings) apply(opts []RequestOption) error {
@@ -112,6 +113,23 @@ func WithRequestAccountID(accountID string) RequestOption {
 func WithQueryParam(name, value string) RequestOption {
 	return func(rs *requestSettings) error {
 		rs.query.Add(name, value)
+		return nil
+	}
+}
+
+// WithNullFields sends explicit JSON null for the named top-level request
+// fields. Optional nil pointers normally omit a field; use this option when
+// PATCH distinguishes leaving a value unchanged from clearing it. These nulls
+// override values in the request struct. The request must have a JSON object body.
+func WithNullFields(names ...string) RequestOption {
+	fields := append([]string(nil), names...)
+	return func(rs *requestSettings) error {
+		for _, name := range fields {
+			if name == "" {
+				return fmt.Errorf("basaltic: WithNullFields needs nonempty field names")
+			}
+		}
+		rs.nullFields = append(rs.nullFields, fields...)
 		return nil
 	}
 }

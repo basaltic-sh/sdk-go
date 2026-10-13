@@ -15,6 +15,65 @@ import (
 	basaltic "github.com/basaltic-sh/sdk-go"
 )
 
+// ListOidcProvidersParams are the optional filters and pagination controls for
+// [Client.ListOidcProviders]. A nil *ListOidcProvidersParams sends none of them.
+type ListOidcProvidersParams struct {
+	// CRN exact returned CRN, combined with name using AND before pagination.
+	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
+	// return an empty page. Resources without a CRN never match.
+	// Organization-scoped CRNs use the authenticated organization.
+	CRN string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+
+	// Name exact resource name, combined with crn using AND before pagination.
+	// Empty values are filters. Resources without a name never match.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListOidcProvidersParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListOidcProvidersParams) withMarker(marker string) *ListOidcProvidersParams {
+	var out ListOidcProvidersParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
 // ListPoliciesParams are the optional filters and pagination controls for
 // [Client.ListPolicies]. A nil *ListPoliciesParams sends none of them.
 type ListPoliciesParams struct {
@@ -190,36 +249,6 @@ func (p *ListPolicyServiceAccountsParams) withMarker(marker string) *ListPolicyS
 	}
 	out.Marker = marker
 	return &out
-}
-
-// ListRegionsParams are the optional filters and pagination controls for
-// [Client.ListRegions]. A nil *ListRegionsParams sends none of them.
-type ListRegionsParams struct {
-	// CRN exact returned CRN, combined with name using AND before pagination.
-	// Malformed or empty CRNs return 400; valid mismatched or foreign CRNs
-	// return an empty page. Resources without a CRN never match.
-	// Organization-scoped CRNs use the authenticated organization.
-	CRN string
-
-	// Name exact resource name, combined with crn using AND before pagination.
-	// Empty values are filters. Resources without a name never match.
-	Name string
-}
-
-// query renders the parameters that are set. A zero value means "no
-// filter", which is what leaving one out asks for.
-func (p *ListRegionsParams) query() url.Values {
-	q := url.Values{}
-	if p == nil {
-		return q
-	}
-	if p.CRN != "" {
-		q.Set("crn", p.CRN)
-	}
-	if p.Name != "" {
-		q.Set("name", p.Name)
-	}
-	return q
 }
 
 // ListRoleInlinePoliciesParams are the optional filters and pagination controls for
@@ -608,61 +637,21 @@ func (c *Client) AssumeRole(ctx context.Context, body *AssumeRoleRequest, opts .
 
 // AssumeRoleWithWebIdentity assumes role with web identity.
 //
-// Exchange an identity token issued by a federation provider this
-// platform trusts for temporary credentials. The result is the same
-// assumed-role session `POST /v1/assume-role` mints, and is used the
-// same way.
+// Exchange a signed OIDC token for temporary role credentials. No
+// existing Basaltic credentials are required. The full role CRN
+// determines the account; there is no separate account selector.
 //
-// This request carries **no signature**, and it is the only
-// credential-vending call that does not. A federated caller holds no
-// Basaltic credential yet — that is what the exchange is for — so
-// the token in the body *is* the credential being presented. A signature
-// sent anyway is ignored, and nothing is taken from the request context:
-// `role` and `account` are read from the body like every other field.
+// Register the token's issuer through /v1/oidc-providers in the same
+// account as the role. The token's signature, issuer, allowed audience
+// and expiry are verified before reading the role. The role trust policy
+// must name the provider CRN and satisfy every condition. Use
+// basalt:webidentity:Subject for sub and basalt:webidentity:Audience for
+// aud. GitHub trust must include a positive subject restriction to the
+// intended organization or repository.
 //
-// That does not leave the endpoint open. Two independent gates have to
-// pass, and they fail differently.
-//
-// **The token has to verify.** This happens before any role is read, so
-// a forged token never reaches a trust policy. The signature must chain
-// to a key the provider publishes, the audience must be the one this
-// platform accepts, and `exp` must be in the future. A wrong signer, a
-// token minted for some other consumer, and an expired token all answer
-// `401` with the same message — the response does not say which check
-// failed.
-//
-// **The role has to agree.** Verifying the token establishes who is
-// calling; it grants nothing. The role named in `role` is assumable only
-// if its own trust policy admits this identity. Its `principals` must
-// name the federation provider, written
-// `crn:iam:::oidc-provider/<provider>` — the one case where a trust
-// policy principal is not the caller's own CRN, because a federated
-// identity has no CRN and what is trusted is the source that vouched for
-// it. Every entry in `conditions` must then hold against the token's
-// claims: `basalt:webidentity:Subject` carries the token's `sub` and
-// `basalt:webidentity:Audience` its `aud`, so a role can bind one
-// identity instead of accepting everything that provider will ever
-// issue. A condition on a claim the token does not carry fails closed.
-//
-// A role whose trust policy names no provider therefore cannot be
-// assumed this way at all, however good the token is. That is the line
-// between the two failures: `401` means the token is not trustworthy,
-// `403` means it is and the role still will not have it.
-//
-// The credentials come back scoped to `account`, carrying the role's own
-// permissions. There is no `policy` field here — unlike `POST
-// /v1/assume-role`, a federated session cannot be scoped down at
-// exchange time, so the role's attached policies are the whole grant.
-// Size the role accordingly.
-//
-// Because it takes no credentials, requests are rate-limited per client
-// IP.
-//
-// Which providers are trusted is part of the platform's own
-// configuration. There is no API for registering an identity provider of
-// your own yet, so this operation is live but has no external provider
-// whose tokens it would accept; the roles that use it today are
-// platform-managed.
+// Provider registration alone grants no access. Invalid tokens return
+// 401; a verified token refused by role trust returns 403. Requests are
+// rate-limited per client IP. No inline session policy is accepted.
 //
 // Sends no bearer token: the credentials in the request are the
 // authentication.
@@ -755,6 +744,28 @@ func (c *Client) AuthorizeOAuthClient(ctx context.Context, body *OAuthAuthorizeR
 		return nil, err
 	}
 	return &out, nil
+}
+
+// CreateOidcProvider creates an OIDC provider.
+//
+// Register an HTTPS OIDC issuer and allowed audiences in the selected
+// account. The issuer must publish discovery metadata and public signing
+// keys. Roles must explicitly trust this provider and restrict the
+// subject; registration alone grants no access.
+func (c *Client) CreateOidcProvider(ctx context.Context, body *OidcProviderCreateRequest, opts ...basaltic.RequestOption) (*OidcProvider, error) {
+	op := &basaltic.Operation{
+		ID:     "createOIDCProvider",
+		Method: "POST",
+		Path:   "/v1/oidc-providers",
+		Body:   body,
+	}
+	var out struct {
+		OidcProvider *OidcProvider `json:"oidc_provider"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.OidcProvider, nil
 }
 
 // CreatePersonalSSHKey adds personal SSH key.
@@ -889,6 +900,25 @@ func (c *Client) CreateServiceAccountSSHKey(ctx context.Context, serviceAccountI
 		return nil, err
 	}
 	return out.SSHKey, nil
+}
+
+// DeleteOidcProvider deletes an OIDC provider.
+//
+// Delete a customer provider. New exchanges are rejected; existing
+// sessions remain valid until expiration or revocation. Recreating the
+// same name creates a different identity and requires updating role
+// trust. System providers cannot be deleted.
+func (c *Client) DeleteOidcProvider(ctx context.Context, providerID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "deleteOIDCProvider",
+		Method:   "DELETE",
+		Path:     "/v1/oidc-providers/{provider_id}",
+		PathArgs: []string{providerID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
 }
 
 // DeletePersonalSSHKey revokes personal SSH key.
@@ -1107,6 +1137,23 @@ func (c *Client) GetOAuthToken(ctx context.Context, body *OAuthTokenRequest, opt
 	return &out, nil
 }
 
+// GetOidcProvider gets an OIDC provider.
+func (c *Client) GetOidcProvider(ctx context.Context, providerID string, opts ...basaltic.RequestOption) (*OidcProvider, error) {
+	op := &basaltic.Operation{
+		ID:       "getOIDCProvider",
+		Method:   "GET",
+		Path:     "/v1/oidc-providers/{provider_id}",
+		PathArgs: []string{providerID},
+	}
+	var out struct {
+		OidcProvider *OidcProvider `json:"oidc_provider"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.OidcProvider, nil
+}
+
 // GetPersonalLinuxIdentity gets personal Linux identity.
 //
 // Requires the signed-in human user. Personal keys apply to that user
@@ -1185,7 +1232,7 @@ func (c *Client) GetRoleInlinePolicy(ctx context.Context, roleID string, policyN
 }
 
 // GetRolePermissionBoundary gets a role's permission boundary.
-func (c *Client) GetRolePermissionBoundary(ctx context.Context, roleID string, opts ...basaltic.RequestOption) (*PermissionBoundary, error) {
+func (c *Client) GetRolePermissionBoundary(ctx context.Context, roleID string, opts ...basaltic.RequestOption) (*Policy, error) {
 	op := &basaltic.Operation{
 		ID:       "getRolePermissionBoundary",
 		Method:   "GET",
@@ -1193,12 +1240,12 @@ func (c *Client) GetRolePermissionBoundary(ctx context.Context, roleID string, o
 		PathArgs: []string{roleID},
 	}
 	var out struct {
-		PermissionBoundary *PermissionBoundary `json:"permission_boundary"`
+		Policy *Policy `json:"policy"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.PermissionBoundary, nil
+	return out.Policy, nil
 }
 
 // GetSTSSession gets STS session.
@@ -1281,7 +1328,7 @@ func (c *Client) GetServiceAccountLinuxIdentity(ctx context.Context, serviceAcco
 }
 
 // GetServiceAccountPermissionBoundary gets a service account's permission boundary.
-func (c *Client) GetServiceAccountPermissionBoundary(ctx context.Context, serviceAccountID string, opts ...basaltic.RequestOption) (*PermissionBoundary, error) {
+func (c *Client) GetServiceAccountPermissionBoundary(ctx context.Context, serviceAccountID string, opts ...basaltic.RequestOption) (*Policy, error) {
 	op := &basaltic.Operation{
 		ID:       "getServiceAccountPermissionBoundary",
 		Method:   "GET",
@@ -1289,12 +1336,65 @@ func (c *Client) GetServiceAccountPermissionBoundary(ctx context.Context, servic
 		PathArgs: []string{serviceAccountID},
 	}
 	var out struct {
-		PermissionBoundary *PermissionBoundary `json:"permission_boundary"`
+		Policy *Policy `json:"policy"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.PermissionBoundary, nil
+	return out.Policy, nil
+}
+
+// ListOidcProviders lists OIDC providers.
+//
+// Returns one page. Use ListOidcProvidersAll to walk every page.
+func (c *Client) ListOidcProviders(ctx context.Context, params *ListOidcProvidersParams, opts ...basaltic.RequestOption) (*basaltic.Page[OidcProvider], error) {
+	op := &basaltic.Operation{
+		ID:     "listOIDCProviders",
+		Method: "GET",
+		Path:   "/v1/oidc-providers",
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []OidcProvider `json:"oidc_providers"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[OidcProvider]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListOidcProvidersAll walks every page of ListOidcProviders, yielding
+// one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListOidcProvidersAll(ctx, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListOidcProvidersAll(ctx context.Context, params *ListOidcProvidersParams, opts ...basaltic.RequestOption) iter.Seq2[OidcProvider, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[OidcProvider], error) {
+		return c.ListOidcProviders(ctx, params.withMarker(marker), opts...)
+	})
 }
 
 // ListPersonalSSHKeys lists personal SSH keys.
@@ -1484,34 +1584,6 @@ func (c *Client) ListPolicyServiceAccountsAll(ctx context.Context, policyID stri
 	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[ServiceAccount], error) {
 		return c.ListPolicyServiceAccounts(ctx, policyID, params.withMarker(marker), opts...)
 	})
-}
-
-// ListRegions lists regions (legacy IAM).
-//
-// Legacy compatibility endpoint. New clients should use
-// catalog.basaltic.sh/v1/regions. This endpoint retains IAM-namespaced
-// region CRNs and its existing response shape. List all published
-// regions. This endpoint is public and does not require authentication.
-// Returns all regions with their availability status.
-//
-// Because it takes no credentials, requests are rate-limited per client
-// IP.
-//
-// Sends no bearer token: the credentials in the request are the
-// authentication.
-func (c *Client) ListRegions(ctx context.Context, params *ListRegionsParams, opts ...basaltic.RequestOption) (*ListRegionsResult, error) {
-	op := &basaltic.Operation{
-		ID:              "listRegions",
-		Method:          "GET",
-		Path:            "/v1/regions",
-		Unauthenticated: true,
-	}
-	op.Query = params.query()
-	var out ListRegionsResult
-	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return nil, err
-	}
-	return &out, nil
 }
 
 // ListRoleInlinePolicies lists a role's inline policies.
@@ -1958,6 +2030,28 @@ func (c *Client) SetServiceAccountPermissionBoundary(ctx context.Context, servic
 	return nil
 }
 
+// UpdateOidcProvider updates an OIDC provider.
+//
+// Update audiences, description or tags. Name and issuer are immutable.
+// System providers cannot be changed. Audience changes apply to new
+// exchanges immediately.
+func (c *Client) UpdateOidcProvider(ctx context.Context, providerID string, body *OidcProviderUpdateRequest, opts ...basaltic.RequestOption) (*OidcProvider, error) {
+	op := &basaltic.Operation{
+		ID:       "updateOIDCProvider",
+		Method:   "PATCH",
+		Path:     "/v1/oidc-providers/{provider_id}",
+		PathArgs: []string{providerID},
+		Body:     body,
+	}
+	var out struct {
+		OidcProvider *OidcProvider `json:"oidc_provider"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.OidcProvider, nil
+}
+
 // UpdatePolicy updates policy.
 //
 // Update an existing policy.
@@ -2016,6 +2110,33 @@ func (c *Client) UpdateServiceAccount(ctx context.Context, serviceAccountID stri
 		return nil, err
 	}
 	return out.ServiceAccount, nil
+}
+
+// GetOidcProviderByReference fetches one oidc provider by an id, a CRN
+// or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetOidcProvider]; a CRN or a name goes to
+// [Client.ListOidcProviders] as an exact filter, together with any
+// filters already set on scope, which may be nil. A miss is a not-found
+// error for the kind the string was read as — no other kind is tried
+// — and more than one match is a [basaltic.AmbiguousReferenceError].
+func (c *Client) GetOidcProviderByReference(ctx context.Context, ref string, scope *ListOidcProvidersParams, opts ...basaltic.RequestOption) (*OidcProvider, error) {
+	return basaltic.ResolveByReference(ctx, ref, "oidc-provider", "listOIDCProviders", true,
+		func(ctx context.Context, refID string) (*OidcProvider, error) {
+			return c.GetOidcProvider(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[OidcProvider], error) {
+			var p ListOidcProvidersParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListOidcProviders(ctx, &p, opts...)
+		})
 }
 
 // GetPolicyByReference fetches one policy by an id, a CRN or a name.

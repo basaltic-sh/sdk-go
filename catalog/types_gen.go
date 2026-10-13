@@ -8,24 +8,29 @@ package catalog
 
 type ListRegionsResult struct {
 	// Default accepting region code, or an empty string.
-	Default string    `json:"default"`
-	Regions []*Region `json:"regions"`
+	Default string          `json:"default"`
+	Meta    *PaginationMeta `json:"meta"`
+	Regions []*Region       `json:"regions"`
+}
+
+type PaginationMeta struct {
+	// HasMore whether there are more items
+	HasMore bool `json:"has_more,omitempty"`
+
+	// Limit number of items per page
+	Limit int `json:"limit,omitempty"`
+
+	// Marker opaque cursor for the next page. Pass it back as the `marker` query
+	// parameter; treat it as a token, not a value to parse.
+	Marker string `json:"marker,omitempty"`
+
+	// Total number of items
+	Total int `json:"total,omitempty"`
 }
 
 type Region struct {
-	// AcceptingNewResources true only for active regions. Product services still enforce
-	// eligibility, quotas, placement and capacity.
-	AcceptingNewResources bool `json:"accepting_new_resources"`
-
-	// Available compatibility alias for accepting_new_resources; not a live health
-	// signal
-	Available bool `json:"available"`
-
 	// Code unique region code used in API calls and CRNs
 	Code string `json:"code"`
-
-	// ComingSoon compatibility flag that is true only when state is planned
-	ComingSoon bool `json:"coming_soon"`
 
 	// CountryCode ISO 3166-1 alpha-2 country code (used to display flag in UI)
 	CountryCode string `json:"country_code"`
@@ -40,8 +45,9 @@ type Region struct {
 	// Name human-readable region name
 	Name string `json:"name"`
 
-	// State catalog lifecycle, independent of health and capacity. Retired codes
-	// are never reused.
+	// State region lifecycle and availability. Only active regions accept new
+	// resources; planned, restricted, retiring, and retired regions do
+	// not. This does not guarantee live health, quota, or capacity.
 	//
 	// One of: "planned", "active", "restricted", "retiring", "retired".
 	State string `json:"state"`

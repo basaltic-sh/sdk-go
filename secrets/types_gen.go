@@ -45,6 +45,16 @@ type PutSecretValueRequest struct {
 	Value []byte `json:"value"`
 }
 
+type ResourceRef struct {
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Name display label at response time — the resource's name where it has
+	// one, otherwise its human label (an invoice number, an account
+	// display name). Absent when the target is gone. Not a lookup key.
+	Name string `json:"name,omitempty"`
+}
+
 type Secret struct {
 	CreatedAt time.Time `json:"created_at"`
 	CRN       string    `json:"crn"`
@@ -55,14 +65,8 @@ type Secret struct {
 	Description    string     `json:"description,omitempty"`
 	ID             string     `json:"id"`
 
-	// KMSKeyCRN Customer-managed KMS key the secret is encrypted under. Omitted for
-	// platform encryption or when kms_key_unavailable is true.
-	KMSKeyCRN *string `json:"kms_key_crn,omitempty"`
-
-	// KMSKeyUnavailable true when the bound key has been deleted. The CRN is omitted, but
-	// the binding remains encrypted under its original key identity; this
-	// does not select platform encryption or plaintext.
-	KMSKeyUnavailable bool `json:"kms_key_unavailable,omitempty"`
+	// KMSKey customer-managed encryption key. Omitted for platform encryption.
+	KMSKey *ResourceRef `json:"kms_key,omitempty"`
 
 	// Managed true when a platform service generated this value and reads it back
 	// to act on. You can read and delete a managed secret, but
@@ -87,8 +91,7 @@ type SecretValue struct {
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
-	Name     string `json:"name"`
-	SecretID string `json:"secret_id"`
+	Name string `json:"name"`
 
 	// Value base64 of the plaintext bytes.
 	Value   []byte `json:"value"`
@@ -97,14 +100,10 @@ type SecretValue struct {
 
 type SecretVersion struct {
 	CreatedAt time.Time `json:"created_at"`
-
-	// CreatedBy CRN of the principal that created this version (e.g.
-	// crn:iam:::user/<id>, crn:iam:::service-account/<id>).
-	CreatedBy string `json:"created_by,omitempty"`
-	CRN       string `json:"crn"`
-	ID        string `json:"id"`
-	IsCurrent bool   `json:"is_current"`
-	Version   int    `json:"version"`
+	CRN       string    `json:"crn"`
+	ID        string    `json:"id"`
+	IsCurrent bool      `json:"is_current"`
+	Version   int       `json:"version"`
 }
 
 type Tags = map[string]string

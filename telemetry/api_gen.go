@@ -78,8 +78,20 @@ func (p *ListLogGroupsParams) withMarker(marker string) *ListLogGroupsParams {
 // ListMetricNamesParams are the optional filters and pagination controls for
 // [Client.ListMetricNames]. A nil *ListMetricNamesParams sends none of them.
 type ListMetricNamesParams struct {
-	End   string
-	Start string
+	End string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+	Start  string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -92,16 +104,45 @@ func (p *ListMetricNamesParams) query() url.Values {
 	if p.End != "" {
 		q.Set("end", p.End)
 	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
 	if p.Start != "" {
 		q.Set("start", p.Start)
 	}
 	return q
 }
 
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListMetricNamesParams) withMarker(marker string) *ListMetricNamesParams {
+	var out ListMetricNamesParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
 // ListMetricSeriesParams are the optional filters and pagination controls for
 // [Client.ListMetricSeries]. A nil *ListMetricSeriesParams sends none of them.
 type ListMetricSeriesParams struct {
-	End    string
+	End string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
 	Metric string
 	Start  string
 }
@@ -116,6 +157,12 @@ func (p *ListMetricSeriesParams) query() url.Values {
 	if p.End != "" {
 		q.Set("end", p.End)
 	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
 	if p.Metric != "" {
 		q.Set("metric", p.Metric)
 	}
@@ -123,6 +170,60 @@ func (p *ListMetricSeriesParams) query() url.Values {
 		q.Set("start", p.Start)
 	}
 	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListMetricSeriesParams) withMarker(marker string) *ListMetricSeriesParams {
+	var out ListMetricSeriesParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
+// ListTraceSpansParams are the optional filters and pagination controls for
+// [Client.ListTraceSpans]. A nil *ListTraceSpansParams sends none of them.
+type ListTraceSpansParams struct {
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListTraceSpansParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListTraceSpansParams) withMarker(marker string) *ListTraceSpansParams {
+	var out ListTraceSpansParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
 }
 
 // QueryMetricsInstantParams are the optional filters and pagination controls for
@@ -498,50 +599,49 @@ func (c *Client) GetLogGroup(ctx context.Context, id string, opts ...basaltic.Re
 
 // GetRetainedTelemetryPresence — Check retained telemetry presence.
 //
-// Requires telemetry:GetTraceSettings. Reports physical presence of
-// account logs, spans, metrics and retention rollups in this region,
-// including expired rows awaiting reclamation. Does not return record
-// payloads or bypass TTLs.
-func (c *Client) GetRetainedTelemetryPresence(ctx context.Context, opts ...basaltic.RequestOption) (bool, error) {
+// Reports whether logs, spans, metrics or retention rollups remain in
+// this account and region, including expired data awaiting reclamation.
+// Requires telemetry:GetRetainedData.
+func (c *Client) GetRetainedTelemetryPresence(ctx context.Context, opts ...basaltic.RequestOption) (*GetRetainedTelemetryPresenceRetainedData, error) {
 	op := &basaltic.Operation{
 		ID:     "getRetainedTelemetryPresence",
 		Method: "GET",
-		Path:   "/v1/trace-settings/retained-data",
+		Path:   "/v1/retained-data",
 	}
 	var out struct {
-		HasResources bool `json:"has_resources"`
+		RetainedData *GetRetainedTelemetryPresenceRetainedData `json:"retained_data"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return false, err
+		return nil, err
 	}
-	return out.HasResources, nil
+	return out.RetainedData, nil
 }
 
-// GetTrace gets all spans for a trace.
+// GetTrace gets a trace.
 //
-// Returns every span belonging to `trace_id`, ordered by `start_time`
-// ASC for direct waterfall rendering. Requires `telemetry:ReadTraces`.
-func (c *Client) GetTrace(ctx context.Context, traceID string, opts ...basaltic.RequestOption) (*TraceResponse, error) {
+// Returns the same trace summary as the trace list. Requires
+// telemetry:ReadTraces.
+func (c *Client) GetTrace(ctx context.Context, traceID string, opts ...basaltic.RequestOption) (*TraceSummary, error) {
 	op := &basaltic.Operation{
 		ID:       "getTrace",
 		Method:   "GET",
 		Path:     "/v1/traces/{trace_id}",
 		PathArgs: []string{traceID},
 	}
-	var out TraceResponse
+	var out struct {
+		Trace *TraceSummary `json:"trace"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return &out, nil
+	return out.Trace, nil
 }
 
 // GetTraceSettings gets the caller account's trace settings.
 //
-// Returns the trace retention + KMS association for the active
-// X-Account-Id. When no settings row has been written for the account
-// yet, the response carries the in-memory defaults (retention_days=null
-// → never-expire is *not* the default; ingest stamps 30 days when both
-// DB row and PUT body are empty). Requires `telemetry:GetTraceSettings`.
+// Returns effective trace retention and encryption settings for the
+// active account. Defaults to 30 days and no KMS key. Requires
+// telemetry:GetTraceSettings.
 func (c *Client) GetTraceSettings(ctx context.Context, opts ...basaltic.RequestOption) (*TraceSettings, error) {
 	op := &basaltic.Operation{
 		ID:     "getTraceSettings",
@@ -571,11 +671,13 @@ func (c *Client) IngestLogs(ctx context.Context, body *IngestRequest, opts ...ba
 		Path:   "/v1/logs",
 		Body:   body,
 	}
-	var out IngestResult
+	var out struct {
+		Ingestion *IngestResult `json:"ingestion"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return &out, nil
+	return out.Ingestion, nil
 }
 
 // IngestSpans ingests a batch of trace spans.
@@ -590,11 +692,13 @@ func (c *Client) IngestSpans(ctx context.Context, body *IngestSpansRequest, opts
 		Path:   "/v1/spans",
 		Body:   body,
 	}
-	var out IngestResult
+	var out struct {
+		Ingestion *IngestResult `json:"ingestion"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return &out, nil
+	return out.Ingestion, nil
 }
 
 // ListLogGroups lists log groups (or look up one by name).
@@ -655,187 +759,323 @@ func (c *Client) ListLogGroupsAll(ctx context.Context, params *ListLogGroupsPara
 	})
 }
 
-// ListMetricNames lists the distinct metric names emitted in a time window.
+// ListMetricNames lists metric names.
 //
-// Returns the distinct metric names the tenant has emitted in [start,
-// end] — the metric explorer's catalogue. GET + POST are equivalent;
-// POST lets large param sets ride the body. Requires
-// `telemetry:ReadMetrics`.
-func (c *Client) ListMetricNames(ctx context.Context, params *ListMetricNamesParams, opts ...basaltic.RequestOption) (*ListMetricNamesResult, error) {
+// Returns metric names in alphabetical order for the time window. Follow
+// meta.marker while meta.has_more is true. Requires
+// telemetry:ReadMetrics.
+//
+// Returns one page. Use ListMetricNamesAll to walk every page.
+func (c *Client) ListMetricNames(ctx context.Context, params *ListMetricNamesParams, opts ...basaltic.RequestOption) (*basaltic.Page[string], error) {
 	op := &basaltic.Operation{
 		ID:     "listMetricNames",
 		Method: "GET",
 		Path:   "/v1/metrics/names",
 	}
 	op.Query = params.query()
-	var out ListMetricNamesResult
+	var out struct {
+		Items []string `json:"metric_names"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return &out, nil
+	page := &basaltic.Page[string]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
 }
 
-// ListMetricNamesPost lists the distinct metric names emitted in a time window (form body).
+// ListMetricNamesAll walks every page of ListMetricNames, yielding one
+// item at a time.
 //
-// Same as GET but accepts form-encoded body.
-func (c *Client) ListMetricNamesPost(ctx context.Context, body io.Reader, opts ...basaltic.RequestOption) (*ListMetricNamesPostResult, error) {
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListMetricNamesAll(ctx, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListMetricNamesAll(ctx context.Context, params *ListMetricNamesParams, opts ...basaltic.RequestOption) iter.Seq2[string, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[string], error) {
+		return c.ListMetricNames(ctx, params.withMarker(marker), opts...)
+	})
+}
+
+// ListMetricNamesPost lists metric names (JSON).
+//
+// Same operation as GET, with a JSON body. Arrays use match and by
+// instead of repeated query parameters.
+func (c *Client) ListMetricNamesPost(ctx context.Context, body *ListMetricNamesPostRequest, opts ...basaltic.RequestOption) (*basaltic.Page[string], error) {
 	op := &basaltic.Operation{
-		ID:          "listMetricNamesPost",
-		Method:      "POST",
-		Path:        "/v1/metrics/names",
-		Stream:      body,
-		ContentType: "application/x-www-form-urlencoded",
+		ID:     "listMetricNamesPost",
+		Method: "POST",
+		Path:   "/v1/metrics/names",
+		Body:   body,
 	}
-	var out ListMetricNamesPostResult
+	var out struct {
+		Items []string `json:"metric_names"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return &out, nil
+	page := &basaltic.Page[string]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
 }
 
-// ListMetricSeries lists distinct label sets for a metric.
+// ListMetricSeries lists metric series.
 //
-// Returns distinct label sets for `metric` in [start, end] — the
-// discovery surface for custom dashboards. Required: `metric`, `start`,
-// `end`.
+// Returns distinct label sets for one metric in the time window. Follow
+// meta.marker while meta.has_more is true. Requires
+// telemetry:ReadMetrics.
 //
-// Requires `telemetry:ReadMetrics`.
-func (c *Client) ListMetricSeries(ctx context.Context, params *ListMetricSeriesParams, opts ...basaltic.RequestOption) (map[string]any, error) {
+// Returns one page. Use ListMetricSeriesAll to walk every page.
+func (c *Client) ListMetricSeries(ctx context.Context, params *ListMetricSeriesParams, opts ...basaltic.RequestOption) (*basaltic.Page[map[string]string], error) {
 	op := &basaltic.Operation{
 		ID:     "listMetricSeries",
 		Method: "GET",
 		Path:   "/v1/metrics/series",
 	}
 	op.Query = params.query()
-	var out map[string]any
+	var out struct {
+		Items []map[string]string `json:"series"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out, nil
+	page := &basaltic.Page[map[string]string]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
 }
 
-// ListMetricSeriesPost lists distinct label sets for a metric (form body).
+// ListMetricSeriesAll walks every page of ListMetricSeries, yielding one
+// item at a time.
 //
-// Same as GET but accepts form-encoded body.
-func (c *Client) ListMetricSeriesPost(ctx context.Context, body io.Reader, opts ...basaltic.RequestOption) (map[string]any, error) {
-	op := &basaltic.Operation{
-		ID:          "listMetricSeriesPost",
-		Method:      "POST",
-		Path:        "/v1/metrics/series",
-		Stream:      body,
-		ContentType: "application/x-www-form-urlencoded",
-	}
-	var out map[string]any
-	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return nil, err
-	}
-	return out, nil
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListMetricSeriesAll(ctx, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListMetricSeriesAll(ctx context.Context, params *ListMetricSeriesParams, opts ...basaltic.RequestOption) iter.Seq2[map[string]string, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[map[string]string], error) {
+		return c.ListMetricSeries(ctx, params.withMarker(marker), opts...)
+	})
 }
 
-// PutTraceSettings updates the caller account's trace settings.
+// ListMetricSeriesPost lists metric series (JSON).
 //
-// Replaces the account's trace retention and encryption settings.
-// Omitted retention or `clear_retention=true` selects the default 30
-// days; spans always expire. `kms_key` accepts a UUID, CRN or exact name
-// in the authenticated account and serving region. Omission or an empty
-// string selects plaintext for future spans. Existing ciphertext retains
-// its original key UUID even when that key is deleted and its name
-// reused. Requires `telemetry:PutTraceSettings`.
-func (c *Client) PutTraceSettings(ctx context.Context, body *UpdateTraceSettingsRequest, opts ...basaltic.RequestOption) (*TraceSettings, error) {
+// Same operation as GET, with a JSON body. Arrays use match and by
+// instead of repeated query parameters.
+func (c *Client) ListMetricSeriesPost(ctx context.Context, body *ListMetricSeriesPostRequest, opts ...basaltic.RequestOption) (*basaltic.Page[map[string]string], error) {
 	op := &basaltic.Operation{
-		ID:     "putTraceSettings",
-		Method: "PUT",
-		Path:   "/v1/trace-settings",
+		ID:     "listMetricSeriesPost",
+		Method: "POST",
+		Path:   "/v1/metrics/series",
 		Body:   body,
 	}
 	var out struct {
-		TraceSettings *TraceSettings `json:"trace_settings"`
+		Items []map[string]string `json:"series"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.TraceSettings, nil
+	page := &basaltic.Page[map[string]string]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
 }
 
-// QueryMetricsInstant — Instant structured metric query.
+// ListTraceSpans lists spans in a trace.
 //
-// Instant query over ClickHouse. Required: `metric` (name) and `agg`
-// (avg|sum|min|max|count|last|rate|increase). Optional `match[]` label
-// matchers, `by[]` group-by labels, `step` (lookback window, default
-// 5m), and `time` (evaluation instant). Returns a Prometheus-compatible
-// vector envelope.
+// Returns spans ordered by start_time and span_id, with cursor
+// pagination. Requires telemetry:ReadTraces.
 //
-// Requires `telemetry:ReadMetrics`.
-func (c *Client) QueryMetricsInstant(ctx context.Context, params *QueryMetricsInstantParams, opts ...basaltic.RequestOption) (map[string]any, error) {
+// Returns one page. Use ListTraceSpansAll to walk every page.
+func (c *Client) ListTraceSpans(ctx context.Context, traceID string, params *ListTraceSpansParams, opts ...basaltic.RequestOption) (*basaltic.Page[Span], error) {
+	op := &basaltic.Operation{
+		ID:       "listTraceSpans",
+		Method:   "GET",
+		Path:     "/v1/traces/{trace_id}/spans",
+		PathArgs: []string{traceID},
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []Span `json:"spans"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[Span]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListTraceSpansAll walks every page of ListTraceSpans, yielding one
+// item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListTraceSpansAll(ctx, traceID, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListTraceSpansAll(ctx context.Context, traceID string, params *ListTraceSpansParams, opts ...basaltic.RequestOption) iter.Seq2[Span, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[Span], error) {
+		return c.ListTraceSpans(ctx, traceID, params.withMarker(marker), opts...)
+	})
+}
+
+// QueryMetricsInstant — Run an instant metric query.
+//
+// Returns the latest aggregate point per series. Select metric, optional
+// agg (default avg), match and by labels. Default lookback is 5m.
+// Requires telemetry:ReadMetrics.
+func (c *Client) QueryMetricsInstant(ctx context.Context, params *QueryMetricsInstantParams, opts ...basaltic.RequestOption) (*MetricQueryResult, error) {
 	op := &basaltic.Operation{
 		ID:     "queryMetricsInstant",
 		Method: "GET",
 		Path:   "/v1/metrics/query",
 	}
 	op.Query = params.query()
-	var out map[string]any
+	var out struct {
+		QueryResult *MetricQueryResult `json:"query_result"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out.QueryResult, nil
 }
 
-// QueryMetricsInstantPost — Instant structured metric query (form body).
+// QueryMetricsInstantPost — Run an instant metric query (JSON).
 //
-// Same as GET but accepts form-encoded body for long matcher sets.
-func (c *Client) QueryMetricsInstantPost(ctx context.Context, body io.Reader, opts ...basaltic.RequestOption) (map[string]any, error) {
+// Same operation as GET, with a JSON body. Arrays use match and by
+// instead of repeated query parameters.
+func (c *Client) QueryMetricsInstantPost(ctx context.Context, body *QueryMetricsInstantPostRequest, opts ...basaltic.RequestOption) (*MetricQueryResult, error) {
 	op := &basaltic.Operation{
-		ID:          "queryMetricsInstantPost",
-		Method:      "POST",
-		Path:        "/v1/metrics/query",
-		Stream:      body,
-		ContentType: "application/x-www-form-urlencoded",
+		ID:     "queryMetricsInstantPost",
+		Method: "POST",
+		Path:   "/v1/metrics/query",
+		Body:   body,
 	}
-	var out map[string]any
+	var out struct {
+		QueryResult *MetricQueryResult `json:"query_result"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out.QueryResult, nil
 }
 
-// QueryMetricsRange — Range structured metric query.
+// QueryMetricsRange — Run a range metric query.
 //
-// Range variant returning a Prometheus matrix. Required: `metric`,
-// `agg`, `start`, `end`. Optional `match[]`, `by[]`, `step` (bucket
-// width; repository defaults missing step to 60s). Window max 31d;
-// result capped at 11000 points.
-//
-// Requires `telemetry:ReadMetrics`.
-func (c *Client) QueryMetricsRange(ctx context.Context, params *QueryMetricsRangeParams, opts ...basaltic.RequestOption) (map[string]any, error) {
+// Returns aggregate points per series between start and end. The window
+// is limited to 31 days and 11000 buckets per series; step defaults to
+// 60s. Requires telemetry:ReadMetrics.
+func (c *Client) QueryMetricsRange(ctx context.Context, params *QueryMetricsRangeParams, opts ...basaltic.RequestOption) (*MetricQueryResult, error) {
 	op := &basaltic.Operation{
 		ID:     "queryMetricsRange",
 		Method: "GET",
-		Path:   "/v1/metrics/query_range",
+		Path:   "/v1/metrics/query-range",
 	}
 	op.Query = params.query()
-	var out map[string]any
+	var out struct {
+		QueryResult *MetricQueryResult `json:"query_result"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out.QueryResult, nil
 }
 
-// QueryMetricsRangePost — Range structured metric query (form body).
+// QueryMetricsRangePost — Run a range metric query (JSON).
 //
-// Same as GET but accepts form-encoded body for long matcher sets.
-func (c *Client) QueryMetricsRangePost(ctx context.Context, body io.Reader, opts ...basaltic.RequestOption) (map[string]any, error) {
+// Same operation as GET, with a JSON body. Arrays use match and by
+// instead of repeated query parameters.
+func (c *Client) QueryMetricsRangePost(ctx context.Context, body *QueryMetricsRangePostRequest, opts ...basaltic.RequestOption) (*MetricQueryResult, error) {
 	op := &basaltic.Operation{
-		ID:          "queryMetricsRangePost",
-		Method:      "POST",
-		Path:        "/v1/metrics/query_range",
-		Stream:      body,
-		ContentType: "application/x-www-form-urlencoded",
+		ID:     "queryMetricsRangePost",
+		Method: "POST",
+		Path:   "/v1/metrics/query-range",
+		Body:   body,
 	}
-	var out map[string]any
+	var out struct {
+		QueryResult *MetricQueryResult `json:"query_result"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out.QueryResult, nil
 }
 
 // SearchLogs searches log records.
@@ -974,6 +1214,28 @@ func (c *Client) UpdateLogGroup(ctx context.Context, id string, body *UpdateLogG
 		return nil, err
 	}
 	return out.LogGroup, nil
+}
+
+// UpdateTraceSettings updates the caller account's trace settings.
+//
+// Updates supplied fields only. Null retention restores 30 days; null
+// kms_key clears encryption for future spans. Stored spans keep their
+// original retention and encryption. Requires
+// telemetry:PutTraceSettings.
+func (c *Client) UpdateTraceSettings(ctx context.Context, body *UpdateTraceSettingsRequest, opts ...basaltic.RequestOption) (*TraceSettings, error) {
+	op := &basaltic.Operation{
+		ID:     "updateTraceSettings",
+		Method: "PATCH",
+		Path:   "/v1/trace-settings",
+		Body:   body,
+	}
+	var out struct {
+		TraceSettings *TraceSettings `json:"trace_settings"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.TraceSettings, nil
 }
 
 // WriteMetrics — Prometheus remote_write ingest.

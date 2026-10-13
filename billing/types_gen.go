@@ -134,41 +134,28 @@ type CurrentUsage struct {
 	PeriodStart time.Time    `json:"period_start"`
 }
 
-// FiscalInvoice One NFS-e per confirmed provider payment, including partial payments
-// or credit top-ups. Consuming prepaid credit never issues the same
-// money twice. Recipient details and receipt amount are frozen before
-// submission.
+// FiscalInvoice an issued fiscal invoice for a confirmed payment. Only issued
+// documents appear in the public collection; recipient and receipt
+// details were frozen before issuance.
 type FiscalInvoice struct {
 	// Amount actual amount received in BRL, not the billing invoice total.
 	Amount    string    `json:"amount"`
-	Attempts  int       `json:"attempts"`
 	CreatedAt time.Time `json:"created_at"`
 
-	// EmailStatus separate delivery state. Queued means durably accepted by the
-	// internal email service; it does not assert recipient delivery.
-	//
-	// One of: "pending", "queued".
-	EmailStatus string    `json:"email_status"`
-	ID          string    `json:"id"`
-	InvoiceID   *string   `json:"invoice_id,omitempty"`
-	IssuedAt    time.Time `json:"issued_at,omitempty"`
+	// CRN global organization-scoped fiscal invoice identity.
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
 
-	// LastError sanitized operational error or municipal rejection codes.
-	LastError      string `json:"last_error,omitempty"`
-	Number         string `json:"number,omitempty"`
-	OrganizationID string `json:"organization_id"`
-	PaymentID      string `json:"payment_id"`
-
-	// RequiresReview refunds preserve the fiscal document and require operator review;
-	// cancellation is never inferred automatically.
-	RequiresReview bool `json:"requires_review"`
-
-	// One of: "queued", "waiting_details", "retrying", "rejected", "issued", "review_required".
-	Status string `json:"status"`
+	// Invoice related billing invoice, or null for a payment without an invoice.
+	// Deleted invoices retain their identity without a name.
+	Invoice  *ResourceRef `json:"invoice"`
+	IssuedAt *time.Time   `json:"issued_at"`
+	Number   string       `json:"number"`
+	Payment  *ResourceRef `json:"payment"`
 
 	// URL municipal view/print link available after issuance.
-	URL              string `json:"url,omitempty"`
-	VerificationCode string `json:"verification_code,omitempty"`
+	URL              string `json:"url"`
+	VerificationCode string `json:"verification_code"`
 }
 
 type Invoice struct {
@@ -240,9 +227,9 @@ type Payment struct {
 	DisputedAmount string `json:"disputed_amount"`
 	ID             string `json:"id"`
 
-	// Invoice current invoice list shape, without items; null when the invoice has
-	// been deleted.
-	Invoice *Invoice `json:"invoice"`
+	// Invoice related invoice. Null only when the payment has no invoice; a
+	// deleted invoice retains id and crn without name.
+	Invoice *ResourceRef `json:"invoice"`
 
 	// RefundedAmount confirmed refunds less failed-refund reversals, in BRL.
 	RefundedAmount string `json:"refunded_amount"`
@@ -315,13 +302,10 @@ type Transaction struct {
 	Description *string `json:"description,omitempty"`
 	ID          string  `json:"id"`
 
-	// Reference organization-scoped reference to the ledger entry's target:
-	// crn:billing:::invoice/<id>, crn:billing:::payment/<id>, or
-	// crn:billing:::credit/<id> for a credit grant. Pass this CRN to the
-	// corresponding collection's crn filter within the authenticated
-	// organization. Null for manual entries, unsupported reference types,
-	// or missing references.
-	Reference *string `json:"reference,omitempty"`
+	// Reference organization-scoped invoice, payment, or credit related to this
+	// ledger entry. Null for manual entries, unsupported types, or absent
+	// identities. Deleted targets retain id and crn without name.
+	Reference *ResourceRef `json:"reference"`
 
 	// Type ledger entry type.
 	//

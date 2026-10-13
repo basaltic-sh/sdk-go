@@ -282,6 +282,11 @@ inst, err := c.CreateInstance(ctx, req,
 )
 ```
 
+Optional request pointers omit fields when nil. To clear a nullable field in a
+PATCH request, pass `basaltic.WithNullFields("retention_days")` (or another JSON
+field name). This sends an explicit `null`; it overrides that field's value in
+the request struct without changing the struct. Other fields remain omitted.
+
 ## Generated code
 
 The service operations and types are generated internally from the platform's

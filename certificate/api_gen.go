@@ -105,7 +105,10 @@ func (c *Client) CreateCertificate(ctx context.Context, body *CertificateIssueRe
 
 // DeleteCertificate deletes certificate.
 //
-// Delete a certificate.
+// Delete a certificate. Returns 409 Conflict while the certificate is
+// the default of any load balancer listener. Select another default
+// certificate on every affected listener, or delete those listeners,
+// before deleting the certificate.
 func (c *Client) DeleteCertificate(ctx context.Context, certificateID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "deleteCertificate",

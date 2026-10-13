@@ -19,7 +19,7 @@ func TestLifecycleOptionalDatesOnWire(t *testing.T) {
 		`{"status":"enabled","expiration":{"days":30},"transition":{"days":0,"storage_class":"COLD"}}`,
 	} {
 		t.Run(rule, func(t *testing.T) {
-			input := `{"lifecycle":{"rules":[` + rule + `]}}`
+			input := `{"lifecycle_rules":[` + rule + `]}`
 			var body storage.PutBucketLifecycleRequest
 			if err := json.Unmarshal([]byte(input), &body); err != nil {
 				t.Fatal(err)

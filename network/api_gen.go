@@ -114,14 +114,61 @@ func (p *ListEgressOnlyGatewaysParams) withMarker(marker string) *ListEgressOnly
 	return &out
 }
 
+// ListFloatingIPInterfacesParams are the optional filters and pagination controls for
+// [Client.ListFloatingIPInterfaces]. A nil *ListFloatingIPInterfacesParams sends none of them.
+type ListFloatingIPInterfacesParams struct {
+	// CRN exact interface CRN.
+	CRN    string
+	Limit  int
+	Marker string
+
+	// Name interface names require subnet scope; this collection rejects bare
+	// name filters. Use crn instead.
+	Name string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListFloatingIPInterfacesParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListFloatingIPInterfacesParams) withMarker(marker string) *ListFloatingIPInterfacesParams {
+	var out ListFloatingIPInterfacesParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
 // ListFloatingIPsParams are the optional filters and pagination controls for
 // [Client.ListFloatingIPs]. A nil *ListFloatingIPsParams sends none of them.
 type ListFloatingIPsParams struct {
-	// AttachedTo exact attachment CRN: an interface for an ordinary binding, an
-	// instance pool (including a pool with zero members), or a load
-	// balancer. Applied before pagination and intersected with other
-	// filters. Malformed CRNs return 400; well-formed foreign or
-	// mismatched CRNs return an empty page.
+	// AttachedTo exact attachment CRN: an interface in the interfaces collection, an
+	// instance pool (including an empty pool), or a load balancer.
+	// Interface membership matches even when the response attached_to is
+	// null. Applied before pagination and intersected with other filters.
+	// Malformed CRNs return 400; well-formed foreign or mismatched CRNs
+	// return an empty page.
 	AttachedTo string
 
 	// CRN Exact CRN, validated against the endpoint type, region and caller
@@ -182,6 +229,18 @@ type ListInterfaceSecurityGroupsParams struct {
 	// malformed or flat child CRNs return 400. Filters are conjunctive.
 	CRN string
 
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+
 	// Name exact resource name.
 	Name string
 }
@@ -196,10 +255,27 @@ func (p *ListInterfaceSecurityGroupsParams) query() url.Values {
 	if p.CRN != "" {
 		q.Set("crn", p.CRN)
 	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
 	if p.Name != "" {
 		q.Set("name", p.Name)
 	}
 	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListInterfaceSecurityGroupsParams) withMarker(marker string) *ListInterfaceSecurityGroupsParams {
+	var out ListInterfaceSecurityGroupsParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
 }
 
 // ListInterfacesParams are the optional filters and pagination controls for
@@ -783,64 +859,59 @@ func (p *ListVPCsParams) withMarker(marker string) *ListVPCsParams {
 	return &out
 }
 
-// AttachFloatingIP attaches a floating IP to an interface.
+// AttachFloatingIP attaches an interface to a floating IP.
 //
-// Binds the floating IP to the given interface and routes the public IP
-// to the instance behind it. Idempotent re-attach to the same iface is a
-// no-op.
+// Adds the interface to the floating IP. Reattaching the same interface
+// and address is idempotent.
 //
-// Attaching a second distinct NIC returns 409 with a message directing
-// you to instance pools. Multiple members require a pool-owned address;
-// use `POST /v1/instance-pools/{pool_id}/floating-ips` to manage those
-// bindings. An address already owned by a pool or bound to a load
-// balancer is refused here (409). A manually attached NIC without a
-// health check has health `unknown` and remains advertised.
+// Multiple direct interfaces must belong to the same VPC and require
+// anycast support in the region. Pool-owned and load-balancer-owned
+// addresses are refused (409); manage them through their owner. A direct
+// interface without a health check has health `unknown` and remains
+// advertised.
 //
-// The interface's subnet must already route `0.0.0.0/0` to an internet
-// gateway, or the address would be handed back unreachable (400).
+// A public floating IP requires the interface subnet to route the family
+// default (`0.0.0.0/0` or `::/0`) to an internet gateway. A private
+// floating IP requires an interface in its allocation VPC. Each
+// interface can receive one floating IP per family and visibility.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
-func (c *Client) AttachFloatingIP(ctx context.Context, floatingIPID string, body *AttachFloatingIPRequest, opts ...basaltic.RequestOption) (*FloatingIP, error) {
+func (c *Client) AttachFloatingIP(ctx context.Context, floatingIPID string, body *AttachFloatingIPRequest, opts ...basaltic.RequestOption) (*FloatingIPInterface, error) {
 	op := &basaltic.Operation{
 		ID:       "attachFloatingIp",
 		Method:   "POST",
-		Path:     "/v1/floating-ips/{floating_ip_id}/attach",
+		Path:     "/v1/floating-ips/{floating_ip_id}/interfaces",
 		PathArgs: []string{floatingIPID},
 		Body:     body,
 	}
 	var out struct {
-		FloatingIP *FloatingIP `json:"floating_ip"`
+		Interface *FloatingIPInterface `json:"interface"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.FloatingIP, nil
+	return out.Interface, nil
 }
 
-// AttachInternetGateway attaches internet gateway to a VPC.
+// AttachInterfaceSecurityGroup attaches a security group to an interface.
 //
-// Allocates an address from the regional external pool and connects the
-// VPC's router to the regional external network. AWS rule: each VPC can
-// have at most one IGW attached at a time.
-//
-// Accepts basaltic.WithIdempotencyKey, which makes the call
-// replay-safe and therefore retryable.
-func (c *Client) AttachInternetGateway(ctx context.Context, internetGatewayID string, body *InternetGatewayAttachRequest, opts ...basaltic.RequestOption) (*InternetGateway, error) {
+// Adds one security group without changing the other attached groups.
+func (c *Client) AttachInterfaceSecurityGroup(ctx context.Context, interfaceID string, body *InterfaceSecurityGroupRequest, opts ...basaltic.RequestOption) (*SecurityGroup, error) {
 	op := &basaltic.Operation{
-		ID:       "attachInternetGateway",
+		ID:       "attachInterfaceSecurityGroup",
 		Method:   "POST",
-		Path:     "/v1/internet-gateways/{internet_gateway_id}/attach",
-		PathArgs: []string{internetGatewayID},
+		Path:     "/v1/interfaces/{interface_id}/security-groups",
+		PathArgs: []string{interfaceID},
 		Body:     body,
 	}
 	var out struct {
-		InternetGateway *InternetGateway `json:"internet_gateway"`
+		SecurityGroup *SecurityGroup `json:"security_group"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.InternetGateway, nil
+	return out.SecurityGroup, nil
 }
 
 // CreateEgressOnlyGateway creates egress-only gateway.
@@ -938,7 +1009,7 @@ func (c *Client) CreateInterfaceAddress(ctx context.Context, interfaceID string,
 }
 
 // CreateInterfacePrefix creates interface prefix.
-func (c *Client) CreateInterfacePrefix(ctx context.Context, interfaceID string, body *CreateInterfacePrefixRequest, opts ...basaltic.RequestOption) ([]*RoutedPrefix, error) {
+func (c *Client) CreateInterfacePrefix(ctx context.Context, interfaceID string, body *CreateInterfacePrefixRequest, opts ...basaltic.RequestOption) (*RoutedPrefix, error) {
 	op := &basaltic.Operation{
 		ID:       "createInterfacePrefix",
 		Method:   "POST",
@@ -947,18 +1018,19 @@ func (c *Client) CreateInterfacePrefix(ctx context.Context, interfaceID string, 
 		Body:     body,
 	}
 	var out struct {
-		RoutedPrefixes []*RoutedPrefix `json:"routed_prefixes"`
+		Prefix *RoutedPrefix `json:"prefix"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.RoutedPrefixes, nil
+	return out.Prefix, nil
 }
 
 // CreateInternetGateway creates internet gateway.
 //
-// Creates an IGW in the detached state. Use POST /attach to hook it up
-// to a VPC.
+// Creates an internet gateway bound to the selected VPC. Each VPC can
+// have one internet gateway. Add routes separately to send traffic
+// through it.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
@@ -1008,7 +1080,7 @@ func (c *Client) CreateNATGateway(ctx context.Context, body *NATGatewayCreateReq
 }
 
 // CreatePrefixPool creates prefix pool.
-func (c *Client) CreatePrefixPool(ctx context.Context, vpcID string, body *CreatePrefixPoolRequest, opts ...basaltic.RequestOption) ([]*PrefixPool, error) {
+func (c *Client) CreatePrefixPool(ctx context.Context, vpcID string, body *CreatePrefixPoolRequest, opts ...basaltic.RequestOption) (*PrefixPool, error) {
 	op := &basaltic.Operation{
 		ID:       "createPrefixPool",
 		Method:   "POST",
@@ -1017,12 +1089,12 @@ func (c *Client) CreatePrefixPool(ctx context.Context, vpcID string, body *Creat
 		Body:     body,
 	}
 	var out struct {
-		PrefixPools []*PrefixPool `json:"prefix_pools"`
+		PrefixPool *PrefixPool `json:"prefix_pool"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.PrefixPools, nil
+	return out.PrefixPool, nil
 }
 
 // CreateRoute creates route.
@@ -1182,8 +1254,8 @@ func (c *Client) DeleteEgressOnlyGateway(ctx context.Context, egressOnlyGatewayI
 
 // DeleteFloatingIP releases floating IP.
 //
-// Return the IP to the pool. Refuses if the floating IP is still
-// attached to an interface — detach first.
+// Release the address. It must have no owner and an empty interfaces
+// array; detach all bindings first.
 func (c *Client) DeleteFloatingIP(ctx context.Context, floatingIPID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "deleteFloatingIp",
@@ -1246,7 +1318,8 @@ func (c *Client) DeleteInterfacePrefix(ctx context.Context, interfaceID string, 
 
 // DeleteInternetGateway deletes internet gateway.
 //
-// Refuses if still attached or if any route references it.
+// Deletes the gateway and its VPC connection. Remove routes targeting
+// the gateway first.
 func (c *Client) DeleteInternetGateway(ctx context.Context, internetGatewayID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "deleteInternetGateway",
@@ -1386,58 +1459,96 @@ func (c *Client) DeleteVPC(ctx context.Context, vpcID string, opts ...basaltic.R
 	return nil
 }
 
-// DetachFloatingIP detaches a floating IP.
+// DetachFloatingIP detaches all direct interfaces from a floating IP.
 //
-// Stops routing the public IP and clears the binding. Idempotent —
-// detaching an already-detached floating IP (or a NIC that isn't a
-// member) returns 200 with the unchanged row.
-//
-// An address an instance pool owns is refused (409): its members are
-// that pool's live replicas, so removing one here would be reinstated by
-// the pool's next reconcile. Detach it at `DELETE
-// /v1/instance-pools/{pool_id}/floating-ips/{floating_ip_id}`.
-//
-// Accepts basaltic.WithIdempotencyKey, which makes the call
-// replay-safe and therefore retryable.
-func (c *Client) DetachFloatingIP(ctx context.Context, floatingIPID string, body *DetachFloatingIPRequest, opts ...basaltic.RequestOption) (*FloatingIP, error) {
+// Remove all direct interface bindings. Pool and load balancer bindings
+// must be removed through their owners.
+func (c *Client) DetachFloatingIP(ctx context.Context, floatingIPID string, opts ...basaltic.RequestOption) error {
 	op := &basaltic.Operation{
 		ID:       "detachFloatingIp",
-		Method:   "POST",
-		Path:     "/v1/floating-ips/{floating_ip_id}/detach",
+		Method:   "DELETE",
+		Path:     "/v1/floating-ips/{floating_ip_id}/interfaces",
 		PathArgs: []string{floatingIPID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DetachFloatingIPInterface detaches an interface from a floating IP.
+//
+// Remove one direct interface binding. Other interfaces continue
+// receiving traffic.
+func (c *Client) DetachFloatingIPInterface(ctx context.Context, floatingIPID string, interfaceID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "detachFloatingIpInterface",
+		Method:   "DELETE",
+		Path:     "/v1/floating-ips/{floating_ip_id}/interfaces/{interface_id}",
+		PathArgs: []string{floatingIPID, interfaceID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DetachInterfaceSecurityGroup detaches a security group from an interface.
+//
+// Removes this attachment without changing the other attached groups.
+func (c *Client) DetachInterfaceSecurityGroup(ctx context.Context, interfaceID string, securityGroupID string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "detachInterfaceSecurityGroup",
+		Method:   "DELETE",
+		Path:     "/v1/interfaces/{interface_id}/security-groups/{security_group_id}",
+		PathArgs: []string{interfaceID, securityGroupID},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
+}
+
+// EnableSubnetIPv6 enables IPv6 on a subnet.
+//
+// Assign an IPv6 range after creation. Existing ranges cannot be
+// replaced.
+func (c *Client) EnableSubnetIPv6(ctx context.Context, subnetID string, body *SubnetIPv6request, opts ...basaltic.RequestOption) (*Subnet, error) {
+	op := &basaltic.Operation{
+		ID:       "enableSubnetIPv6",
+		Method:   "POST",
+		Path:     "/v1/subnets/{subnet_id}/ipv6",
+		PathArgs: []string{subnetID},
 		Body:     body,
 	}
 	var out struct {
-		FloatingIP *FloatingIP `json:"floating_ip"`
+		Subnet *Subnet `json:"subnet"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.FloatingIP, nil
+	return out.Subnet, nil
 }
 
-// DetachInternetGateway detaches internet gateway from its VPC.
+// EnableVpciPv6 enables IPv6 on a vpc.
 //
-// Disconnects the VPC's router from the external network and returns the
-// external IP to the pool. Refuses if any route still references the
-// IGW.
-//
-// Accepts basaltic.WithIdempotencyKey, which makes the call
-// replay-safe and therefore retryable.
-func (c *Client) DetachInternetGateway(ctx context.Context, internetGatewayID string, opts ...basaltic.RequestOption) (*InternetGateway, error) {
+// Assign an IPv6 range after creation. Existing ranges cannot be
+// replaced.
+func (c *Client) EnableVpciPv6(ctx context.Context, vpcID string, body *VPCIPv6request, opts ...basaltic.RequestOption) (*VPC, error) {
 	op := &basaltic.Operation{
-		ID:       "detachInternetGateway",
+		ID:       "enableVPCIPv6",
 		Method:   "POST",
-		Path:     "/v1/internet-gateways/{internet_gateway_id}/detach",
-		PathArgs: []string{internetGatewayID},
+		Path:     "/v1/vpcs/{vpc_id}/ipv6",
+		PathArgs: []string{vpcID},
+		Body:     body,
 	}
 	var out struct {
-		InternetGateway *InternetGateway `json:"internet_gateway"`
+		VPC *VPC `json:"vpc"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.InternetGateway, nil
+	return out.VPC, nil
 }
 
 // GetEgressOnlyGateway gets egress-only gateway.
@@ -1756,6 +1867,64 @@ func (c *Client) ListEgressOnlyGatewaysAll(ctx context.Context, params *ListEgre
 	})
 }
 
+// ListFloatingIPInterfaces lists a floating IP’s interfaces.
+//
+// List attached interfaces using the canonical interface contract, with
+// health and reason for this binding. Results are paginated by interface
+// ID. Reading the floating IP authorizes this related collection.
+//
+// Returns one page. Use ListFloatingIPInterfacesAll to walk every page.
+func (c *Client) ListFloatingIPInterfaces(ctx context.Context, floatingIPID string, params *ListFloatingIPInterfacesParams, opts ...basaltic.RequestOption) (*basaltic.Page[FloatingIPInterface], error) {
+	op := &basaltic.Operation{
+		ID:       "listFloatingIpInterfaces",
+		Method:   "GET",
+		Path:     "/v1/floating-ips/{floating_ip_id}/interfaces",
+		PathArgs: []string{floatingIPID},
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []FloatingIPInterface `json:"interfaces"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[FloatingIPInterface]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListFloatingIPInterfacesAll walks every page of
+// ListFloatingIPInterfaces, yielding one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListFloatingIPInterfacesAll(ctx, floatingIPID, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListFloatingIPInterfacesAll(ctx context.Context, floatingIPID string, params *ListFloatingIPInterfacesParams, opts ...basaltic.RequestOption) iter.Seq2[FloatingIPInterface, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[FloatingIPInterface], error) {
+		return c.ListFloatingIPInterfaces(ctx, floatingIPID, params.withMarker(marker), opts...)
+	})
+}
+
 // ListFloatingIPs lists floating IPs.
 //
 // List floating IPs owned by the caller's account.
@@ -1829,24 +1998,24 @@ func (c *Client) ListInterfaceAddresses(ctx context.Context, interfaceID string,
 }
 
 // ListInterfacePrefixes lists interface prefixes.
-func (c *Client) ListInterfacePrefixes(ctx context.Context, interfaceID string, opts ...basaltic.RequestOption) ([]*RoutedPrefix, error) {
+func (c *Client) ListInterfacePrefixes(ctx context.Context, interfaceID string, opts ...basaltic.RequestOption) (*ListInterfacePrefixesResult, error) {
 	op := &basaltic.Operation{
 		ID:       "listInterfacePrefixes",
 		Method:   "GET",
 		Path:     "/v1/interfaces/{interface_id}/prefixes",
 		PathArgs: []string{interfaceID},
 	}
-	var out struct {
-		RoutedPrefixes []*RoutedPrefix `json:"routed_prefixes"`
-	}
+	var out ListInterfacePrefixesResult
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.RoutedPrefixes, nil
+	return &out, nil
 }
 
-// ListInterfaceSecurityGroups lists interface security-group membership.
-func (c *Client) ListInterfaceSecurityGroups(ctx context.Context, interfaceID string, params *ListInterfaceSecurityGroupsParams, opts ...basaltic.RequestOption) (*basaltic.Page[string], error) {
+// ListInterfaceSecurityGroups lists an interface’s security groups.
+//
+// Returns one page. Use ListInterfaceSecurityGroupsAll to walk every page.
+func (c *Client) ListInterfaceSecurityGroups(ctx context.Context, interfaceID string, params *ListInterfaceSecurityGroupsParams, opts ...basaltic.RequestOption) (*basaltic.Page[SecurityGroup], error) {
 	op := &basaltic.Operation{
 		ID:       "listInterfaceSecurityGroups",
 		Method:   "GET",
@@ -1855,13 +2024,46 @@ func (c *Client) ListInterfaceSecurityGroups(ctx context.Context, interfaceID st
 	}
 	op.Query = params.query()
 	var out struct {
-		Items []string `json:"security_group_ids"`
+		Items []SecurityGroup `json:"security_groups"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	page := &basaltic.Page[string]{Items: out.Items}
+	page := &basaltic.Page[SecurityGroup]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
 	return page, nil
+}
+
+// ListInterfaceSecurityGroupsAll walks every page of
+// ListInterfaceSecurityGroups, yielding one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListInterfaceSecurityGroupsAll(ctx, interfaceID, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListInterfaceSecurityGroupsAll(ctx context.Context, interfaceID string, params *ListInterfaceSecurityGroupsParams, opts ...basaltic.RequestOption) iter.Seq2[SecurityGroup, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[SecurityGroup], error) {
+		return c.ListInterfaceSecurityGroups(ctx, interfaceID, params.withMarker(marker), opts...)
+	})
 }
 
 // ListInterfaces lists interfaces.
@@ -2150,20 +2352,18 @@ func (c *Client) ListNATGatewaysAll(ctx context.Context, params *ListNATGateways
 }
 
 // ListPrefixPools lists prefix pools.
-func (c *Client) ListPrefixPools(ctx context.Context, vpcID string, opts ...basaltic.RequestOption) ([]*PrefixPool, error) {
+func (c *Client) ListPrefixPools(ctx context.Context, vpcID string, opts ...basaltic.RequestOption) (*ListPrefixPoolsResult, error) {
 	op := &basaltic.Operation{
 		ID:       "listPrefixPools",
 		Method:   "GET",
 		Path:     "/v1/vpcs/{vpc_id}/prefix-pools",
 		PathArgs: []string{vpcID},
 	}
-	var out struct {
-		PrefixPools []*PrefixPool `json:"prefix_pools"`
-	}
+	var out ListPrefixPoolsResult
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.PrefixPools, nil
+	return &out, nil
 }
 
 // ListRouteTables lists route tables.
@@ -2493,29 +2693,6 @@ func (c *Client) ListVPCsAll(ctx context.Context, params *ListVPCsParams, opts .
 	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[VPC], error) {
 		return c.ListVPCs(ctx, params.withMarker(marker), opts...)
 	})
-}
-
-// SetInterfaceSecurityGroups sets interface security-group membership.
-//
-// Atomically replaces the interface's SG membership with the supplied
-// list. Adds and removes are diffed against current state. Each ID must
-// reference an SG owned by the caller.
-func (c *Client) SetInterfaceSecurityGroups(ctx context.Context, interfaceID string, body *InterfaceSecurityGroupsRequest, opts ...basaltic.RequestOption) (*basaltic.Page[string], error) {
-	op := &basaltic.Operation{
-		ID:       "setInterfaceSecurityGroups",
-		Method:   "PUT",
-		Path:     "/v1/interfaces/{interface_id}/security-groups",
-		PathArgs: []string{interfaceID},
-		Body:     body,
-	}
-	var out struct {
-		Items []string `json:"security_group_ids"`
-	}
-	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return nil, err
-	}
-	page := &basaltic.Page[string]{Items: out.Items}
-	return page, nil
 }
 
 // UpdateEgressOnlyGateway updates egress-only gateway.

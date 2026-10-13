@@ -27,6 +27,9 @@ type AttachListenerCertificateRequest struct {
 // AttachTargetRequest target is a literal IP for IP groups or an instance UUID, CRN or exact
 // account-scoped name for instance groups.
 type AttachTargetRequest struct {
+	// Port per-target backend port override. When omitted, the target inherits
+	// the target group port. Pool-derived targets always inherit the group
+	// port.
 	Port *int `json:"port,omitempty"`
 
 	// Target must match the group's target_type: an IP address for `ip`, a
@@ -82,14 +85,119 @@ type AutoscalingStatusHistoryItem struct {
 	To     int       `json:"to"`
 }
 
-type CreateListenerCertificate struct {
-	// Certificate CRN, UUID or exact name in the caller's account.
-	// Certificate CRNs require an empty region. No key material is
-	// accepted.
-	//
-	// Required.
-	Certificate string `json:"certificate"`
+type Certificate struct {
+	// CertificatePEM PEM-encoded leaf certificate. Empty until active.
+	CertificatePEM string `json:"certificate_pem,omitempty"`
+
+	// ChainPEM PEM-encoded intermediate chain.
+	ChainPEM string `json:"chain_pem,omitempty"`
+
+	// Challenges Per-domain CNAME delegation state — one entry per domain on the
+	// cert. While status=pending_dns issuance waits for every challenge's
+	// `verified` to flip true; use `expected_cname` and `our_dns` to tell
+	// which records need to be added at the registrar.
+	Challenges []*CertificateChallenge `json:"challenges,omitempty"`
+
+	// CRN name-based, so an IAM policy can wildcard a naming convention
+	// (`crn:certificate::my-account:certificate/prod-*`). The region slot
+	// is empty for compatibility; certificate storage and KMS material are
+	// regional.
+	CRN       string    `json:"crn,omitempty"`
+	Domains   []string  `json:"domains,omitempty"`
+	ExpiresAt time.Time `json:"expires_at,omitempty"`
+
+	// Faults active faults, ordered newest first. Empty when healthy. Renewal
+	// failures are warnings while valid certificate material still serves.
+	// Codes: CERTIFICATE_ISSUANCE_START_FAILED (issuance could not be
+	// scheduled), CERTIFICATE_ISSUANCE_FAILED (the signing request
+	// failed), CERTIFICATE_RENEWAL_FAILED (renewal did not complete; a
+	// warning while valid material is still serving, an error once it has
+	// expired), CERTIFICATE_REVOCATION_FAILED (revocation did not
+	// complete).
+	Faults []*Fault `json:"faults"`
+
+	// Fingerprint Hex SHA-256 of the leaf's DER — the certificate's material
+	// version. Changes on every rotation; consumers use it to know when to
+	// re-fetch material and to verify they fetched the intended
+	// generation. Empty until the cert has a leaf.
+	Fingerprint  string                  `json:"fingerprint,omitempty"`
+	ID           string                  `json:"id,omitempty"`
+	IssuedAt     time.Time               `json:"issued_at,omitempty"`
+	KeyAlgorithm CertificateKeyAlgorithm `json:"key_algorithm,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name   string            `json:"name,omitempty"`
+	Source CertificateSource `json:"source,omitempty"`
+	Status CertificateStatus `json:"status,omitempty"`
+	Tags   Tags              `json:"tags,omitempty"`
 }
+
+type CertificateChallenge struct {
+	// CnameRecordName Full LHS of the CNAME record the customer needs to add. For wildcard
+	// SANs this is the parent name (`_acme-challenge.example.com.`), not
+	// the literal SAN — wildcards validate at their parent under RFC
+	// 8555 §8.4.
+	CnameRecordName string `json:"cname_record_name,omitempty"`
+
+	// Domain the cert SAN this challenge belongs to (as the customer wrote it).
+	Domain string `json:"domain,omitempty"`
+
+	// ExpectedCname Target FQDN (RHS of the CNAME). Hosted in the platform's validation
+	// zone, where the per-order TXT is published during issuance.
+	ExpectedCname string `json:"expected_cname,omitempty"`
+
+	// Faults active verification warnings only; empty when healthy. Successful
+	// verification resolves verification faults while retaining history.
+	// verified records a successful observation and remains true if a
+	// later renewal observes a DNS failure. A CNAME mismatch records
+	// CERTIFICATE_DNS_VERIFICATION_FAILED as a warning; verified does not
+	// move. Internal history uses the parent CRN followed by
+	// /challenge/<stored-uuid>; no separate endpoint is exposed.
+	Faults []*Fault `json:"faults"`
+
+	// OurDNS true when the domain is hosted on the platform DNS service and the
+	// CNAME was created automatically. False means the customer owns the
+	// zone and must add the CNAME at their registrar.
+	OurDNS bool `json:"our_dns,omitempty"`
+
+	// Verified true once the CNAME has resolved to expected_cname; cert issuance
+	// only proceeds when every challenge is verified.
+	Verified   bool      `json:"verified,omitempty"`
+	VerifiedAt time.Time `json:"verified_at,omitempty"`
+}
+
+type CertificateKeyAlgorithm string
+
+// Values CertificateKeyAlgorithm accepts.
+const (
+	CertificateKeyAlgorithmEcdsaP256 CertificateKeyAlgorithm = "ecdsa-p256"
+	CertificateKeyAlgorithmEcdsaP384 CertificateKeyAlgorithm = "ecdsa-p384"
+	CertificateKeyAlgorithmRSA2048   CertificateKeyAlgorithm = "rsa-2048"
+	CertificateKeyAlgorithmRSA4096   CertificateKeyAlgorithm = "rsa-4096"
+)
+
+type CertificateSource string
+
+// Values CertificateSource accepts.
+const (
+	CertificateSourceAcme     CertificateSource = "acme"
+	CertificateSourceUploaded CertificateSource = "uploaded"
+)
+
+// CertificateStatus error if and only if an active error-severity fault exists.
+type CertificateStatus string
+
+// Values CertificateStatus accepts.
+const (
+	CertificateStatusPendingDNS CertificateStatus = "pending_dns"
+	CertificateStatusPending    CertificateStatus = "pending"
+	CertificateStatusActive     CertificateStatus = "active"
+	CertificateStatusError      CertificateStatus = "error"
+	CertificateStatusExpired    CertificateStatus = "expired"
+	CertificateStatusRevoked    CertificateStatus = "revoked"
+)
 
 // CreateListenerRequest target group relationships accept UUID, CRN or exact account-scoped
 // names in this region. HTTPS listeners require >=1 certificate, named
@@ -98,8 +206,8 @@ type CreateListenerCertificate struct {
 // key material is accepted — the agent fetches it from the certificate
 // service against the CRN.
 type CreateListenerRequest struct {
-	Certificates       []*CreateListenerCertificate `json:"certificates,omitempty"`
-	DefaultTargetGroup *string                      `json:"default_target_group,omitempty"`
+	Certificates       []string `json:"certificates,omitempty"`
+	DefaultTargetGroup *string  `json:"default_target_group,omitempty"`
 
 	// Exposure Which LB addresses are bound. Defaults to 'both'; pick private_only
 	// when the LB has no FIP yet.
@@ -118,7 +226,7 @@ type CreateListenerRequest struct {
 }
 
 // CreateLoadBalancerRequest relationships accept a UUID, CRN or exact immutable name, classified
-// by syntax. VPC, subnet and security groups must belong to the caller
+// by syntax. VPC, subnets and security groups must belong to the caller
 // account in this region. Subnet names are scoped by vpc. Flavor is a
 // regional catalog reference. Floating IP references accept UUID or CRN
 // only. All references resolve before writes. Addresses are fixed at
@@ -134,20 +242,17 @@ type CreateLoadBalancerRequest struct {
 	// Required.
 	Flavor string `json:"flavor"`
 
-	// FloatingIP Public IPv4 shorthand. Cannot be combined with floating_ips. Does
-	// not allocate public IPv6.
-	FloatingIP *string `json:"floating_ip,omitempty"`
-
 	// FloatingIPs existing free floating IPs from this account and region, at most one
 	// per family and visibility (private/public, IPv4/IPv6). Private
-	// addresses must belong to the selected subnet. Missing private
-	// families are allocated automatically for each family enabled on that
-	// subnet. Public addresses are optional and require a matching-family
-	// default route to an internet gateway; NAT and egress-only gateways
-	// do not qualify. IPv6 requires an IPv6-enabled subnet. Pool-owned or
-	// attached addresses are unavailable. On deletion, supplied addresses
-	// are detached and retained; automatic private allocations are
-	// released. Cannot be combined with floating_ip.
+	// addresses must belong to any selected subnet. Missing private
+	// families are allocated automatically from the first selected subnet
+	// for each family enabled there. Public addresses are optional and
+	// require a matching-family default route to an internet gateway in
+	// every selected subnet; NAT and egress-only gateways do not qualify.
+	// Public IPv6 requires every selected subnet to support IPv6.
+	// Pool-owned or attached addresses are unavailable. On deletion,
+	// supplied addresses are detached and retained; automatic private
+	// allocations are released.
 	FloatingIPs []string `json:"floating_ips,omitempty"`
 
 	// MaxCount upper capacity bound including rollout surge.
@@ -177,19 +282,22 @@ type CreateLoadBalancerRequest struct {
 	// Required.
 	SecurityGroups []string `json:"security_groups"`
 
-	// Subnet the LB instances attach to. The virtual IP is allocated from
-	// this subnet.
+	// Subnets one or more subnet selectors in the same VPC, account and region.
+	// Each instance has one interface; new instances are placed in the
+	// least-populated eligible subnet. The first subnet supplies automatic
+	// private floating IP allocations. Placement is fixed at creation.
 	//
 	// Required.
-	Subnet string `json:"subnet"`
-	Tags   Tags   `json:"tags,omitempty"`
+	Subnets []string `json:"subnets"`
+	Tags    Tags     `json:"tags,omitempty"`
 
 	// One of: "application", "network".
 	//
 	// Required.
 	Type string `json:"type"`
 
-	// VPC the LB will live in. Must match subnet's VPC.
+	// VPC the LB will live in. Every selected subnet must belong to this
+	// VPC.
 	//
 	// Required.
 	VPC string `json:"vpc"`
@@ -248,6 +356,27 @@ type CreateTargetGroupRequest struct {
 	TargetType *string `json:"target_type,omitempty"`
 }
 
+// CurrentState where an instance actually is. The transitional states live here, not
+// on desired_state — nobody asks for `stopping`.
+type CurrentState string
+
+// Values CurrentState accepts.
+const (
+	CurrentStatePending   CurrentState = "pending"
+	CurrentStateBuilding  CurrentState = "building"
+	CurrentStateRunning   CurrentState = "running"
+	CurrentStateStopping  CurrentState = "stopping"
+	CurrentStateStopped   CurrentState = "stopped"
+	CurrentStateRebooting CurrentState = "rebooting"
+	CurrentStateMigrating CurrentState = "migrating"
+	CurrentStateDeleting  CurrentState = "deleting"
+	CurrentStateDeleted   CurrentState = "deleted"
+	CurrentStateError     CurrentState = "error"
+	CurrentStateCrashed   CurrentState = "crashed"
+	CurrentStatePaused    CurrentState = "paused"
+	CurrentStateSuspended CurrentState = "suspended"
+)
+
 type Fault struct {
 	// Code stable machine-readable code owned by the reporting operation.
 	Code string `json:"code"`
@@ -267,172 +396,13 @@ type Fault struct {
 	Severity string `json:"severity"`
 }
 
-type FloatingIP struct {
-	// Address allocated public or private address.
+type FloatingIPRef struct {
 	Address string `json:"address"`
-
-	// AttachedTo Canonical CRN of the bound interface, instance pool, or load
-	// balancer; null when unattached. A pool-owned address names its pool
-	// even when the pool has zero members. Only pool-owned addresses may
-	// have multiple NIC members. Manage their bindings through the
-	// instance pool floating IP endpoints; direct attach and detach are
-	// refused.
-	AttachedTo  *string   `json:"attached_to"`
-	CreatedAt   time.Time `json:"created_at"`
-	CRN         string    `json:"crn"`
-	Description string    `json:"description,omitempty"`
-	Family      IPFamily  `json:"family"`
-
-	// HealthCheck the readiness check applied to this address's members. Absent when
-	// none is configured. See `FloatingIpHealthCheck`.
-	HealthCheck *FloatingIPHealthCheck `json:"health_check,omitempty"`
-	ID          string                 `json:"id"`
-
-	// Members the floating IP's bindings. A floating IP fronts 0 members
-	// (allocated, unattached), 1 member (the everyday case), or N members
-	// for an instance pool — an anycast floating IP, where one public IP
-	// is delivered to N VM NICs across hosts (each advertised as a /32
-	// from the host holding it).
-	//
-	// Members may share a hypervisor. Two of them on one host used to mean
-	// one served and the other was silently dark; a member's forwarding
-	// rule now names the member, and the host splits connections across
-	// the members it holds, so where the members sit is a capacity
-	// decision rather than a correctness one. An instance pool's address
-	// takes its members from the pool's live replicas — every one of
-	// them — so a scale-out joins and a scale-in leaves without a
-	// per-replica attach.
-	//
-	// With more than one member ONE member serves each connection, chosen
-	// by hashing the flow's addresses and ports, and every packet of that
-	// connection goes to the same one. The members are separate instances
-	// that share nothing, so this spreads connections and survives the
-	// loss of a host — it is not a load balancer: nothing checks whether
-	// the service inside the instance is up, and connections in progress
-	// to a member that goes away are not moved, they end.
-	//
-	// A POOL's address is the exception, and only for booting. A replica
-	// joins the address as soon as it is placed, but does not receive
-	// traffic until it has reached the instance metadata service —
-	// evidence that the guest booted, rather than that its virtual machine
-	// was started. Until then it is a member with `health` `unhealthy`. A
-	// replica whose image never contacts the metadata service is admitted
-	// anyway after a few minutes, so an unusual image delays traffic
-	// rather than never getting it.
-	Members []*FloatingIPMember `json:"members"`
-
-	// SubnetID allocation subnet for private floating IPs.
-	SubnetID  *string           `json:"subnet_id,omitempty"`
-	Tags      map[string]string `json:"tags"`
-	UpdatedAt time.Time         `json:"updated_at"`
+	CRN     string `json:"crn"`
+	ID      string `json:"id"`
 
 	// One of: "public", "private".
 	Visibility string `json:"visibility"`
-
-	// VPCID Allocation VPC for private floating IPs.
-	VPCID string `json:"vpc_id,omitempty"`
-}
-
-// FloatingIPHealthCheck a readiness check for a shared (anycast) floating IP's members — the
-// same vocabulary as a load balancer target group's health check, one
-// you already know. The platform checks each member's private address
-// within the VPC. A member that fails stops receiving traffic through
-// the floating IP and returns when it passes again. If EVERY member
-// fails, the whole address goes dark — a misconfigured check is a
-// visible outage you caused, not the platform quietly advertising
-// something it believes is down.
-//
-// The check is on the address, not per member: members are
-// interchangeable backends, and a pool derives them. An address with no
-// check behaves exactly as before — liveness only for pool members,
-// always-advertised for hand-attached ones.
-type FloatingIPHealthCheck struct {
-	// HealthyThreshold consecutive passes before a member flips healthy.
-	HealthyThreshold int `json:"healthy_threshold"`
-	IntervalSec      int `json:"interval_sec"`
-
-	// Matcher HTTP status or range that counts as passing; ignored for tcp.
-	Matcher string `json:"matcher,omitempty"`
-
-	// Path HTTP path probed; ignored for tcp.
-	Path string `json:"path,omitempty"`
-
-	// Port probed on the member.
-	Port int `json:"port"`
-
-	// Protocol `tcp` opens a connection; `http`/`https` issue a GET and match the
-	// status against `matcher`. There is no `udp`: a readiness probe needs
-	// an answer — check a udp service on a tcp health port instead.
-	//
-	// One of: "tcp", "http", "https".
-	Protocol string `json:"protocol"`
-
-	// TimeoutSec per-probe timeout; must be less than interval_sec.
-	TimeoutSec int `json:"timeout_sec"`
-
-	// UnhealthyThreshold consecutive failures before a member flips unhealthy.
-	UnhealthyThreshold int `json:"unhealthy_threshold"`
-}
-
-// FloatingIPMember one binding of a floating IP.
-type FloatingIPMember struct {
-	// AddressID target child address on the member interface.
-	AddressID *string   `json:"address_id,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-
-	// Health what the platform knows about this member.
-	//
-	// `unknown` — nobody is checking. A member you attached yourself
-	// with no health check on the address reads this: you chose the moment
-	// of attach, and the platform has no signal about what runs inside the
-	// instance. It is advertised.
-	//
-	// `healthy` — the platform has evidence this member is up (and, if a
-	// health check is configured on the address, that the check is
-	// passing).
-	//
-	// `unhealthy` — the platform is waiting for that evidence and has
-	// not seen it, or a configured check is failing. The member keeps its
-	// place on the address and receives no traffic until it recovers.
-	//
-	// Without a health check this is liveness only — `healthy` means the
-	// guest came up, not that your service is listening. Configure
-	// `health_check` on the floating IP to add readiness on top of that.
-	//
-	// One of: "unknown", "healthy", "unhealthy".
-	Health string `json:"health"`
-
-	// Interface Bound NIC summary; null for a load balancer binding named by
-	// attached_to.
-	Interface *FloatingIPMemberInterface `json:"interface"`
-
-	// Reason why the member reads the `health` it does — so you can tell "your
-	// service is not answering" from "the guest has not booted yet".
-	//
-	// `unprobed` — nobody is checking (no health check, hand-attached).
-	// `booting` — the platform has not yet seen the guest come up.
-	// `probe_failed` — the configured health check is failing. `passing`
-	// — the guest is up and, if a check is configured, it passes.
-	//
-	// One of: "unprobed", "booting", "probe_failed", "passing".
-	Reason string `json:"reason"`
-}
-
-// FloatingIPMemberInterface Bound NIC summary; null for a load balancer binding named by
-// attached_to.
-type FloatingIPMemberInterface struct {
-	CRN string `json:"crn"`
-	ID  string `json:"id"`
-
-	// Instance owning instance; null when the interface has no owning instance.
-	Instance *FloatingIPMemberInterfaceInstance `json:"instance"`
-}
-
-// FloatingIPMemberInterfaceInstance owning instance; null when the interface has no owning instance.
-type FloatingIPMemberInterfaceInstance struct {
-	CRN  string `json:"crn"`
-	ID   string `json:"id"`
-	Name string `json:"name"`
 }
 
 // HealthCheck active probes are enabled by default. Set enabled=false to stop probes
@@ -493,47 +463,24 @@ type HealthCheckPatch struct {
 // HealthyThreshold zero uses the default.
 type HealthyThreshold = int
 
-// IPFamily The IP address family. Floating IPs support either family and may have
-// public or private visibility. Public floating IPs allocate from the
-// region's public address pool; private floating IPs allocate from their
-// selected subnet's range for that family.
-//
-// Attaching a floating IP to an interface requires an address of the
-// same family on that interface. IPv6 does not require IPv4 to be
-// enabled on the subnet. Internet reachability also depends on routes
-// and security rules.
-//
-// Attaching an IPv6 floating IP does not disable the interface's native
-// globally routable IPv6 address. Both addresses remain reachable when
-// routing and security rules permit, and replies to incoming connections
-// retain the address that received the connection. A private IPv6
-// address does not become directly internet-routable by attaching a
-// floating IP.
-type IPFamily string
-
-// Values IPFamily accepts.
-const (
-	IPFamilyIPv4 IPFamily = "ipv4"
-	IPFamilyIPv6 IPFamily = "ipv6"
-)
-
 // IntervalSec zero uses the default.
 type IntervalSec = int
 
 type Listener struct {
-	// Certificates HTTPS listeners only. One entry per attached certificate; the right
-	// cert is picked per-connection by matching the client's SNI against
-	// each cert's SAN. The entry flagged is_default serves traffic that
-	// doesn't match any other SNI (or clients that omit SNI). PEM material
-	// is NOT echoed — the listener stores its own copy fetched at attach
-	// time.
-	Certificates []*ListenerCertificate `json:"certificates,omitempty"`
-	CreatedAt    time.Time              `json:"created_at"`
+	CreatedAt time.Time `json:"created_at"`
 
 	// CRN Parent-scoped CRN with immutable load balancer name and child UUID
 	// components.
-	CRN                  string `json:"crn"`
-	DefaultTargetGroupID string `json:"default_target_group_id,omitempty"`
+	CRN string `json:"crn"`
+
+	// DefaultCertificate default certificate for an HTTPS listener, used when no SNI matches
+	// or the client sends none. Null when absent. List all attached
+	// certificates through the listener certificates endpoint.
+	DefaultCertificate *ResourceRef `json:"default_certificate"`
+
+	// DefaultTargetGroup target group used when no routing rule matches, or null when none is
+	// configured.
+	DefaultTargetGroup *ResourceRef `json:"default_target_group"`
 
 	// Exposure Which LB addresses this listener binds. 'public_only' and 'both'
 	// require the LB to carry a floating IP; if the FIP is detached later,
@@ -541,10 +488,9 @@ type Listener struct {
 	// flipped to private_only.
 	//
 	// One of: "public_only", "private_only", "both".
-	Exposure       string `json:"exposure"`
-	ID             string `json:"id"`
-	LoadBalancerID string `json:"load_balancer_id"`
-	Port           int    `json:"port"`
+	Exposure string `json:"exposure"`
+	ID       string `json:"id"`
+	Port     int    `json:"port"`
 
 	// One of: "http", "https", "tcp", "udp".
 	Protocol  string    `json:"protocol"`
@@ -552,16 +498,7 @@ type Listener struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-type ListenerCertificate struct {
-	CertificateCRN string    `json:"certificate_crn"`
-	CreatedAt      time.Time `json:"created_at"`
-	ID             string    `json:"id"`
-	IsDefault      bool      `json:"is_default"`
-	UpdatedAt      time.Time `json:"updated_at"`
-}
-
 type LoadBalancer struct {
-	AccountID         string             `json:"account_id"`
 	Autoscaling       *AutoscalingPolicy `json:"autoscaling,omitempty"`
 	AutoscalingStatus *AutoscalingStatus `json:"autoscaling_status,omitempty"`
 	CreatedAt         time.Time          `json:"created_at"`
@@ -583,24 +520,14 @@ type LoadBalancer struct {
 	// remains.
 	Faults []*Fault `json:"faults"`
 
-	// FlavorID compute flavor each LB instance runs on. Must be a
-	// loadbalancer-family flavor.
-	FlavorID string `json:"flavor_id"`
+	// Flavor regional loadbalancer-family compute flavor assigned to replicas.
+	Flavor *ResourceRef `json:"flavor"`
 
-	// FloatingIPID optional public IPv4 floating IP. Public IPv6 is independent.
-	FloatingIPID string `json:"floating_ip_id,omitempty"`
-
-	// FloatingIPs all attached public and private floating IPs, including automatic
-	// private allocations.
-	FloatingIPs []*FloatingIP `json:"floating_ips"`
-	ID          string        `json:"id"`
-
-	// InternalIPv4 Virtual IP for the load balancer; traffic is distributed to backends
-	// per connection.
-	InternalIPv4 string `json:"internal_ipv4,omitempty"`
-
-	// InternalIPv6 Internal IPv6 VIP (set when the subnet is dual-stack).
-	InternalIPv6 string `json:"internal_ipv6,omitempty"`
+	// FloatingIPs public and private floating IP references, including automatic
+	// private allocations. Each includes id, crn, visibility, and address.
+	// Infer IPv4 or IPv6 from the address.
+	FloatingIPs []*FloatingIPRef `json:"floating_ips"`
+	ID          string           `json:"id"`
 
 	// MaxCount upper capacity bound including rollout surge.
 	MaxCount int `json:"max_count"`
@@ -613,10 +540,6 @@ type LoadBalancer struct {
 	// case).
 	Name string `json:"name"`
 
-	// PublicIPv6 explicitly selected public IPv6 floating IP, translated to replica
-	// IPv6 addresses in a GUA or ULA subnet.
-	PublicIPv6 string `json:"public_ipv6,omitempty"`
-
 	// ReplicaCount deprecated alias of desired_count.
 	ReplicaCount int `json:"replica_count"`
 
@@ -627,9 +550,11 @@ type LoadBalancer struct {
 	// One of: "provisioning", "active", "error", "deleting".
 	Status string `json:"status"`
 
-	// Subnet placement; null when the referenced subnet no longer exists.
-	Subnet *Subnet `json:"subnet"`
-	Tags   Tags    `json:"tags"`
+	// Subnets eligible subnets for member placement. Each instance has one
+	// interface, and new instances use the least-populated eligible
+	// subnet.
+	Subnets []*ResourceRef `json:"subnets"`
+	Tags    Tags           `json:"tags"`
 
 	// Type ALB-shape (L7) vs NLB-shape (L4)
 	//
@@ -638,49 +563,87 @@ type LoadBalancer struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// LoadBalancerReplica one compute instance backing the load balancer. The bookkeeping fields
-// (instance_id, replica_index, created_at, flavor_id) are persisted; the
-// liveness overlay (last_seen, proxy_ok, agent_version) refreshes on
-// each replica health report.
-//
-// Replicas are managed instances, so the compute instance endpoints do
-// not return them — this is where you watch them. During a resize the
-// replicas turn over one at a time: a replica has been replaced when its
-// instance_id changes, and the resize is complete when every flavor_id
-// here matches the load balancer's. Expect one more replica than
-// replica_count to be listed part-way through, which is the resize
-// keeping capacity up rather than a replica leaking; it goes away when
-// the last old one does.
-type LoadBalancerReplica struct {
+// LoadBalancerInstance a compute instance backing the load balancer, extended with proxy
+// health and retirement details. During a resize, compare each
+// instance's flavor.id with the load balancer's flavor.id. An extra
+// instance may be present while the replacement starts serving and the
+// old instance drains.
+type LoadBalancerInstance struct {
 	AgentVersion string    `json:"agent_version,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 
-	// FlavorID the size this replica actually booted on. Matches the load
-	// balancer's flavor_id except mid-resize, when the replicas not yet
-	// replaced still report the old one.
-	FlavorID   string `json:"flavor_id"`
-	InstanceID string `json:"instance_id"`
+	// CRN Cloud Resource Name
+	CRN string `json:"crn"`
 
-	// LastSeen omitted when this replica hasn't reported yet
-	LastSeen time.Time `json:"last_seen,omitempty"`
+	// CurrentState where the instance actually is. Read this one to answer "is it up"
+	// — the transitional states live here, not on desired_state, because
+	// nobody asks for `stopping`.
+	//
+	// desired_state=running with current_state=stopped is an instance that
+	// was asked to start and has not come up yet.
+	CurrentState CurrentState `json:"current_state"`
+	Description  string       `json:"description,omitempty"`
+
+	// DesiredState what was asked for. Only three values, because there are only three
+	// things you can ask an instance to be: Create/Start/Reboot ask for
+	// running, Stop for stopped, Delete for deleted.
+	//
+	// One of: "running", "stopped", "deleted".
+	DesiredState string `json:"desired_state"`
+
+	// Faults active faults ordered by last_at descending, then internal history
+	// id descending for a stable tie-breaker. Healthy resources return [].
+	Faults []*Fault `json:"faults"`
+
+	// Flavor identity. Every instance has a flavor; query the flavor
+	// resource for CPU and RAM.
+	Flavor *ResourceRef `json:"flavor"`
+
+	// IAMRole Attached IAM role identity, or null when no role is attached.
+	// Deleted roles retain their identity without name.
+	IAMRole *ResourceRef `json:"iam_role"`
+	ID      string       `json:"id"`
+
+	// Image pinned source image identity, or null for a volume-only boot.
+	Image *ResourceRef `json:"image"`
+
+	// LastSeen omitted when this instance has not reported yet
+	LastSeen   time.Time  `json:"last_seen,omitempty"`
+	LaunchedAt *time.Time `json:"launched_at,omitempty"`
+	Metadata   Metadata   `json:"metadata,omitempty"`
+
+	// Name resource names must not start with the literal crn: prefix or be
+	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
+	// case).
+	Name string `json:"name"`
 
 	// ProxyOk whether the proxy reported ready at the last health report
-	ProxyOk      bool        `json:"proxy_ok"`
-	ReplicaIndex int         `json:"replica_index"`
-	Retirement   *Retirement `json:"retirement,omitempty"`
+	ProxyOk    bool        `json:"proxy_ok"`
+	Retirement *Retirement `json:"retirement,omitempty"`
 
-	// Status the liveness view folded into one word: 'initializing' (the agent
-	// has never reported — boot still in flight), 'healthy'
-	// (heartbeating and the proxy is serving), 'unhealthy' (heartbeating
-	// but the proxy is down).
+	// Status proxy health: initializing before the first report, healthy when the
+	// last report says the proxy is serving, unhealthy when it is down,
+	// and draining when the instance is retiring. See last_seen for the
+	// age of the last observation.
 	//
 	// One of: "initializing", "healthy", "unhealthy", "draining".
 	Status string `json:"status"`
+	Tags   Tags   `json:"tags,omitempty"`
+
+	// TaskState in-flight transition, if any; null when settled.
+	TaskState    *string    `json:"task_state,omitempty"`
+	TerminatedAt *time.Time `json:"terminated_at,omitempty"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+
+	// UserData base64-encoded cloud-init user-data supplied at launch.
+	UserData string `json:"user_data,omitempty"`
 }
 
 // Matcher HTTP status codes from 100 to 599; comma-separated codes or inclusive
 // ranges. Empty uses 200.
 type Matcher = string
+
+type Metadata = map[string]string
 
 type Path = string
 
@@ -697,6 +660,16 @@ const (
 	ProtocolField Protocol = ""
 )
 
+type ResourceRef struct {
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
+
+	// Name display label at response time — the resource's name where it has
+	// one, otherwise its human label (an invoice number, an account
+	// display name). Absent when the target is gone. Not a lookup key.
+	Name string `json:"name,omitempty"`
+}
+
 type Retirement struct {
 	AgentAcknowledgedAt time.Time `json:"agent_acknowledged_at,omitempty"`
 	DrainSeconds        int       `json:"drain_seconds"`
@@ -706,28 +679,17 @@ type Retirement struct {
 	RequestedAt time.Time `json:"requested_at"`
 }
 
-// RouteTableSummary route table used by a subnet, without repeating its VPC. Null when the
-// non-owning lookup no longer resolves, for example during concurrent
-// reassociation and deletion of the former table. Deleting a table still
-// associated with subnets is refused.
-type RouteTableSummary struct {
-	CRN  string `json:"crn"`
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
 type Rule struct {
 	Conditions []*RuleCondition `json:"conditions"`
 	CreatedAt  time.Time        `json:"created_at"`
 
 	// CRN Parent-scoped CRN with immutable load balancer name and child UUID
 	// components.
-	CRN           string    `json:"crn"`
-	ID            string    `json:"id"`
-	ListenerID    string    `json:"listener_id"`
-	Priority      int       `json:"priority"`
-	TargetGroupID string    `json:"target_group_id"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	CRN         string       `json:"crn"`
+	ID          string       `json:"id"`
+	Priority    int          `json:"priority"`
+	TargetGroup *ResourceRef `json:"target_group"`
+	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
 type RuleCondition struct {
@@ -812,58 +774,40 @@ type SessionAffinity struct {
 	Type string `json:"type"`
 }
 
-type Subnet struct {
-	CIDRIPv4 string `json:"cidr_ipv4"`
-
-	// CIDRIPv6 the dual-stack IPv6 /64, if the subnet is v6-enabled. Its presence
-	// (vs the v4 cidr_ipv4) is how a client tells the subnet's families
-	// apart.
-	CIDRIPv6    *string   `json:"cidr_ipv6,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	CRN         string    `json:"crn"`
-	Description string    `json:"description,omitempty"`
-	GatewayIPv4 string    `json:"gateway_ipv4"`
-	GatewayIPv6 *string   `json:"gateway_ipv6,omitempty"`
-	ID          string    `json:"id"`
-
-	// Name resource names must not start with the literal crn: prefix or be
-	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
-	// case).
-	Name       string             `json:"name"`
-	RouteTable *RouteTableSummary `json:"route_table"`
-	Tags       map[string]string  `json:"tags"`
-	UpdatedAt  time.Time          `json:"updated_at"`
-	VPC        *VPC               `json:"vpc"`
-}
-
 type Tags = map[string]string
 
+// Target a registered backend. Exactly one of instance or address is returned.
 type Target struct {
+	// Address Canonical IPv4 or IPv6 address for an IP target. Omitted for
+	// instance targets.
+	Address   string    `json:"address,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 
 	// One of: "initial", "healthy", "unhealthy", "draining".
-	Health        string    `json:"health"`
-	ID            string    `json:"id"`
-	LastSeenAt    time.Time `json:"last_seen_at,omitempty"`
-	Port          int       `json:"port,omitempty"`
-	TargetGroupID string    `json:"target_group_id"`
+	Health string `json:"health"`
+	ID     string `json:"id"`
 
-	// TargetRef IP address (target_type=ip) or compute instance id
-	// (target_type=instance). Stored in canonical form, so the spelling
-	// here may differ from the one you sent.
-	TargetRef string    `json:"target_ref"`
+	// Instance compute instance backing an instance target or a pool-derived
+	// target. Omitted for IP targets.
+	Instance   *ResourceRef `json:"instance,omitempty"`
+	LastSeenAt time.Time    `json:"last_seen_at,omitempty"`
+
+	// Port per-target backend port override. When omitted, the target inherits
+	// the target group port. Pool-derived targets always inherit the group
+	// port.
+	Port      int       `json:"port,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type TargetGroup struct {
-	AccountID   string       `json:"account_id"`
 	CreatedAt   time.Time    `json:"created_at"`
 	CRN         string       `json:"crn"`
 	HealthCheck *HealthCheck `json:"health_check"`
 	ID          string       `json:"id"`
 
-	// InstancePoolID compute instance pool backing the group. Set iff target_mode=pool.
-	InstancePoolID string `json:"instance_pool_id,omitempty"`
+	// InstancePool compute instance pool backing the group. Omitted for static target
+	// groups.
+	InstancePool *ResourceRef `json:"instance_pool,omitempty"`
 
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
@@ -885,7 +829,7 @@ type TargetGroup struct {
 	// TargetMode where the backend set comes from. `static` routes to the targets
 	// attached via POST /v1/target-groups/{id}/targets; `pool` resolves
 	// live instance addresses from the compute instance pool named by
-	// instance_pool_id, so scaling the pool moves the backends with it.
+	// instance_pool, so scaling the pool moves the backends with it.
 	//
 	// One of: "static", "pool".
 	TargetMode string `json:"target_mode"`
@@ -901,21 +845,22 @@ type TimeoutSec = int
 // UnhealthyThreshold zero uses the default.
 type UnhealthyThreshold = int
 
-// UpdateListenerRequest patch a listener.
+// UpdateListenerRequest patch a listener. Use default_certificate to select an already
+// attached certificate as the default. Certificate renewals are picked
+// up automatically; manage attachments through the listener's
+// certificates collection.
 //
-// `certificate` accepts a CRN, UUID or exact account-scoped name and
-// names a certificate ALREADY attached to this listener and re-stamps
-// it, which makes the agent re-fetch material — the on-demand rotation
-// trigger. It does not attach: an unattached CRN is refused, and the
-// attach-certificate endpoint is what adds one. No key material is
-// accepted here.
-//
-// Set clear_default_target_group=true to remove the default; otherwise
-// omitting default_target_group leaves it unchanged.
+// Omit default_target_group to leave it unchanged, send a string
+// reference to replace it, or send null to clear it.
 type UpdateListenerRequest struct {
-	Certificate             *string `json:"certificate,omitempty"`
-	ClearDefaultTargetGroup *bool   `json:"clear_default_target_group,omitempty"`
-	DefaultTargetGroup      *string `json:"default_target_group,omitempty"`
+	// DefaultCertificate UUID, CRN, or exact name of a certificate already attached to this
+	// listener. Makes it the default and demotes the previous default
+	// atomically. Does not attach new certificates.
+	DefaultCertificate *string `json:"default_certificate,omitempty"`
+
+	// DefaultTargetGroup UUID, CRN or exact account-scoped target group name. Null clears the
+	// default; omission leaves it unchanged.
+	DefaultTargetGroup *string `json:"default_target_group,omitempty"`
 
 	// Exposure mutate which addresses are bound. Omit to leave unchanged.
 	//
@@ -946,9 +891,9 @@ type UpdateLoadBalancerRequest struct {
 	// cost you capacity, at any replica count.
 	//
 	// Expect it to take several minutes, and poll GET
-	// /v1/load-balancers/{id}/replicas to watch: a replica has been
-	// replaced when its instance_id changes, and the resize is done when
-	// every flavor there matches this one.
+	// /v1/load-balancers/{id}/instances to watch: a replica has been
+	// replaced when its id changes, and the resize is done when every
+	// flavor.id there matches the requested flavor.
 	//
 	// A resize requires max_count above desired_count for surge headroom.
 	// A rollout waits if headroom is removed while it is in progress.
@@ -1001,27 +946,4 @@ type UpdateTargetGroupRequest struct {
 	// turning it off is an explicit `{"type": "none"}`.
 	SessionAffinity *SessionAffinity `json:"session_affinity,omitempty"`
 	Tags            Tags             `json:"tags,omitempty"`
-}
-
-type VPC struct {
-	// CIDRIPv4 IPv4 CIDR block carved up by subnets. Must be private (RFC 1918):
-	// within 10.0.0.0/8, 172.16.0.0/12 or 192.168.0.0/16. Immutable after
-	// create.
-	CIDRIPv4 string `json:"cidr_ipv4"`
-
-	// CIDRIPv6 associated regional GUA or private ULA prefix.
-	CIDRIPv6  *string   `json:"cidr_ipv6,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-
-	// CRN Cloud Resource Name (name-based, region+account-scoped).
-	CRN         string `json:"crn"`
-	Description string `json:"description,omitempty"`
-	ID          string `json:"id"`
-
-	// Name 1-63 chars, lowercase alphanumeric + hyphen Resource names must not
-	// start with the literal crn: prefix or be UUIDs (canonical, compact,
-	// braced, or urn:uuid: forms, in either case).
-	Name      string            `json:"name"`
-	Tags      map[string]string `json:"tags"`
-	UpdatedAt time.Time         `json:"updated_at"`
 }

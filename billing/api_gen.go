@@ -72,6 +72,18 @@ func (p *ListCreditsParams) withMarker(marker string) *ListCreditsParams {
 type ListFiscalInvoicesParams struct {
 	// Invoice canonical billing invoice CRN.
 	Invoice string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
 }
 
 // query renders the parameters that are set. A zero value means "no
@@ -84,7 +96,24 @@ func (p *ListFiscalInvoicesParams) query() url.Values {
 	if p.Invoice != "" {
 		q.Set("invoice", p.Invoice)
 	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
 	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListFiscalInvoicesParams) withMarker(marker string) *ListFiscalInvoicesParams {
+	var out ListFiscalInvoicesParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
 }
 
 // ListInvoicesParams are the optional filters and pagination controls for
@@ -288,11 +317,13 @@ func (c *Client) GetBillingProfile(ctx context.Context, opts ...basaltic.Request
 		Method: "GET",
 		Path:   "/v1/profile",
 	}
-	var out BillingProfile
+	var out struct {
+		BillingProfile *BillingProfile `json:"billing_profile"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return &out, nil
+	return out.BillingProfile, nil
 }
 
 // GetCurrentUsage gets month-to-date usage total.
@@ -334,11 +365,13 @@ func (c *Client) GetInvoice(ctx context.Context, invoiceID string, opts ...basal
 		Path:     "/v1/invoices/{invoice_id}",
 		PathArgs: []string{invoiceID},
 	}
-	var out Invoice
+	var out struct {
+		Invoice *Invoice `json:"invoice"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return &out, nil
+	return out.Invoice, nil
 }
 
 // GetInvoicePDF downloads an invoice as a PDF statement.
@@ -414,12 +447,15 @@ func (c *Client) ListCreditsAll(ctx context.Context, params *ListCreditsParams, 
 	})
 }
 
-// ListFiscalInvoices lists fiscal invoice issuance and delivery status.
+// ListFiscalInvoices lists issued fiscal invoices.
 //
-// Returns up to 200 recent fiscal records for the current organization.
-// Filter by invoice CRN to inspect documents for an older billing
-// invoice. Does not issue historical payments automatically.
-func (c *Client) ListFiscalInvoices(ctx context.Context, params *ListFiscalInvoicesParams, opts ...basaltic.RequestOption) ([]*FiscalInvoice, error) {
+// Return a marker-paginated list of issued fiscal invoices for the
+// authenticated organization, newest first. Filter by billing invoice
+// CRN with invoice. Internal issuance, delivery, error, and review
+// states are not exposed.
+//
+// Returns one page. Use ListFiscalInvoicesAll to walk every page.
+func (c *Client) ListFiscalInvoices(ctx context.Context, params *ListFiscalInvoicesParams, opts ...basaltic.RequestOption) (*basaltic.Page[FiscalInvoice], error) {
 	op := &basaltic.Operation{
 		ID:     "listFiscalInvoices",
 		Method: "GET",
@@ -427,12 +463,46 @@ func (c *Client) ListFiscalInvoices(ctx context.Context, params *ListFiscalInvoi
 	}
 	op.Query = params.query()
 	var out struct {
-		FiscalDocuments []*FiscalInvoice `json:"fiscal_documents"`
+		Items []FiscalInvoice `json:"fiscal_invoices"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
 	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return out.FiscalDocuments, nil
+	page := &basaltic.Page[FiscalInvoice]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListFiscalInvoicesAll walks every page of ListFiscalInvoices, yielding
+// one item at a time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListFiscalInvoicesAll(ctx, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListFiscalInvoicesAll(ctx context.Context, params *ListFiscalInvoicesParams, opts ...basaltic.RequestOption) iter.Seq2[FiscalInvoice, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[FiscalInvoice], error) {
+		return c.ListFiscalInvoices(ctx, params.withMarker(marker), opts...)
+	})
 }
 
 // ListInvoices lists invoices.
@@ -638,11 +708,13 @@ func (c *Client) UpdateBillingProfile(ctx context.Context, body *BillingProfileU
 		Path:   "/v1/profile",
 		Body:   body,
 	}
-	var out BillingProfile
+	var out struct {
+		BillingProfile *BillingProfile `json:"billing_profile"`
+	}
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	return &out, nil
+	return out.BillingProfile, nil
 }
 
 // GetInvoiceByReference fetches one invoice by an id or a CRN.

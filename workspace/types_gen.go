@@ -168,12 +168,8 @@ type InlinePolicy struct {
 	// Name resource names must not start with the literal crn: prefix or be
 	// UUIDs (canonical, compact, braced, or urn:uuid: forms, in either
 	// case).
-	Name        string `json:"name,omitempty"`
-	PrincipalID string `json:"principal_id,omitempty"`
-
-	// One of: "user", "group".
-	PrincipalType string    `json:"principal_type,omitempty"`
-	UpdatedAt     time.Time `json:"updated_at,omitempty"`
+	Name      string    `json:"name,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
 type Invitation struct {
@@ -339,16 +335,6 @@ type OrganizationWithMembership struct {
 	// billing periods or resource schedules.
 	TimeZone  string    `json:"time_zone,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
-}
-
-type PermissionBoundary struct {
-	CreatedAt   time.Time `json:"created_at,omitempty"`
-	PolicyID    string    `json:"policy_id,omitempty"`
-	PolicyName  string    `json:"policy_name,omitempty"`
-	PrincipalID string    `json:"principal_id,omitempty"`
-
-	// One of: "user".
-	PrincipalType string `json:"principal_type,omitempty"`
 }
 
 type Policy struct {

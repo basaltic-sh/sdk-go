@@ -10,11 +10,11 @@
 // `crn:kms:<region>:<account>:key/<name>` in the authenticated account
 // and current region. The key must be enabled, symmetric, and usable for
 // encryption. Bindings retain the key's immutable identity; responses
-// render its CRN. Invalid or foreign-scope CRNs are rejected with HTTP
-// 400; missing keys return HTTP 404 on binding or cryptographic use.
-// Metadata reads remain available for deleted bindings, with
-// kms_key_unavailable true and no kms_key_crn. Versioned application
-// secrets with KMS-backed envelope encryption.
+// return a kms_key ResourceRef. Invalid or foreign-scope CRNs are
+// rejected with HTTP 400; missing keys return HTTP 404 on binding or
+// cryptographic use. A key used by a secret cannot be scheduled for
+// deletion until the secret and all its versions have been purged.
+// Versioned application secrets with KMS-backed envelope encryption.
 //
 // Secrets are regional. The value of every version is encrypted at rest
 // under a KMS key — only opaque ciphertext is persisted. By default a

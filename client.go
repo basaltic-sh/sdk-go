@@ -203,6 +203,20 @@ func (c *Client) do(ctx context.Context, op *Operation, opts []RequestOption) (i
 	if err != nil {
 		return nil, nil, fmt.Errorf("basaltic: %s: encoding request: %w", op.ID, err)
 	}
+	if len(rs.nullFields) > 0 {
+		var fields map[string]json.RawMessage
+		if contentType != "application/json" || json.Unmarshal([]byte(payload), &fields) != nil || fields == nil {
+			return nil, nil, fmt.Errorf("basaltic: %s: WithNullFields requires a JSON object body", op.ID)
+		}
+		for _, name := range rs.nullFields {
+			fields[name] = json.RawMessage("null")
+		}
+		data, err := json.Marshal(fields)
+		if err != nil {
+			return nil, nil, fmt.Errorf("basaltic: %s: encoding null fields: %w", op.ID, err)
+		}
+		payload = string(data)
+	}
 
 	attempts := c.cfg.Retry.MaxAttempts
 	if attempts < 1 {

@@ -12,8 +12,8 @@ import (
 
 type Record struct {
 	// CRN Cloud Resource Name.
-	CRN string `json:"crn,omitempty"`
-	ID  string `json:"id,omitempty"`
+	CRN string `json:"crn"`
+	ID  string `json:"id"`
 
 	// Managed true for platform-managed records (SOA, apex NS, and the DNSSEC
 	// set). Managed records are read-only — they cannot be updated or
@@ -21,15 +21,14 @@ type Record struct {
 	Managed bool `json:"managed,omitempty"`
 
 	// Name record name (FQDN).
-	Name string `json:"name,omitempty"`
-	TTL  int    `json:"ttl,omitempty"`
+	Name string `json:"name"`
+	TTL  int    `json:"ttl"`
 
 	// Type record type. Customer records use one of the creatable RecordType
 	// values; reads also surface the platform-managed apex/DNSSEC types
 	// (SOA, NS, DNSKEY, DS, NSEC, RRSIG).
-	Type   string         `json:"type,omitempty"`
-	Values []*RecordValue `json:"values,omitempty"`
-	ZoneID string         `json:"zone_id,omitempty"`
+	Type   string         `json:"type"`
+	Values []*RecordValue `json:"values"`
 }
 
 type RecordCreateRequest struct {
@@ -134,6 +133,29 @@ type Soa struct {
 }
 
 type Tags = map[string]string
+
+type VPC struct {
+	// CIDRIPv4 IPv4 CIDR block carved up by subnets. Must be private (RFC 1918):
+	// within 10.0.0.0/8, 172.16.0.0/12 or 192.168.0.0/16. Immutable after
+	// create.
+	CIDRIPv4 string `json:"cidr_ipv4"`
+
+	// CIDRIPv6 associated regional GUA or private ULA prefix.
+	CIDRIPv6  *string   `json:"cidr_ipv6,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// CRN Cloud Resource Name (name-based, region+account-scoped).
+	CRN         string `json:"crn"`
+	Description string `json:"description,omitempty"`
+	ID          string `json:"id"`
+
+	// Name 1-63 chars, lowercase alphanumeric + hyphen Resource names must not
+	// start with the literal crn: prefix or be UUIDs (canonical, compact,
+	// braced, or urn:uuid: forms, in either case).
+	Name      string            `json:"name"`
+	Tags      map[string]string `json:"tags"`
+	UpdatedAt time.Time         `json:"updated_at"`
+}
 
 type VPCAssociationAccepted struct {
 	VPCID  string `json:"vpc_id"`
