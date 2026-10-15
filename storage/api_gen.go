@@ -1551,11 +1551,12 @@ func (c *Client) UpdateVolume(ctx context.Context, volumeID string, body *Volume
 // UpdateVolumePerformance updates provisioned performance.
 //
 // Change IOPS or throughput without resizing or restarting the instance.
-// At least one dimension is required. Poll the volume's performance
-// state until applied. Identical pending requests resume the same
-// operation; a different request during an operation is rejected.
-// Billing changes only after application. Selecting the included
-// allowance removes paid extras.
+// At least one dimension is required. The volume status is updating
+// while the change is pending. Poll until performance.applied matches
+// the requested limits; failures appear in faults. Identical pending
+// requests resume the same operation; a different request during an
+// operation is rejected. Billing changes only after application.
+// Selecting the included allowance removes paid extras.
 //
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.

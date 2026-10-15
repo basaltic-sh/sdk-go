@@ -39,6 +39,43 @@ type Account struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
+// AccountOnboarding account-shared first-server progress. New accounts provision one IPv4
+// public subnet, an internet gateway, and a security group. No NAT
+// gateway or public IP is allocated during setup. Existing accounts are
+// never automatically provisioned.
+type AccountOnboarding struct {
+	AccountID           string `json:"account_id"`
+	ConfirmedInstanceID string `json:"confirmed_instance_id,omitempty"`
+	ConnectionRecorded  bool   `json:"connection_recorded"`
+	Dismissed           bool   `json:"dismissed"`
+	ErrorCode           string `json:"error_code,omitempty"`
+	InstanceID          string `json:"instance_id,omitempty"`
+
+	// One of: "pending", "provisioning", "ready", "failed", "existing".
+	ProvisioningStatus string                   `json:"provisioning_status"`
+	ProvisioningStep   string                   `json:"provisioning_step"`
+	Region             string                   `json:"region"`
+	SecurityGroupID    string                   `json:"security_group_id,omitempty"`
+	Steps              []*AccountOnboardingStep `json:"steps"`
+	SubnetID           string                   `json:"subnet_id,omitempty"`
+	VPCID              string                   `json:"vpc_id,omitempty"`
+	WelcomeSeen        bool                     `json:"welcome_seen"`
+}
+
+type AccountOnboardingStep struct {
+	Complete bool `json:"complete"`
+
+	// One of: "ssh", "launch", "connect".
+	ID string `json:"id"`
+}
+
+type AccountOnboardingUpdateRequest struct {
+	ConfirmedInstanceID *string `json:"confirmed_instance_id,omitempty"`
+	Dismissed           *bool   `json:"dismissed,omitempty"`
+	InstanceID          *string `json:"instance_id,omitempty"`
+	WelcomeSeen         *bool   `json:"welcome_seen,omitempty"`
+}
+
 type AccountPrincipalReference struct {
 	AccountHandle string `json:"account_handle,omitempty"`
 	AccountID     string `json:"account_id,omitempty"`

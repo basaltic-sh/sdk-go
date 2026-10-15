@@ -423,10 +423,17 @@ type Snapshot struct {
 	// case).
 	Name string `json:"name"`
 
-	// SizeBytes frozen logical restore capacity in bytes, not measured written data.
-	// The source volume may have been extended since the snapshot was
-	// taken.
-	SizeBytes int64 `json:"size_bytes"`
+	// RestoreSizeBytes minimum restore volume capacity, frozen when this snapshot was
+	// created. Independent of consumed storage and later source-volume
+	// expansion.
+	RestoreSizeBytes int64 `json:"restore_size_bytes"`
+
+	// SizeBytes measured retained logical bytes attributed to this snapshot, before
+	// replication and compression. Shared extents are counted once across
+	// the volume's snapshot chain. Attribution can move when another
+	// snapshot is deleted. Null when usage is unknown or stale; zero is a
+	// measured empty attribution.
+	SizeBytes *int64 `json:"size_bytes"`
 
 	// SnapshotPolicy the schedule that created this snapshot. Absent for manual
 	// snapshots, which are never reaped by schedule retention.
@@ -434,7 +441,16 @@ type Snapshot struct {
 	Status         SnapshotStatus `json:"status"`
 	Tags           Tags           `json:"tags"`
 	UpdatedAt      time.Time      `json:"updated_at"`
-	Volume         *ResourceRef   `json:"volume"`
+
+	// UsageMeasuredAt time of the last observation. Null before the first observation.
+	UsageMeasuredAt *time.Time `json:"usage_measured_at"`
+
+	// UsageState freshness of size_bytes. Unknown or stale measurements are never
+	// substituted with provisioned capacity.
+	//
+	// One of: "unknown", "stale", "measured".
+	UsageState string       `json:"usage_state"`
+	Volume     *ResourceRef `json:"volume"`
 }
 
 type SnapshotCreateRequest struct {

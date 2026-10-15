@@ -110,6 +110,18 @@ type BillingProfileUpdate struct {
 	TaxIDKind *string `json:"tax_id_kind,omitempty"`
 }
 
+type CatalogAllowance struct {
+	// MonthlyBase one grant per billing organization, not per instance, account region
+	// or bucket.
+	MonthlyBase string `json:"monthly_base"`
+
+	// MonthlyQuantity full-month contribution per instance; prorated by billed hours in
+	// the actual calendar month.
+	MonthlyQuantity string `json:"monthly_quantity"`
+	PolicyCode      string `json:"policy_code"`
+	Unit            string `json:"unit"`
+}
+
 type Credit struct {
 	Amount    string    `json:"amount"`
 	CreatedAt time.Time `json:"created_at"`
@@ -128,6 +140,10 @@ type Credit struct {
 type CurrentUsage struct {
 	// Amount unbilled usage accrued this UTC month, 2-decimal string.
 	Amount string `json:"amount"`
+
+	// IncludedUsage independent organization-wide monthly allowance pools; empty before
+	// activation.
+	IncludedUsage []*IncludedUsage `json:"included_usage"`
 
 	// Items Per-SKU breakdown, ordered by cost.
 	Items       []*UsageLine `json:"items"`
@@ -156,6 +172,49 @@ type FiscalInvoice struct {
 	// URL municipal view/print link available after issuance.
 	URL              string `json:"url"`
 	VerificationCode string `json:"verification_code"`
+}
+
+// IncludedUsage One UTC-calendar-month pool shared by all accounts and regions in the
+// billing organization. Quantities are exact decimal strings in `unit`.
+// The traffic policy uses decimal bytes (1 TB = 10^12 bytes); its legacy
+// egress billing SKU uses GiB despite the historical `GB` unit token.
+// Contributions accrue from billed instance-hours. Included usage is
+// allocated before monetary credits; only the remainder is charged.
+type IncludedUsage struct {
+	// Base monthly organization grant.
+	Base string `json:"base"`
+	Code string `json:"code"`
+
+	// Contributed allowance earned by rated instance-hours, prorated by this UTC
+	// month's actual hour count.
+	Contributed string `json:"contributed"`
+
+	// CountedFrom later of month start and policy activation. Earlier usage retains
+	// its original charges.
+	CountedFrom time.Time `json:"counted_from"`
+
+	// IncludedUsed persisted allowance allocations, including any already invoiced.
+	IncludedUsed string `json:"included_used"`
+	Name         string `json:"name"`
+
+	// Overage usage exceeding included allocations, before money credits. Can fall
+	// as instance allowance accrues.
+	Overage string `json:"overage"`
+
+	// PeriodEnd Exclusive UTC month end. Unused allowance does not roll over.
+	PeriodEnd   time.Time `json:"period_end"`
+	PeriodStart time.Time `json:"period_start"`
+
+	// Remaining nonnegative unused allowance.
+	Remaining string `json:"remaining"`
+
+	// Total base plus earned contributions.
+	Total string `json:"total"`
+	Unit  string `json:"unit"`
+
+	// Used gross eligible usage since counted_from; excludes inbound and
+	// unmetered private traffic.
+	Used string `json:"used"`
 }
 
 type Invoice struct {
@@ -251,6 +310,10 @@ type Price struct {
 	Currency    string  `json:"currency"`
 	Description *string `json:"description,omitempty"`
 
+	// IncludedUsage active allowance contributions for this plan, omitted when none
+	// apply.
+	IncludedUsage []*CatalogAllowance `json:"included_usage,omitempty"`
+
 	// Metadata extra facts about the SKU — `class`, `family`, `vcpus`,
 	// `memory_gb`, `storage_type`, … `family` separates the managed
 	// products (load balancer replicas, database cluster nodes) from the
@@ -318,7 +381,9 @@ type UsageLine struct {
 	// mid-month).
 	Amount      string `json:"amount"`
 	Description string `json:"description"`
-	Quantity    string `json:"quantity"`
-	Sku         string `json:"sku"`
-	Unit        string `json:"unit"`
+
+	// Quantity billable quantity after included usage; may be zero.
+	Quantity string `json:"quantity"`
+	Sku      string `json:"sku"`
+	Unit     string `json:"unit"`
 }

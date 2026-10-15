@@ -1058,6 +1058,13 @@ func (c *Client) CancelInvitation(ctx context.Context, invitationID string, opts
 // the `handle`, which is the account's public identifier and immutable
 // once created; the platform assigns the internal `id`.
 //
+// Default networking is provisioned asynchronously in the default
+// region: one IPv4 public subnet, an internet gateway and a security
+// group allowing SSH, HTTP, HTTPS and ping inbound, with all IPv4
+// outbound. No NAT gateway, tenant IPv6 or floating IP is allocated.
+// Personal account members can follow readiness at `GET
+// /v1/accounts/{account_id}/onboarding`.
+//
 // Accepts basaltic.WithIdempotencyKey, which makes the call
 // replay-safe and therefore retryable.
 func (c *Client) CreateAccount(ctx context.Context, body *CreateAccountRequest, opts ...basaltic.RequestOption) (*Account, error) {
@@ -1299,6 +1306,29 @@ func (c *Client) GetAccount(ctx context.Context, accountID string, opts ...basal
 		return nil, err
 	}
 	return out.Account, nil
+}
+
+// GetAccountOnboarding gets shared account setup progress.
+//
+// Personal users need a current role assignment in this account.
+// Automation must have workspace:GetAccount permission on the target
+// account. This lets an account creator wait for asynchronous default
+// networking. Shared guide preferences and retry remain personal-user
+// operations.
+func (c *Client) GetAccountOnboarding(ctx context.Context, accountID string, opts ...basaltic.RequestOption) (*AccountOnboarding, error) {
+	op := &basaltic.Operation{
+		ID:       "getAccountOnboarding",
+		Method:   "GET",
+		Path:     "/v1/accounts/{account_id}/onboarding",
+		PathArgs: []string{accountID},
+	}
+	var out struct {
+		Onboarding *AccountOnboarding `json:"onboarding"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Onboarding, nil
 }
 
 // GetAccountResources — Check account resource presence.
@@ -2388,6 +2418,27 @@ func (c *Client) RemoveUserPermissionBoundary(ctx context.Context, userID string
 	return nil
 }
 
+// RetryAccountProvisioning — Resume failed default network provisioning.
+//
+// Requires a personal user with a current role assignment in this
+// account. Progress and dismissal are shared by all account members.
+// Resource operations still require their normal permissions.
+func (c *Client) RetryAccountProvisioning(ctx context.Context, accountID string, opts ...basaltic.RequestOption) (*AccountOnboarding, error) {
+	op := &basaltic.Operation{
+		ID:       "retryAccountProvisioning",
+		Method:   "POST",
+		Path:     "/v1/accounts/{account_id}/onboarding/retry",
+		PathArgs: []string{accountID},
+	}
+	var out struct {
+		Onboarding *AccountOnboarding `json:"onboarding"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Onboarding, nil
+}
+
 // SetUserPermissionBoundary sets a user's permission boundary.
 //
 // Set the permission boundary — the boundary caps the principal's
@@ -2422,6 +2473,28 @@ func (c *Client) UpdateAccount(ctx context.Context, accountID string, body *Upda
 		return nil, err
 	}
 	return out.Account, nil
+}
+
+// UpdateAccountOnboarding updates shared account guide preferences.
+//
+// Requires a personal user with a current role assignment in this
+// account. Progress and dismissal are shared by all account members.
+// Resource operations still require their normal permissions.
+func (c *Client) UpdateAccountOnboarding(ctx context.Context, accountID string, body *AccountOnboardingUpdateRequest, opts ...basaltic.RequestOption) (*AccountOnboarding, error) {
+	op := &basaltic.Operation{
+		ID:       "updateAccountOnboarding",
+		Method:   "PATCH",
+		Path:     "/v1/accounts/{account_id}/onboarding",
+		PathArgs: []string{accountID},
+		Body:     body,
+	}
+	var out struct {
+		Onboarding *AccountOnboarding `json:"onboarding"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Onboarding, nil
 }
 
 // UpdateGroup updates group.
