@@ -145,65 +145,6 @@ type LinuxIdentity struct {
 	Username      string `json:"username"`
 }
 
-// OAuthAuthorizeRequest a signed-in user approving a client, from the console's consent page.
-type OAuthAuthorizeRequest struct {
-	// ClientID the registered client being approved.
-	//
-	// Required.
-	ClientID string `json:"client_id"`
-
-	// CodeChallenge Base64url SHA-256 of the client's PKCE verifier, without padding.
-	//
-	// Required.
-	CodeChallenge string `json:"code_challenge"`
-
-	// CodeChallengeMethod S256 only. `plain` is refused rather than merely discouraged:
-	// whoever intercepts the code also saw the challenge, so a plain
-	// challenge protects nothing.
-	//
-	// One of: "S256".
-	//
-	// Required.
-	CodeChallengeMethod string `json:"code_challenge_method"`
-
-	// Required.
-	Organization OrganizationReference `json:"organization"`
-
-	// RedirectURI for the CLI this must be `urn:ietf:wg:oauth:2.0:oob` — the
-	// out-of-band pseudo-redirect, meaning the code is DISPLAYED rather
-	// than delivered anywhere. Nothing else is accepted for that client.
-	//
-	// Out-of-band because a redirect assumes the browser and the client
-	// are on the same machine, which is false for anyone signing in on a
-	// server they reach over SSH. What makes redemption safe is PKCE, not
-	// the delivery address.
-	//
-	// Required.
-	RedirectURI string `json:"redirect_uri"`
-
-	// State opaque value echoed back on the redirect, unchanged. The client
-	// generated it and compares it on return.
-	State *string `json:"state,omitempty"`
-}
-
-// OAuthAuthorizeResponse what the consent page does next. Exactly one of `code` and
-// `redirect_to` is present, decided by the client's registered redirect.
-type OAuthAuthorizeResponse struct {
-	// Code the authorization code, for an out-of-band client — one with
-	// nowhere to redirect to. Show it to the user so they can carry it to
-	// the program that asked. Treat it as a credential: single use, and
-	// not something to log.
-	Code string `json:"code,omitempty"`
-
-	// ExpiresIn how long the code stays redeemable, in seconds.
-	ExpiresIn int `json:"expires_in"`
-
-	// RedirectTo send the browser here, for a client that registered a real redirect.
-	// The URL carries the authorization code and the state — treat it as
-	// a credential, and do not log it.
-	RedirectTo string `json:"redirect_to,omitempty"`
-}
-
 type OAuthRevokeRequest struct {
 	// Token the access token to revoke.
 	//
@@ -333,10 +274,6 @@ type OidcProviderUpdateRequest struct {
 	Description *string           `json:"description,omitempty"`
 	Tags        map[string]string `json:"tags,omitempty"`
 }
-
-// OrganizationReference Organization UUID to select for the session. Display names are not
-// accepted. The signed-in user must be a member.
-type OrganizationReference = string
 
 type Policy struct {
 	// CreatedAt creation timestamp (not present for system policies)

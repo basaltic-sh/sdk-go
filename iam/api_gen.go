@@ -710,42 +710,6 @@ func (c *Client) AttachServiceAccountPolicy(ctx context.Context, serviceAccountI
 	return nil
 }
 
-// AuthorizeOAuthClient — Approve a CLI login and issue an authorization code.
-//
-// Approve a client to act as you, and receive the authorization code
-// that hands it a token.
-//
-// **This is the console's endpoint, not a client's.** It is called by
-// the Basaltic console's consent page on behalf of a signed-in user; the
-// CLI never calls it. A CLI prints a URL for that page, and the page
-// calls this. Anything driving it directly would need the user's console
-// session, at which point it already has everything the code would
-// grant.
-//
-// It is the half of the authorization-code flow that establishes WHO is
-// approving. The user must already be signed in — including any second
-// factor — and must be a member of the organization named in
-// `organization`. The organization is explicit rather than inferred: a
-// person in several has no single obvious answer, and choosing one for
-// them would scope the resulting token to something they did not pick.
-//
-// Unlike the token endpoint, this answers in the usual API envelope. It
-// is not part of the surface a third-party OAuth client talks to, so it
-// follows the caller — and the caller is our own front end.
-func (c *Client) AuthorizeOAuthClient(ctx context.Context, body *OAuthAuthorizeRequest, opts ...basaltic.RequestOption) (*OAuthAuthorizeResponse, error) {
-	op := &basaltic.Operation{
-		ID:     "authorizeOAuthClient",
-		Method: "POST",
-		Path:   "/v1/oauth/authorize",
-		Body:   body,
-	}
-	var out OAuthAuthorizeResponse
-	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
 // CreateOidcProvider creates an OIDC provider.
 //
 // Register an HTTPS OIDC issuer and allowed audiences in the selected

@@ -107,6 +107,10 @@ One package per service. Import only what you use.
 | `secrets` | regional | `workspace` | global |
 | `certificate` | regional | `catalog` | global |
 | `telemetry` | regional | | |
+| `email` | regional | | |
+| `notifications` | regional | | |
+| `queue` | regional | | |
+| `registry` | regional | | |
 
 Regional services need a region; global ones ignore it. Global endpoint scope is separate from resource ownership: IAM roles, policies, service accounts, and STS sessions belong to the account selected in the configuration. Workspace manages organizations, accounts, people, groups, and organization policies.
 

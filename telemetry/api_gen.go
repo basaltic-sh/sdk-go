@@ -17,6 +17,73 @@ import (
 	basaltic "github.com/basaltic-sh/sdk-go"
 )
 
+// ListAlertsParams are the optional filters and pagination controls for
+// [Client.ListAlerts]. A nil *ListAlertsParams sends none of them.
+type ListAlertsParams struct {
+	// CRN exact canonical alert CRN, intersected with name and state.
+	// Empty/malformed CRNs return 400; valid foreign CRNs return an empty
+	// page.
+	CRN string
+
+	// Limit maximum number of items to return. A value above the maximum is
+	// clamped to it rather than rejected, so a page shorter than the one
+	// you asked for is normal — page until `meta.has_more` is false, not
+	// until a page looks short.
+	Limit int
+
+	// Marker opaque pagination cursor. Echo back the `meta.marker` value from the
+	// previous page to fetch the next one; do not construct or parse it.
+	// The token's internal form varies by endpoint (a resource ID, a
+	// timestamp, …) and is not guaranteed stable across releases.
+	Marker string
+
+	// Name exact name filter; an explicitly empty name matches nothing.
+	Name string
+
+	// State filter effective state. Disabled takes precedence over silenced;
+	// otherwise uses evaluation state.
+	//
+	// One of: "ok", "pending", "firing", "no_data", "error", "silenced",
+	// "disabled".
+	State string
+}
+
+// query renders the parameters that are set. A zero value means "no
+// filter", which is what leaving one out asks for.
+func (p *ListAlertsParams) query() url.Values {
+	q := url.Values{}
+	if p == nil {
+		return q
+	}
+	if p.CRN != "" {
+		q.Set("crn", p.CRN)
+	}
+	if p.Limit != 0 {
+		q.Set("limit", strconv.Itoa(int(p.Limit)))
+	}
+	if p.Marker != "" {
+		q.Set("marker", p.Marker)
+	}
+	if p.Name != "" {
+		q.Set("name", p.Name)
+	}
+	if p.State != "" {
+		q.Set("state", p.State)
+	}
+	return q
+}
+
+// withMarker copies p with the pagination cursor replaced, leaving the
+// caller's value untouched across pages.
+func (p *ListAlertsParams) withMarker(marker string) *ListAlertsParams {
+	var out ListAlertsParams
+	if p != nil {
+		out = *p
+	}
+	out.Marker = marker
+	return &out
+}
+
 // ListLogGroupsParams are the optional filters and pagination controls for
 // [Client.ListLogGroups]. A nil *ListLogGroupsParams sends none of them.
 type ListLogGroupsParams struct {
@@ -504,6 +571,35 @@ func (p *SearchTracesParams) withMarker(marker string) *SearchTracesParams {
 	return &out
 }
 
+// CreateAlert creates a metric alert.
+//
+// Creates a durable metric read and notification publish delegation.
+// Requires telemetry:CreateAlert on the named alert,
+// telemetry:ReadMetrics for the account, and notifications:Publish on
+// the selected topic. Firing and resolved transitions use the topic’s
+// confirmed email, webhook and queue subscriptions. Events are stored
+// atomically with state changes and retried with stable message IDs.
+// Missing data and evaluation errors are visible states, not recovery
+// notifications.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
+func (c *Client) CreateAlert(ctx context.Context, body *CreateAlertRequest, opts ...basaltic.RequestOption) (*Alert, error) {
+	op := &basaltic.Operation{
+		ID:     "createAlert",
+		Method: "POST",
+		Path:   "/v1/alerts",
+		Body:   body,
+	}
+	var out struct {
+		Alert *Alert `json:"alert"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Alert, nil
+}
+
 // CreateLogGroup creates a log group.
 //
 // Register a new log group in the caller's org. Name is the
@@ -526,6 +622,24 @@ func (c *Client) CreateLogGroup(ctx context.Context, body *CreateLogGroupRequest
 		return nil, err
 	}
 	return out.LogGroup, nil
+}
+
+// DeleteAlert deletes a metric alert.
+//
+// Deletes the alert and its unpublished notification events. Already
+// accepted notification deliveries retain the Notifications service
+// lifecycle.
+func (c *Client) DeleteAlert(ctx context.Context, id string, opts ...basaltic.RequestOption) error {
+	op := &basaltic.Operation{
+		ID:       "deleteAlert",
+		Method:   "DELETE",
+		Path:     "/v1/alerts/{id}",
+		PathArgs: []string{id},
+	}
+	if err := c.rt.Do(ctx, op, nil, opts...); err != nil {
+		return err
+	}
+	return nil
 }
 
 // DeleteLogGroup deletes a log group.
@@ -561,6 +675,23 @@ func (c *Client) DeleteTraceSettings(ctx context.Context, opts ...basaltic.Reque
 		return err
 	}
 	return nil
+}
+
+// GetAlert gets a metric alert.
+func (c *Client) GetAlert(ctx context.Context, id string, opts ...basaltic.RequestOption) (*Alert, error) {
+	op := &basaltic.Operation{
+		ID:       "getAlert",
+		Method:   "GET",
+		Path:     "/v1/alerts/{id}",
+		PathArgs: []string{id},
+	}
+	var out struct {
+		Alert *Alert `json:"alert"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Alert, nil
 }
 
 // GetLog gets a single log record by id.
@@ -601,7 +732,9 @@ func (c *Client) GetLogGroup(ctx context.Context, id string, opts ...basaltic.Re
 //
 // Reports whether logs, spans, metrics or retention rollups remain in
 // this account and region, including expired data awaiting reclamation.
-// Requires telemetry:GetRetainedData.
+// The blocks_deletion flag distinguishes log/span storage and encryption
+// dependencies from metric history, which can expire normally after
+// account soft-deletion. Requires telemetry:GetRetainedData.
 func (c *Client) GetRetainedTelemetryPresence(ctx context.Context, opts ...basaltic.RequestOption) (*GetRetainedTelemetryPresenceRetainedData, error) {
 	op := &basaltic.Operation{
 		ID:     "getRetainedTelemetryPresence",
@@ -699,6 +832,63 @@ func (c *Client) IngestSpans(ctx context.Context, body *IngestSpansRequest, opts
 		return nil, err
 	}
 	return out.Ingestion, nil
+}
+
+// ListAlerts lists metric alerts.
+//
+// Account-scoped keyset pagination by UUID, ascending. Markers are
+// opaque and bound to the account and filters. No tenant identity is
+// included in the response.
+//
+// Returns one page. Use ListAlertsAll to walk every page.
+func (c *Client) ListAlerts(ctx context.Context, params *ListAlertsParams, opts ...basaltic.RequestOption) (*basaltic.Page[Alert], error) {
+	op := &basaltic.Operation{
+		ID:     "listAlerts",
+		Method: "GET",
+		Path:   "/v1/alerts",
+	}
+	op.Query = params.query()
+	var out struct {
+		Items []Alert `json:"alerts"`
+		Meta  *struct {
+			Total   int    `json:"total"`
+			Limit   int    `json:"limit"`
+			Marker  string `json:"marker"`
+			HasMore bool   `json:"has_more"`
+		} `json:"meta"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	page := &basaltic.Page[Alert]{Items: out.Items}
+	if out.Meta != nil {
+		page.Total = out.Meta.Total
+		page.Limit = out.Meta.Limit
+		page.Marker = out.Meta.Marker
+		page.HasMore = out.Meta.HasMore
+	}
+	return page, nil
+}
+
+// ListAlertsAll walks every page of ListAlerts, yielding one item at a
+// time.
+//
+// The iterator stops at the first error, yielding it alongside a zero
+// value, so check err on every step:
+//
+//	for item, err := range c.ListAlertsAll(ctx, nil) {
+//		if err != nil {
+//			return err
+//		}
+//		...
+//	}
+//
+// Breaking out of the loop stops the walk; no further requests are made.
+// Any Marker on params is overwritten as the walk advances.
+func (c *Client) ListAlertsAll(ctx context.Context, params *ListAlertsParams, opts ...basaltic.RequestOption) iter.Seq2[Alert, error] {
+	return basaltic.Paginate(ctx, func(ctx context.Context, marker string) (*basaltic.Page[Alert], error) {
+		return c.ListAlerts(ctx, params.withMarker(marker), opts...)
+	})
 }
 
 // ListLogGroups lists log groups (or look up one by name).
@@ -1195,6 +1385,31 @@ func (c *Client) SearchTracesAll(ctx context.Context, params *SearchTracesParams
 	})
 }
 
+// UpdateAlert updates a metric alert.
+//
+// Requires telemetry:UpdateAlert. Changing the rule/topic or enabling an
+// alert additionally renews telemetry:ReadMetrics and
+// notifications:Publish authorization. enabled=false stops evaluation;
+// silenced_until mutes notification delivery while evaluation continues.
+// Changing the rule or enabled flag resets pending/incident state. Name
+// is immutable.
+func (c *Client) UpdateAlert(ctx context.Context, id string, body *UpdateAlertRequest, opts ...basaltic.RequestOption) (*Alert, error) {
+	op := &basaltic.Operation{
+		ID:       "updateAlert",
+		Method:   "PATCH",
+		Path:     "/v1/alerts/{id}",
+		PathArgs: []string{id},
+		Body:     body,
+	}
+	var out struct {
+		Alert *Alert `json:"alert"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.Alert, nil
+}
+
 // UpdateLogGroup updates a log group.
 //
 // Mutate description, retention policy, KMS association, or tags. Name
@@ -1260,6 +1475,32 @@ func (c *Client) WriteMetrics(ctx context.Context, body io.Reader, opts ...basal
 		return err
 	}
 	return nil
+}
+
+// GetAlertByReference fetches one alert by an id, a CRN or a name.
+//
+// The reference is classified by its syntax alone, exactly as the
+// platform does (see [basaltic.ParseReference]): an id is fetched with
+// [Client.GetAlert]; a CRN or a name goes to [Client.ListAlerts] as an
+// exact filter, together with any filters already set on scope, which
+// may be nil. A miss is a not-found error for the kind the string was
+// read as — no other kind is tried — and more than one match is a
+// [basaltic.AmbiguousReferenceError].
+func (c *Client) GetAlertByReference(ctx context.Context, ref string, scope *ListAlertsParams, opts ...basaltic.RequestOption) (*Alert, error) {
+	return basaltic.ResolveByReference(ctx, ref, "alert", "listAlerts", true,
+		func(ctx context.Context, refID string) (*Alert, error) {
+			return c.GetAlert(ctx, refID, opts...)
+		},
+		func(ctx context.Context, refName, refCRN string) (*basaltic.Page[Alert], error) {
+			var p ListAlertsParams
+			if scope != nil {
+				p = *scope
+			}
+			p.Name = refName
+			p.CRN = refCRN
+			p.Limit = 2
+			return c.ListAlerts(ctx, &p, opts...)
+		})
 }
 
 // GetLogGroupByReference fetches one log group by an id, a CRN or a

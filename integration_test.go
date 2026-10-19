@@ -111,13 +111,13 @@ func TestLiveEndpointRouting(t *testing.T) {
 	cfg := liveConfig(t)
 	ctx := liveContext(t)
 
-	// iam is global: no {region} in its endpoint.
-	regions, err := iam.New(cfg).ListRegions(ctx, nil)
+	// catalog is global: no {region} in its endpoint.
+	regions, err := catalog.New(cfg).ListRegions(ctx, nil)
 	if err != nil {
-		t.Fatalf("iam.ListRegions (global): %v", err)
+		t.Fatalf("catalog.ListRegions (global): %v", err)
 	}
 	if len(regions.Regions) == 0 {
-		t.Error("iam.ListRegions returned no regions")
+		t.Error("catalog.ListRegions returned no regions")
 	}
 
 	// compute and network are regional, on separate hosts.

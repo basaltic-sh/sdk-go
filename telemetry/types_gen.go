@@ -10,6 +10,132 @@ import (
 	"time"
 )
 
+type Alert struct {
+	CreatedAt time.Time `json:"created_at"`
+	CRN       string    `json:"crn"`
+
+	// DeliveryError notification remains queued for retry; metric evaluation continues.
+	DeliveryError   string           `json:"delivery_error,omitempty"`
+	Enabled         bool             `json:"enabled"`
+	EvaluatedAt     time.Time        `json:"evaluated_at,omitempty"`
+	EvaluationError string           `json:"evaluation_error,omitempty"`
+	Expression      *AlertExpression `json:"expression"`
+
+	// ForSeconds continuous breach duration before firing; 0 fires immediately.
+	// Missing data, query failures and scheduling gaps reset a pending
+	// duration.
+	ForSeconds int      `json:"for_seconds"`
+	ID         string   `json:"id"`
+	LastValue  *float64 `json:"last_value"`
+	Name       string   `json:"name"`
+
+	// One of: "gt", "gte", "lt", "lte".
+	Operator     string    `json:"operator"`
+	PendingSince time.Time `json:"pending_since,omitempty"`
+
+	// SilencedUntil mute notifications until this instant (at most 30 days ahead).
+	// Evaluation continues; null removes silence. An active alert notifies
+	// on the next evaluation after silence expires.
+	SilencedUntil *time.Time `json:"silenced_until"`
+
+	// State evaluation state, independent of enabled and silenced_until. Missing
+	// data/errors do not resolve an open incident.
+	//
+	// One of: "ok", "pending", "firing", "no_data", "error".
+	State          string       `json:"state"`
+	StateChangedAt time.Time    `json:"state_changed_at,omitempty"`
+	Threshold      float64      `json:"threshold"`
+	Topic          *ResourceRef `json:"topic"`
+	UpdatedAt      time.Time    `json:"updated_at"`
+
+	// WindowSeconds whole-minute window. Evaluated every minute against the last
+	// complete UTC-aligned window.
+	WindowSeconds int `json:"window_seconds"`
+}
+
+type AlertExpression struct {
+	// One of: "avg", "min", "max", "sum", "last", "count", "rate", "increase".
+	Agg string `json:"agg"`
+
+	// By grouping labels; the resulting series are summed to match the
+	// console metric card.
+	By          []string    `json:"by,omitempty"`
+	Denominator *AlertQuery `json:"denominator,omitempty"`
+
+	// Match label matchers (label=value, label!=value, label=~regex,
+	// label!~regex). Tenant scope is always applied independently.
+	Match  []string `json:"match,omitempty"`
+	Metric string   `json:"metric"`
+
+	// Scale multiplier after optional division, e.g. 100 for a percentage or
+	// 1/1048576 for MiB/s.
+	Scale float64 `json:"scale"`
+
+	// Unit display unit for the scaled threshold and value.
+	Unit *string `json:"unit,omitempty"`
+}
+
+type AlertQuery struct {
+	// One of: "avg", "min", "max", "sum", "last", "count", "rate", "increase".
+	Agg string `json:"agg"`
+
+	// By grouping labels; the resulting series are summed to match the
+	// console metric card.
+	By []string `json:"by,omitempty"`
+
+	// Match label matchers (label=value, label!=value, label=~regex,
+	// label!~regex). Tenant scope is always applied independently.
+	Match  []string `json:"match,omitempty"`
+	Metric string   `json:"metric"`
+}
+
+type CreateAlertRequest struct {
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Required.
+	Expression *AlertExpression `json:"expression"`
+
+	// ForSeconds continuous breach duration before firing; 0 fires immediately.
+	// Missing data, query failures and scheduling gaps reset a pending
+	// duration.
+	//
+	// Required.
+	ForSeconds int `json:"for_seconds"`
+
+	// Name immutable account-unique name. UUID names and the crn: prefix are
+	// reserved.
+	//
+	// Required.
+	Name string `json:"name"`
+
+	// One of: "gt", "gte", "lt", "lte".
+	//
+	// Required.
+	Operator string `json:"operator"`
+
+	// SilencedUntil mute notifications until this instant (at most 30 days ahead).
+	// Evaluation continues; null removes silence. An active alert notifies
+	// on the next evaluation after silence expires.
+	SilencedUntil *time.Time `json:"silenced_until,omitempty"`
+
+	// Required.
+	Threshold float64 `json:"threshold"`
+
+	// Topic required same-account, same-region notification topic reference:
+	// UUID, canonical CRN or exact name, classified by syntax. Multiple
+	// alerts may share a topic. Binding requires notifications:Publish and
+	// respects explicit topic-policy denies.
+	//
+	// Required.
+	Topic string `json:"topic"`
+
+	// WindowSeconds whole-minute window. Evaluated every minute against the last
+	// complete UTC-aligned window.
+	//
+	// Required.
+	WindowSeconds int `json:"window_seconds"`
+}
+
 type CreateLogGroupRequest struct {
 	Description *string `json:"description,omitempty"`
 
@@ -34,7 +160,12 @@ type CreateLogGroupRequest struct {
 }
 
 type GetRetainedTelemetryPresenceRetainedData struct {
-	HasData bool `json:"has_data"`
+	// BlocksDeletion true when retained logs, spans or their storage rollups still block
+	// account deletion. Metric samples alone do not block account
+	// soft-deletion and expire through normal retention. Clients talking
+	// to older servers that omit this field must fall back to has_data.
+	BlocksDeletion bool `json:"blocks_deletion,omitempty"`
+	HasData        bool `json:"has_data"`
 }
 
 type IngestError struct {
@@ -316,6 +447,39 @@ type TraceSummary struct {
 	SpanCount    int       `json:"span_count"`
 	StartTime    time.Time `json:"start_time"`
 	TraceID      string    `json:"trace_id"`
+}
+
+// UpdateAlertRequest only supplied fields change. The expression is replaced as a whole.
+// Null is allowed only for silenced_until. Name is immutable. Rule edits
+// and enable changes reset evaluation; edits discard events queued for
+// the previous configuration.
+type UpdateAlertRequest struct {
+	Enabled    *bool            `json:"enabled,omitempty"`
+	Expression *AlertExpression `json:"expression,omitempty"`
+
+	// ForSeconds continuous breach duration before firing; 0 fires immediately.
+	// Missing data, query failures and scheduling gaps reset a pending
+	// duration.
+	ForSeconds *int `json:"for_seconds,omitempty"`
+
+	// One of: "gt", "gte", "lt", "lte".
+	Operator *string `json:"operator,omitempty"`
+
+	// SilencedUntil mute notifications until this instant (at most 30 days ahead).
+	// Evaluation continues; null removes silence. An active alert notifies
+	// on the next evaluation after silence expires.
+	SilencedUntil *time.Time `json:"silenced_until,omitempty"`
+	Threshold     *float64   `json:"threshold,omitempty"`
+
+	// Topic required same-account, same-region notification topic reference:
+	// UUID, canonical CRN or exact name, classified by syntax. Multiple
+	// alerts may share a topic. Binding requires notifications:Publish and
+	// respects explicit topic-policy denies.
+	Topic *string `json:"topic,omitempty"`
+
+	// WindowSeconds whole-minute window. Evaluated every minute against the last
+	// complete UTC-aligned window.
+	WindowSeconds *int `json:"window_seconds,omitempty"`
 }
 
 type UpdateLogGroupRequest struct {
