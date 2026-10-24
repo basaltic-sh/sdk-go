@@ -1825,12 +1825,39 @@ func (c *Client) UpdateInstance(ctx context.Context, instanceID string, body *In
 // members with two different tag sets until it is rolled. The pool
 // reports `stale_instance_count` — how many members are on the old
 // template — and POST /v1/instance-pools/{pool_id}/refresh rolls them.
+//
+// Accepts basaltic.WithIdempotencyKey, which makes the call
+// replay-safe and therefore retryable.
 func (c *Client) UpdateInstancePool(ctx context.Context, poolID string, body *InstancePoolUpdateRequest, opts ...basaltic.RequestOption) (*InstancePool, error) {
 	op := &basaltic.Operation{
 		ID:       "updateInstancePool",
 		Method:   "PATCH",
 		Path:     "/v1/instance-pools/{pool_id}",
 		PathArgs: []string{poolID},
+		Body:     body,
+	}
+	var out struct {
+		InstancePool *InstancePool `json:"instance_pool"`
+	}
+	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
+		return nil, err
+	}
+	return out.InstancePool, nil
+}
+
+// UpdateInstancePoolMemberProtection updates member scale-in protection.
+//
+// Protect or unprotect one member of a customer instance pool from
+// manual and automatic scale-in. Already-retiring members return 409.
+// Protection is scoped to this VM and does not prevent an explicit
+// refresh, replacement of a failed VM, instance deletion, or deletion of
+// the pool. Replacement VMs start unprotected.
+func (c *Client) UpdateInstancePoolMemberProtection(ctx context.Context, poolID string, instanceID string, body *InstancePoolMemberProtectionRequest, opts ...basaltic.RequestOption) (*InstancePool, error) {
+	op := &basaltic.Operation{
+		ID:       "updateInstancePoolMemberProtection",
+		Method:   "PATCH",
+		Path:     "/v1/instance-pools/{pool_id}/instances/{instance_id}",
+		PathArgs: []string{poolID, instanceID},
 		Body:     body,
 	}
 	var out struct {

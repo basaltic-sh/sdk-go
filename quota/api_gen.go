@@ -16,7 +16,8 @@ import (
 // ListQuotasParams are the optional filters and pagination controls for
 // [Client.ListQuotas]. A nil *ListQuotasParams sends none of them.
 type ListQuotasParams struct {
-	// Region to filter regional quotas by. Omit for global only.
+	// Region for organization resource quotas and Email policies. Omit for
+	// global resource quotas only.
 	Region string
 }
 
@@ -37,24 +38,33 @@ func (p *ListQuotasParams) query() url.Values {
 //
 // List quotas for the caller's organization, joined with current usage
 // and any per-org overrides. Filter by region with `?region=`; omitting
-// it returns global-scoped quotas only.
+// it returns global-scoped resource quotas and an empty `policies`
+// array.
 //
-// Per-resource quotas (e.g. `domains_per_certificate`) are NOT returned
-// here — they're per-parent caps, surfaced only as validation errors
-// at the relevant resource API. Requires `quota:GetQuotas` permission.
-func (c *Client) ListQuotas(ctx context.Context, params *ListQuotasParams, opts ...basaltic.RequestOption) (*basaltic.Page[QuotaItem], error) {
+// With `?region=`, the additive `policies` array also exposes Email
+// message-size and rolling recipient limits for the organization in that
+// region. A regional override takes precedence over an organization-wide
+// override, then the platform default. Policies include units,
+// rolling-window length where applicable, and the limit source. They do
+// not include reservation or usage counters; a size or rate limit must
+// not be interpreted as resource capacity. The existing `quotas` array
+// and its fields are unchanged.
+//
+// Other per-resource quotas (e.g. `domains_per_certificate`) are not
+// returned. The Email size policy applies to the complete encoded
+// sending message, including attachments. The independent 50 MiB service
+// ceiling still applies even if the policy is unlimited. Requires
+// `quota:GetQuotas` permission.
+func (c *Client) ListQuotas(ctx context.Context, params *ListQuotasParams, opts ...basaltic.RequestOption) (*QuotaListResponse, error) {
 	op := &basaltic.Operation{
 		ID:     "listQuotas",
 		Method: "GET",
 		Path:   "/v1/quotas",
 	}
 	op.Query = params.query()
-	var out struct {
-		Items []QuotaItem `json:"quotas"`
-	}
+	var out QuotaListResponse
 	if err := c.rt.Do(ctx, op, &out, opts...); err != nil {
 		return nil, err
 	}
-	page := &basaltic.Page[QuotaItem]{Items: out.Items}
-	return page, nil
+	return &out, nil
 }

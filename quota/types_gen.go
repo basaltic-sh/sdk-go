@@ -40,3 +40,58 @@ type QuotaItem struct {
 	// both compute and database have an `instances` quota).
 	Service string `json:"service"`
 }
+
+type QuotaListResponse struct {
+	// Policies non-reservation policies for the organization in the requested
+	// region. Currently contains the four Email size and recipient
+	// policies. Empty when region is omitted. Older servers may omit this
+	// additive field.
+	Policies []*QuotaPolicy `json:"policies,omitempty"`
+	Quotas   []*QuotaItem   `json:"quotas"`
+}
+
+// QuotaPolicy an organization policy enforced in the specified region, shared across
+// its accounts. Size applies per complete encoded sending message;
+// recipient rates count accepted recipients over a rolling window, not
+// API calls or a calendar day. This object deliberately has no in_use,
+// reserved or available counters.
+type QuotaPolicy struct {
+	Description string `json:"description"`
+
+	// Limit effective policy value after regional and organization overrides; -1
+	// means unlimited by this policy and 0 permits none. The separate
+	// Email message ceiling of 52428800 bytes (50 MiB) applies even when
+	// the size policy is unlimited or larger than the ceiling.
+	Limit int `json:"limit"`
+
+	// LimitSource platform default, organization-wide override, or override for the
+	// requested region.
+	//
+	// One of: "default", "organization", "region".
+	LimitSource string `json:"limit_source"`
+	Region      string `json:"region"`
+
+	// One of: "message_size_bytes", "sent_recipients_per_second", "sent_recipients_per_day", "received_recipients_per_second".
+	ResourceType string `json:"resource_type"`
+
+	// Scope the policy applies to the caller's organization in region, even if
+	// its value comes from an organization-wide override.
+	//
+	// One of: "regional".
+	Scope string `json:"scope"`
+
+	// One of: "email".
+	Service string `json:"service"`
+
+	// Unit bytes per complete encoded sending message, or accepted recipients
+	// per rolling window.
+	//
+	// One of: "bytes", "recipients".
+	Unit string `json:"unit"`
+
+	// WindowSeconds rolling window length for recipient policies. Omitted for message
+	// size; 86400 means rolling 24 hours.
+	//
+	// One of: "1", "86400".
+	WindowSeconds int `json:"window_seconds,omitempty"`
+}

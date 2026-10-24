@@ -736,9 +736,12 @@ func (c *Client) CreateOidcProvider(ctx context.Context, body *OidcProviderCreat
 //
 // Requires the signed-in human user. Personal keys apply to that user
 // across organization memberships; the organization selects only the
-// Linux identity. A key never carries a role or grants access to a VM by
-// itself. Linux names and numeric IDs are allocated by the platform and
-// do not change on key rotation or display-name changes.
+// Linux identity. The iam/ssh_keys_per_user platform quota limits
+// unexpired keys (default 50); organization overrides do not apply.
+// Expired keys remain listed until the hourly cleanup removes records
+// expired for seven days. A key never carries a role or grants access to
+// a VM by itself. Linux names and numeric IDs are allocated by the
+// platform and do not change on key rotation or display-name changes.
 func (c *Client) CreatePersonalSSHKey(ctx context.Context, body *SSHKeyCreateRequest, opts ...basaltic.RequestOption) (*SSHKey, error) {
 	op := &basaltic.Operation{
 		ID:     "createPersonalSSHKey",
@@ -845,10 +848,13 @@ func (c *Client) CreateServiceAccountCredential(ctx context.Context, serviceAcco
 // CreateServiceAccountSSHKey adds service-account SSH key.
 //
 // Requires the selected account and ordinary IAM authorization against
-// the service account, including tag conditions and explicit denies. A
-// key never carries a role or grants access to a VM by itself. Linux
-// names and numeric IDs are allocated by the platform and do not change
-// on key rotation or display-name changes.
+// the service account, including tag conditions and explicit denies. The
+// iam/ssh_keys_per_service_account quota limits unexpired keys per
+// service account (default 50), independently of HMAC credentials.
+// Expired keys remain listed until the hourly cleanup removes records
+// expired for seven days. A key never carries a role or grants access to
+// a VM by itself. Linux names and numeric IDs are allocated by the
+// platform and do not change on key rotation or display-name changes.
 func (c *Client) CreateServiceAccountSSHKey(ctx context.Context, serviceAccountID string, body *SSHKeyCreateRequest, opts ...basaltic.RequestOption) (*SSHKey, error) {
 	op := &basaltic.Operation{
 		ID:       "createServiceAccountSSHKey",
@@ -1365,9 +1371,12 @@ func (c *Client) ListOidcProvidersAll(ctx context.Context, params *ListOidcProvi
 //
 // Requires the signed-in human user. Personal keys apply to that user
 // across organization memberships; the organization selects only the
-// Linux identity. A key never carries a role or grants access to a VM by
-// itself. Linux names and numeric IDs are allocated by the platform and
-// do not change on key rotation or display-name changes.
+// Linux identity. The iam/ssh_keys_per_user platform quota limits
+// unexpired keys (default 50); organization overrides do not apply.
+// Expired keys remain listed until the hourly cleanup removes records
+// expired for seven days. A key never carries a role or grants access to
+// a VM by itself. Linux names and numeric IDs are allocated by the
+// platform and do not change on key rotation or display-name changes.
 func (c *Client) ListPersonalSSHKeys(ctx context.Context, opts ...basaltic.RequestOption) ([]*SSHKey, error) {
 	op := &basaltic.Operation{
 		ID:     "listPersonalSSHKeys",
@@ -1765,10 +1774,13 @@ func (c *Client) ListServiceAccountPolicies(ctx context.Context, serviceAccountI
 // ListServiceAccountSSHKeys lists service-account SSH keys.
 //
 // Requires the selected account and ordinary IAM authorization against
-// the service account, including tag conditions and explicit denies. A
-// key never carries a role or grants access to a VM by itself. Linux
-// names and numeric IDs are allocated by the platform and do not change
-// on key rotation or display-name changes.
+// the service account, including tag conditions and explicit denies. The
+// iam/ssh_keys_per_service_account quota limits unexpired keys per
+// service account (default 50), independently of HMAC credentials.
+// Expired keys remain listed until the hourly cleanup removes records
+// expired for seven days. A key never carries a role or grants access to
+// a VM by itself. Linux names and numeric IDs are allocated by the
+// platform and do not change on key rotation or display-name changes.
 func (c *Client) ListServiceAccountSSHKeys(ctx context.Context, serviceAccountID string, opts ...basaltic.RequestOption) ([]*SSHKey, error) {
 	op := &basaltic.Operation{
 		ID:       "listServiceAccountSSHKeys",

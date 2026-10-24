@@ -799,6 +799,15 @@ type InstancePool struct {
 	// RolloutSurge temporary rollout capacity; desired_count remains the steady target.
 	RolloutSurge bool `json:"rollout_surge,omitempty"`
 
+	// ScaleInBlockedReason why scale-in protection currently prevents the requested reduction.
+	// Omitted when not blocked.
+	ScaleInBlockedReason string `json:"scale_in_blocked_reason,omitempty"`
+
+	// ScaleInProtectedInstances Instance UUIDs protected from manual and automatic scale-in.
+	// Protection does not prevent refresh, failed-instance replacement, or
+	// explicit deletion.
+	ScaleInProtectedInstances []string `json:"scale_in_protected_instances,omitempty"`
+
 	// StaleInstanceCount how many members were launched from a template other than the pool's
 	// current one — that is, how many a refresh would replace. Non-zero
 	// after editing `template` and before refreshing, which is the signal
@@ -888,6 +897,17 @@ type InstancePoolFloatingIPAttachRequest struct {
 	//
 	// Required.
 	FloatingIP string `json:"floating_ip"`
+}
+
+type InstancePoolMemberProtectionRequest struct {
+	// ScaleInProtected protect this member from manual and automatic scale-in. Remove
+	// protection before selecting it for scale-in. Cannot change a
+	// retiring member. Explicit refresh, failed-instance replacement,
+	// instance deletion and pool deletion are unaffected. Replacement
+	// instances start unprotected.
+	//
+	// Required.
+	ScaleInProtected bool `json:"scale_in_protected"`
 }
 
 // InstancePoolTemplate stored launch configuration with ResourceRef relationships. Use a
@@ -1041,6 +1061,16 @@ type InstancePoolUpdateRequest struct {
 	// MinCount new lower bound; omitted desired_count rises to this bound if
 	// needed.
 	MinCount *int `json:"min_count,omitempty"`
+
+	// ScaleInInstances exact member UUIDs to retire. Requires an explicit lower
+	// desired_count and exactly current desired_count minus new
+	// desired_count members. The pool must have converged membership and
+	// no retirement or refresh in progress. Selected members must belong
+	// to this pool and be unprotected. Only sizing and autoscaling fields
+	// may accompany selection. Selection and sizing are committed
+	// atomically; stale or protected selections return 409 without
+	// substituting another member. Use Idempotency-Key when retrying.
+	ScaleInInstances []string `json:"scale_in_instances,omitempty"`
 
 	// Subnets replace the eligible placement set. Omit to preserve it. Affects
 	// future launches; run an explicit refresh to move existing members.

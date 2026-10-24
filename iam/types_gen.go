@@ -478,7 +478,9 @@ type SSHKey struct {
 	// CRN Identity-owned SSH credential CRN.
 	CRN string `json:"crn"`
 
-	// ExpiresAt optional expiry. Expired keys remain listed until revoked.
+	// ExpiresAt optional expiry. Expired keys do not count toward the SSH key quota.
+	// They remain listed for seven days after expiry, then are
+	// automatically deleted by an hourly cleanup.
 	ExpiresAt time.Time `json:"expires_at,omitempty"`
 
 	// Fingerprint SHA-256 fingerprint in OpenSSH format.
@@ -492,8 +494,10 @@ type SSHKey struct {
 }
 
 type SSHKeyCreateRequest struct {
-	// ExpiresAt optional expiry at least one minute in the future. Rotation requires
-	// a new credential and revocation of the old one.
+	// ExpiresAt optional expiry at least one minute in the future. Expired keys stop
+	// authorizing new logins and stop consuming quota immediately; records
+	// are automatically deleted after seven days by an hourly cleanup.
+	// Rotation requires a new credential and revocation of the old one.
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 
 	// Required.

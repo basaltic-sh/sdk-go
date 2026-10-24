@@ -40,7 +40,7 @@
 //
 // **The account handle is part of the image reference.** A region serves
 // one registry host, so an image lives at
-// `registry.<region>.<domain>/<account_handle>/<repository>:<tag>`. That
+// `cr.<region>.basaltic.cloud/<account_handle>/<repository>:<tag>`. That
 // first path component is the only thing separating two tenants' `api`
 // repositories, which is why every repository response includes a
 // ready-made `uri` rather than leaving clients to assemble one.
