@@ -74,7 +74,7 @@ type AutoscalingStatus struct {
 	LastScaledAt time.Time                       `json:"last_scaled_at,omitempty"`
 	Reason       string                          `json:"reason"`
 
-	// One of: "pending", "disabled", "stable", "scaling", "waiting", "warming_up", "metrics_unavailable", "stabilizing", "cooldown", "draining".
+	// One of: "pending", "disabled", "stable", "scaling", "waiting", "warming_up", "metrics_unavailable", "stabilizing", "cooldown", "draining", "scale_in_blocked".
 	Status string `json:"status"`
 }
 

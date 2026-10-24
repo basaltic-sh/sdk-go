@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.35.2
+
+- Include `scale_in_blocked` in the documented autoscaling status values.
+
 ## 0.35.1
 
 - Pool updates support `Idempotency-Key` for safe retries.
